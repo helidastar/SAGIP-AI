@@ -73,7 +73,7 @@
 |------|--------|
 | Charity Ricabo | [@helidastar](https://github.com/helidastar) |
 | Maria Mhikyla Jayno | [@mhiksNmatch](https://github.com/mhiksNmatch) |
-| Reign Marie Hamo-ay | [@reignnn.h](https://github.com/reignnn.h) |
+| Reign Marie Hamo-ay | [@reignnn-h](https://github.com/reignnn-h) |
 | John Vincent Fabroa | [@Beynsz](https://github.com/Beynsz) |
 
 ### Commit history (to date)
