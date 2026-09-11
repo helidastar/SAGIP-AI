@@ -52,7 +52,7 @@ Blueprint stage (Draft v1.1). Requirements, architecture, and data design are do
 |------|--------|
 | Charity Ricabo | [@helidastar](https://github.com/helidastar) |
 | Maria Mhikyla Jayno | [@mhiksNmatch](https://github.com/mhiksNmatch) |
-| Reign Marie Hamo-ay | [@reignnn-h](https://github.com/reignnn-h) |
+| Reign Marie Hamo-ay | [@Reignnnh04](https://github.com/Reignnnh04) |
 | John Vincent Fabroa | [@Beynsz](https://github.com/Beynsz) |
 
 <div align="center">

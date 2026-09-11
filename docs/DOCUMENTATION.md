@@ -73,7 +73,7 @@
 |------|--------|
 | Charity Ricabo | [@helidastar](https://github.com/helidastar) |
 | Maria Mhikyla Jayno | [@mhiksNmatch](https://github.com/mhiksNmatch) |
-| Reign Marie Hamo-ay | [@reignnn-h](https://github.com/reignnn-h) |
+| Reign Marie Hamo-ay | [@Reignnnh04](https://github.com/Reignnnh04) |
 | John Vincent Fabroa | [@Beynsz](https://github.com/Beynsz) |
 
 ### Commit history (to date)
@@ -901,18 +901,20 @@ At these costs, a few thousand classifications a month is only a few dollars, so
 
 ## Appendix C — Documentation Checklist
 
-- [x] Feature Information
-- [x] Project Information (repository, branches, contributors)
-- [x] Overview & core concepts
-- [x] UI / features breakdown
-- [x] System architecture (Mermaid diagrams)
-- [x] Data model & APIs
-- [x] Data sources & seeding
-- [x] Frontend & backend architecture
-- [x] Setup & configuration
-- [x] Common tasks
-- [x] Known issues, caveats & open questions
-- [x] Quick reference & appendices
-- [ ] Final priority-scoring design doc (after model selection)
-- [ ] Benchmark results
-- [ ] Pilot partner confirmed
+| Item | Status |
+|------|--------|
+| Feature Information | Done |
+| Project Information (repository, branches, contributors) | Done |
+| Overview & core concepts | Done |
+| UI / features breakdown | Done |
+| System architecture (Mermaid diagrams) | Done |
+| Data model & APIs | Done |
+| Data sources & seeding | Done |
+| Frontend & backend architecture | Done |
+| Setup & configuration | Done |
+| Common tasks | Done |
+| Known issues, caveats & open questions | Done |
+| Quick reference & appendices | Done |
+| Final priority-scoring design doc (after model selection) | Pending |
+| Benchmark results | Pending |
+| Pilot partner confirmed | Pending |
