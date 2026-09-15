@@ -2,15 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ReportStatus } from "@/types";
 
-export const OPEN_STATUSES: ReportStatus[] = ["pending_review", "classified", "assigned", "in_progress"];
-
-/** Status changes allowed via PATCH /status. Assignment is done via /assign. */
-export const STATUS_TRANSITIONS: Partial<Record<ReportStatus, ReportStatus[]>> = {
-  classified: ["rejected"],
-  assigned: ["in_progress", "rejected"],
-  in_progress: ["resolved", "assigned"],
-  resolved: ["in_progress"],
-};
+export { OPEN_STATUSES, STATUS_TRANSITIONS } from "@/lib/constants";
 
 export interface IncidentRow {
   id: string;

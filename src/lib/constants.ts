@@ -1,4 +1,4 @@
-import type { IncidentType } from "@/types";
+import type { IncidentType, ReportStatus } from "@/types";
 
 export const INCIDENT_TYPES = [
   "fire",
@@ -22,6 +22,16 @@ export const REPORT_STATUSES = [
   "resolved",
   "rejected",
 ] as const;
+
+export const OPEN_STATUSES: ReportStatus[] = ["pending_review", "classified", "assigned", "in_progress"];
+
+/** Status changes allowed via PATCH /api/incidents/{id}/status. Assignment is done via /assign. */
+export const STATUS_TRANSITIONS: Partial<Record<ReportStatus, ReportStatus[]>> = {
+  classified: ["rejected"],
+  assigned: ["in_progress", "rejected"],
+  in_progress: ["resolved", "assigned"],
+  resolved: ["in_progress"],
+};
 
 /** Reports below this AI confidence go to human review. Tune after benchmarking. */
 export const CONFIDENCE_THRESHOLD = Number(process.env.CONFIDENCE_THRESHOLD ?? 0.7);
