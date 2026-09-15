@@ -22,6 +22,8 @@ export function createGeminiClassifier(apiKey: string, model = "gemini-2.5-flash
         config: {
           responseMimeType: "application/json",
           responseJsonSchema: CLASSIFY_SCHEMA,
+          // Classification doesn't benefit from thinking; disabling it cuts latency and cost.
+          thinkingConfig: { thinkingBudget: 0 },
           abortSignal: options?.signal,
         },
       });
