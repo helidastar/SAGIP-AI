@@ -4,7 +4,7 @@ import { estimateCost, normalizeClassification } from "./normalize";
 import { CLASSIFY_PROMPT, CLASSIFY_SCHEMA } from "./prompt";
 import type { Classifier } from "./types";
 
-export function createGeminiClassifier(apiKey: string, model = "gemini-2.5-flash"): Classifier {
+export function createGeminiClassifier(apiKey: string, model = "gemini-3.6-flash"): Classifier {
   const ai = new GoogleGenAI({ apiKey });
 
   return {
@@ -29,7 +29,8 @@ export function createGeminiClassifier(apiKey: string, model = "gemini-2.5-flash
       });
       const raw = JSON.parse(res.text ?? "{}");
       const inputTokens = res.usageMetadata?.promptTokenCount;
-      const outputTokens = res.usageMetadata?.candidatesTokenCount;
+      // Thinking tokens are billed as output.
+      const outputTokens = res.usageMetadata && (res.usageMetadata.candidatesTokenCount ?? 0) + (res.usageMetadata.thoughtsTokenCount ?? 0);
 
       return {
         ...normalizeClassification(raw),

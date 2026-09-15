@@ -25,7 +25,7 @@ npm run benchmark -- --dry-run
 ## 3. Run (paid API calls)
 Set `GEMINI_API_KEY` and/or `ANTHROPIC_API_KEY` in `.env.local`, then:
 ```bash
-npm run benchmark -- --models gemini:gemini-2.5-flash,claude:claude-haiku-4-5 --yes
+npm run benchmark -- --models gemini:gemini-3.6-flash,claude:claude-haiku-4-5 --yes
 ```
 Use `--limit 5` for a cheap smoke test first.
 

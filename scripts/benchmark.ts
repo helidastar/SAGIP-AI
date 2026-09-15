@@ -3,11 +3,11 @@
  *
  * Usage:
  *   npm run benchmark -- --dry-run
- *   npm run benchmark -- --models gemini:gemini-2.5-flash,claude:claude-haiku-4-5 --yes
+ *   npm run benchmark -- --models gemini:gemini-3.6-flash,claude:claude-haiku-4-5 --yes
  *
  * Options:
  *   --dataset <dir>     Folder with labels.csv and images (default benchmark/dataset)
- *   --models <list>     provider:model pairs, comma-separated (default gemini:gemini-2.5-flash)
+ *   --models <list>     provider:model pairs, comma-separated (default gemini:gemini-3.6-flash)
  *   --limit <n>         Only use the first n labeled rows
  *   --concurrency <n>   Parallel requests per model (default 2)
  *   --dry-run           Validate the dataset and print the plan without calling any API
@@ -49,7 +49,7 @@ interface Run {
 const { values: args } = parseArgs({
   options: {
     dataset: { type: "string", default: "benchmark/dataset" },
-    models: { type: "string", default: "gemini:gemini-2.5-flash" },
+    models: { type: "string", default: "gemini:gemini-3.6-flash" },
     limit: { type: "string" },
     concurrency: { type: "string", default: "2" },
     "dry-run": { type: "boolean", default: false },

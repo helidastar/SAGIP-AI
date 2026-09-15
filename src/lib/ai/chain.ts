@@ -20,7 +20,7 @@ export interface ChainAttempt {
 export interface ChainOutcome {
   result: ClassifierResult;
   step: ChainStep;
-  /** Stored in classifications.model, e.g. "primary:gemini-2.5-flash", "fallback:claude-opus-5", "keyword-fallback". */
+  /** Stored in classifications.model, e.g. "primary:gemini-3.6-flash", "fallback:claude-opus-5", "keyword-fallback". */
   label: string;
   attempts: ChainAttempt[];
   skippedProviders?: "over_budget" | "not_configured";
