@@ -15,11 +15,11 @@ Add a new dated entry at the top for each session. Keep old entries — they sho
 | Fallback provider | Gemini, `gemini-3.5-flash` (same key, separate 5 RPM quota) |
 | Real AI classifications so far | 1 through the app (`SGP-KBL2UX`), 3 direct calls. No real incident photos yet |
 | Labeled benchmark dataset | **Not started** (need 40–60 images, see `benchmark/README.md`) |
-| Cost tracking for Gemini 3.6 | **Not working** — no price in `src/lib/ai/normalize.ts`, so `cost_usd` is null and the daily budget cap ignores Gemini spend |
+| Cost tracking for Gemini 3.x | **Not working** — no price in `src/lib/ai/normalize.ts`, so `cost_usd` is null and the daily budget cap ignores Gemini spend |
 
 ### How a report is classified (current setup)
 
-Red = not configured or failing in the latest test. Green = working.
+Green = configured and working in the latest test.
 
 ```mermaid
 flowchart TD
@@ -28,7 +28,7 @@ flowchart TD
     B -. "after()" .-> D[Resize photo to 1024px]
     D --> E{Daily budget<br/>reached?}
     E -- yes --> K
-    E -- no --> P[Primary: gemini-3.6-flash]
+    E -- no --> P[Primary: gemini-3.1-flash-lite]
     P -- success --> R{Confidence ≥ 0.70<br/>and severity low/moderate?}
     P -- "429 / 5xx / timeout" --> P2[Retry once after 1s]
     P -- "other 4xx / bad JSON" --> F
@@ -44,8 +44,6 @@ flowchart TD
     classDef bad fill:#FEE2E2,stroke:#DC2626,color:#7F1D1D
     classDef warn fill:#FEF9C3,stroke:#CA8A04,color:#713F12
     class B,C,D,F,K,P,P2,Q ok
-
-
 ```
 
 ---
