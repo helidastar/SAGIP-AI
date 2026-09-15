@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { clientIp, createRateLimiter } from "@/lib/rate-limit";
 import { processReceivedReport } from "@/lib/reports/classify";
 import { submitReport } from "@/lib/reports/intake";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -8,7 +9,20 @@ export const maxDuration = 90;
 
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 
+const rateLimit = createRateLimiter({
+  limit: Number(process.env.REPORT_RATE_LIMIT ?? 5),
+  windowMs: Number(process.env.REPORT_RATE_WINDOW_MS ?? 10 * 60 * 1000),
+});
+
 export async function POST(request: Request) {
+  const limited = rateLimit(clientIp(request));
+  if (!limited.allowed) {
+    return Response.json(
+      { error: "Too many reports from this device. Please wait before submitting again." },
+      { status: 429, headers: { "Retry-After": String(limited.retryAfterSeconds) } },
+    );
+  }
+
   const form = await request.formData();
   const description = String(form.get("description") ?? "").trim().slice(0, 2000);
   const lat = Number(form.get("lat"));
