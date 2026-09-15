@@ -1,7 +1,7 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { getClassifier, needsReview } from "@/lib/ai";
-import { computePriority } from "@/lib/scoring";
+import { scoreReport } from "@/lib/reports/score";
 import { createAdminClient, PHOTO_BUCKET } from "@/lib/supabase/admin";
 
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I
@@ -67,17 +67,11 @@ export async function submitReport({ description, lat, lng, photo }: IntakeInput
 
     if (!needsReview(result)) {
       status = "classified";
-      const priority = computePriority({
+      await scoreReport(db, report.id, {
         severity: result.severity,
         incidentType: result.incidentType,
         populationNorm: area?.population_norm ?? 0,
         locationRiskNorm: area?.risk_index ?? 0,
-      });
-      await db.from("priority_scores").upsert({
-        report_id: report.id,
-        score: priority.score,
-        band: priority.band.band,
-        breakdown: priority.breakdown,
       });
       await db.from("reports").update({
         confirmed_type: result.incidentType,
