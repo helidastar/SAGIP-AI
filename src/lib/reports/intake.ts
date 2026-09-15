@@ -1,7 +1,6 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
-import { getClassifier, needsReview } from "@/lib/ai";
-import { scoreReport } from "@/lib/reports/score";
+import { classifyReport } from "@/lib/reports/classify";
 import { createAdminClient, PHOTO_BUCKET } from "@/lib/supabase/admin";
 
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I
@@ -23,9 +22,7 @@ export async function submitReport({ description, lat, lng, photo }: IntakeInput
   const db = createAdminClient();
   const trackingCode = generateTrackingCode();
 
-  const { data: area } = await db.rpc("area_for_point", { lat, lng }).maybeSingle<{
-    id: string; population_norm: number; risk_index: number;
-  }>();
+  const { data: area } = await db.rpc("area_for_point", { lat, lng }).maybeSingle<{ id: string }>();
 
   let photoPath: string | undefined;
   let image: { data: Buffer; mimeType: string } | undefined;
@@ -49,40 +46,19 @@ export async function submitReport({ description, lat, lng, photo }: IntakeInput
     .single();
   if (error) throw error;
 
-  // Classification failures must not lose the report — fall back to human review.
-  let status: "pending_review" | "classified" = "pending_review";
-  try {
-    const classifier = getClassifier();
-    const result = await classifier.classify({ image, description });
-    await db.from("classifications").insert({
-      report_id: report.id,
-      model: classifier.model,
-      incident_type: result.incidentType,
-      severity: result.severity,
-      confidence: result.confidence,
-      hazards: result.hazards,
-      raw_response: result.raw,
-      latency_ms: result.latencyMs,
-    });
+  const { status, result } = await classifyReport(db, {
+    id: report.id,
+    description,
+    areaId: area?.id ?? null,
+    image,
+  });
 
-    if (!needsReview(result)) {
-      status = "classified";
-      await scoreReport(db, report.id, {
-        severity: result.severity,
-        incidentType: result.incidentType,
-        populationNorm: area?.population_norm ?? 0,
-        locationRiskNorm: area?.risk_index ?? 0,
-      });
-      await db.from("reports").update({
-        confirmed_type: result.incidentType,
-        confirmed_severity: result.severity,
-      }).eq("id", report.id);
-    }
-  } catch (err) {
-    console.error("Classification failed", report.id, err);
-  }
-
-  await db.from("reports").update({ status }).eq("id", report.id);
+  await db.from("reports").update({
+    status,
+    ...(status === "classified" && result
+      ? { confirmed_type: result.incidentType, confirmed_severity: result.severity }
+      : {}),
+  }).eq("id", report.id);
   await db.from("audit_logs").insert({ report_id: report.id, action: "report_submitted", after: { status } });
 
   return { id: report.id as string, trackingCode, status };

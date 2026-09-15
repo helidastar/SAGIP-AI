@@ -1,15 +1,15 @@
 import "server-only";
 import { GoogleGenAI } from "@google/genai";
-import { INCIDENT_TYPES, SEVERITY } from "@/lib/constants";
+import { estimateCost, normalizeClassification } from "./normalize";
 import { CLASSIFY_PROMPT, CLASSIFY_SCHEMA } from "./prompt";
-import type { Classifier, ClassifierInput, ClassifierResult } from "./types";
+import type { Classifier } from "./types";
 
 export function createGeminiClassifier(apiKey: string, model = "gemini-2.5-flash"): Classifier {
   const ai = new GoogleGenAI({ apiKey });
 
   return {
     model,
-    async classify({ image, description }: ClassifierInput): Promise<ClassifierResult> {
+    async classify({ image, description }, options) {
       const started = Date.now();
       const parts = [
         { text: CLASSIFY_PROMPT },
@@ -19,17 +19,24 @@ export function createGeminiClassifier(apiKey: string, model = "gemini-2.5-flash
       const res = await ai.models.generateContent({
         model,
         contents: [{ role: "user", parts }],
-        config: { responseMimeType: "application/json", responseJsonSchema: CLASSIFY_SCHEMA },
+        config: {
+          responseMimeType: "application/json",
+          responseJsonSchema: CLASSIFY_SCHEMA,
+          abortSignal: options?.signal,
+        },
       });
       const raw = JSON.parse(res.text ?? "{}");
+      const inputTokens = res.usageMetadata?.promptTokenCount;
+      const outputTokens = res.usageMetadata?.candidatesTokenCount;
 
-      // Validate — never trust model output blindly.
-      const incidentType = INCIDENT_TYPES.includes(raw.incidentType) ? raw.incidentType : "other";
-      const severity = raw.severity in SEVERITY ? raw.severity : "moderate";
-      const confidence = Math.min(1, Math.max(0, Number(raw.confidence) || 0));
-      const hazards = Array.isArray(raw.hazards) ? raw.hazards.map(String).slice(0, 10) : [];
-
-      return { incidentType, severity, confidence, hazards, raw, latencyMs: Date.now() - started };
+      return {
+        ...normalizeClassification(raw),
+        raw,
+        latencyMs: Date.now() - started,
+        inputTokens,
+        outputTokens,
+        costUsd: estimateCost(model, inputTokens, outputTokens),
+      };
     },
   };
 }

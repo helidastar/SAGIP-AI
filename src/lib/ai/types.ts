@@ -16,10 +16,14 @@ export interface ClassifierInput {
 export interface ClassifierResult extends IncidentClassification {
   raw: unknown;
   latencyMs: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  /** Estimated from list prices; null if the model has no known price. */
+  costUsd: number | null;
 }
 
 /** Provider-agnostic classifier so the vision-LLM can be swapped after benchmarking. */
 export interface Classifier {
   model: string;
-  classify(input: ClassifierInput): Promise<ClassifierResult>;
+  classify(input: ClassifierInput, options?: { signal?: AbortSignal }): Promise<ClassifierResult>;
 }
