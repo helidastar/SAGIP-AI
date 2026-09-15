@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "node --env-file=.env.local scripts/seed.mjs"
+    "seed": "node --env-file=.env.local scripts/seed.mjs",
+    "make-admin": "node --env-file=.env.local scripts/make-admin.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.22.0",
