@@ -1,4 +1,10 @@
+import { after } from "next/server";
+import { processReceivedReport } from "@/lib/reports/classify";
 import { submitReport } from "@/lib/reports/intake";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+// Background classification (retry + fallback provider) can take up to ~60s.
+export const maxDuration = 90;
 
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 
@@ -24,6 +30,7 @@ export async function POST(request: Request) {
 
   try {
     const result = await submitReport({ description, lat, lng, photo: photo ?? undefined });
+    after(() => processReceivedReport(createAdminClient(), result.id));
     return Response.json(
       { ...result, message: "Report received. Save your tracking code to check its status." },
       { status: 201 },
