@@ -30,12 +30,9 @@ export const POST = withStaff(async (_request, ctx: RouteContext<"/api/incidents
     areaId: row.area_id,
     photoPath: row.photo_path,
     route: !humanConfirmed,
+    actorId: staff.id,
   });
   const outcome = humanConfirmed ? { ...run, status: row.status } : run;
-
-  if (!outcome.result) {
-    return Response.json({ error: "Classification failed, try again later" }, { status: 502 });
-  }
 
   if (!humanConfirmed) {
     const classified = outcome.status === "classified";
@@ -52,7 +49,7 @@ export const POST = withStaff(async (_request, ctx: RouteContext<"/api/incidents
     actor_id: staff.id,
     action: "reclassified",
     before: { status: row.status, confirmedType: row.confirmed_type, confirmedSeverity: row.confirmed_severity },
-    after: { status: outcome.status, model: outcome.model, keptHumanReview: humanConfirmed },
+    after: { status: outcome.status, model: outcome.chain.label, step: outcome.chain.step, keptHumanReview: humanConfirmed },
   });
 
   const r = outcome.result;
@@ -61,7 +58,9 @@ export const POST = withStaff(async (_request, ctx: RouteContext<"/api/incidents
     status: outcome.status,
     keptHumanReview: humanConfirmed,
     classification: {
-      model: outcome.model,
+      model: outcome.chain.label,
+      step: outcome.chain.step,
+      attempts: outcome.chain.attempts,
       incidentType: r.incidentType,
       severity: r.severity,
       confidence: r.confidence,
