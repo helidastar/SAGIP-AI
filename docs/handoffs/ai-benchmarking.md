@@ -17,6 +17,37 @@ Add a new dated entry at the top for each session. Keep old entries — they sho
 | Labeled benchmark dataset | **Not started** (need 40–60 images, see `benchmark/README.md`) |
 | Cost tracking for Gemini 3.6 | **Not working** — no price in `src/lib/ai/normalize.ts`, so `cost_usd` is null and the daily budget cap ignores Gemini spend |
 
+### How a report is classified (current setup)
+
+Red = not configured or failing in the latest test. Green = working.
+
+```mermaid
+flowchart TD
+    A[Citizen submits report] --> B[POST /api/reports<br/>save report + original photo]
+    B --> C[201 Created<br/>status: received]
+    B -. "after()" .-> D[Resize photo to 1024px]
+    D --> E{Daily budget<br/>reached?}
+    E -- yes --> K
+    E -- no --> P[Primary: gemini-3.6-flash]
+    P -- success --> R{Confidence ≥ 0.70<br/>and severity low/moderate?}
+    P -- "429 / 5xx / timeout" --> P2[Retry once after 1s]
+    P -- "other 4xx / bad JSON" --> F
+    P2 -- success --> R
+    P2 -- fails --> F[Fallback provider]
+    F -- success --> R
+    F -- "fails / not set" --> K[Keyword matcher<br/>confidence always 0]
+    K --> Q[pending_review<br/>human decides]
+    R -- yes --> S[classified<br/>priority score]
+    R -- no --> Q
+
+    classDef ok fill:#DCFCE7,stroke:#16A34A,color:#14532D
+    classDef bad fill:#FEE2E2,stroke:#DC2626,color:#7F1D1D
+    classDef warn fill:#FEF9C3,stroke:#CA8A04,color:#713F12
+    class B,C,D,K,Q ok
+    class F bad
+    class P,P2 warn
+```
+
 ---
 
 ## 2026-09-15 — First integration test against Supabase + Gemini
@@ -29,7 +60,7 @@ Direct `generateContent` calls, short text prompt, JSON output, `thinkingBudget:
 
 | Model | Try 1 | Try 2 | Try 3 | Verdict |
 |---|---|---|---|---|
-| `gemini-2.5-flash` | 404 | — | — | ❌ "no longer available to new users" (was our old default) |
+| `gemini-2.5-flash` | 404 | 404 | — | ❌ "no longer available to new users" (was our old default; 2 calls from the first app run, not in the 3-try probe) |
 | `gemini-2.5-flash-lite` | 404 | 404 | 404 | ❌ Not available |
 | `gemini-3.6-flash` | ok 1738 ms | ok 1550 ms | ok 1343 ms | ✅ Now default. But see §3: 503 on 5 of 6 tries ~2 min earlier |
 | `gemini-3.5-flash` | ok 1189 ms | ok 1249 ms | ok 1253 ms | ✅ Fastest and most stable in this run → **candidate fallback** |
@@ -37,6 +68,26 @@ Direct `generateContent` calls, short text prompt, JSON output, `thinkingBudget:
 | `gemini-3.7-flash` | ok 4776 ms | 503 | 503 | ⚠️ Unreliable |
 | `gemini-3.8-flash` | ok 10291 ms | 503 | ok 8257 ms | ⚠️ Slow and unreliable |
 | `gemini-flash-latest` | 503 | 503 | 503 | ❌ Unavailable during test |
+
+Successful calls out of 3 per model:
+
+```mermaid
+xychart-beta
+    title "Availability: successful calls out of 3"
+    x-axis ["2.5-flash-lite", "3.6-flash", "3.5-flash", "3.1-flash-lite", "3.7-flash", "3.8-flash", "flash-latest"]
+    y-axis "Successful calls" 0 --> 3
+    bar [0, 3, 3, 3, 1, 2, 0]
+```
+
+Average latency of successful calls (lower is better):
+
+```mermaid
+xychart-beta
+    title "Average latency (ms), successful calls only"
+    x-axis ["3.1-flash-lite", "3.5-flash", "3.6-flash", "3.7-flash", "3.8-flash"]
+    y-axis "Milliseconds" 0 --> 10000
+    bar [1609, 1230, 1544, 4776, 9274]
+```
 
 Thinking settings on `gemini-3.6-flash` (tiny prompt):
 
@@ -46,6 +97,14 @@ Thinking settings on `gemini-3.6-flash` (tiny prompt):
 | `thinkingLevel: "MINIMAL"` | ok 1598 ms | 14 |
 | `thinkingLevel: "LOW"` | ok 1393 ms | 14 |
 | No thinking config | ok 2405 ms | 234 (**220 thinking tokens**) |
+
+```mermaid
+xychart-beta
+    title "gemini-3.6-flash: total tokens by thinking setting"
+    x-axis ["budget 0", "MINIMAL", "LOW", "default"]
+    y-axis "Tokens" 0 --> 250
+    bar [14, 14, 14, 234]
+```
 
 → `thinkingBudget: 0` still works on Gemini 3.x and avoids paying for thinking tokens.
 
@@ -72,6 +131,40 @@ Notes:
 | #1 (`gemini-2.5-flash`) | 404, `transient: false` | Skipped (correct — 404 isn't retryable) | Not configured | `keyword-fallback` | ✅ |
 | #2 (`gemini-3.6-flash`) | 503, `transient: true` | 503 after ~1 s | Not configured | `keyword-fallback` | ✅ |
 
+Run #2, photo report `SGP-3P5AED`:
+
+```mermaid
+sequenceDiagram
+    participant API as POST /api/reports
+    participant BG as Background (after)
+    participant G as gemini-3.6-flash
+    participant KW as Keyword matcher
+    participant DB as Supabase
+
+    API->>DB: Insert report (received) + upload photo
+    API-->>API: 201 SGP-3P5AED
+    BG->>G: Classify (1024px photo + text)
+    G-->>BG: 503 high demand (2345 ms, transient)
+    Note over BG: wait 1 s
+    BG->>G: Retry
+    G-->>BG: 503 high demand (1635 ms, transient)
+    Note over BG: no fallback provider configured
+    BG->>KW: "Sunog sa balay... naay patay"
+    KW-->>BG: fire / critical / confidence 0
+    BG->>DB: classification + all attempts, audit ai_fallback_used
+    BG->>DB: status = pending_review
+```
+
+All Gemini calls made during this session:
+
+```mermaid
+pie showData
+    title Gemini call outcomes (all tests, 2026-09-15)
+    "Success" : 17
+    "503 high demand" : 15
+    "404 model unavailable" : 5
+```
+
 Keyword fallback output:
 
 | Description | Type | Severity | Matched words |
@@ -84,6 +177,39 @@ Both reports → `pending_review` (confidence 0), no priority score, audit log `
 ### 4. Backend integration tests (no-login endpoints)
 
 Final run: **42/42 checks passed** after fixes.
+
+```mermaid
+pie showData
+    title Integration checks (final run)
+    "Passed" : 42
+    "Failed" : 0
+```
+
+```mermaid
+flowchart LR
+    subgraph Tested["✅ Tested"]
+        T1[Submit + validate report]
+        T2[Track by code]
+        T3[Background classification]
+        T4[Photo storage]
+        T5[401 without login]
+        T6[Database security]
+        T7[Rate limit]
+    end
+    subgraph Pending["⏳ Not tested yet"]
+        N1[Staff login]
+        N2[Review queue + review]
+        N3[Incidents, status, assign, priority]
+        N4[Reclassify, map, areas, teams]
+        N5[Fallback provider]
+        N6[Daily budget cap]
+        N7[Stuck-report recovery]
+    end
+    classDef ok fill:#DCFCE7,stroke:#16A34A,color:#14532D
+    classDef todo fill:#F3F4F6,stroke:#6B7280,color:#1F2937
+    class T1,T2,T3,T4,T5,T6,T7 ok
+    class N1,N2,N3,N4,N5,N6,N7 todo
+```
 
 | Area | Checks | Result |
 |---|---|---|
