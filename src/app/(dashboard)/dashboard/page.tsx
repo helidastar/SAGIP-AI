@@ -1,10 +1,10 @@
-import { PagePlaceholder } from "@/components/ui/PagePlaceholder";
+import { IncidentList } from "@/components/dashboard/IncidentList";
 
 export default function DashboardPage() {
   return (
-    <PagePlaceholder
-      title="Incident Dashboard"
-      description="Ranked incident list and live map for responders."
-    />
+    <>
+      <h1 className="text-2xl font-bold">Incidents</h1>
+      <IncidentList />
+    </>
   );
 }

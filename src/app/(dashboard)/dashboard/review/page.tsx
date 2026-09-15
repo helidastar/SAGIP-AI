@@ -1,10 +1,11 @@
-import { PagePlaceholder } from "@/components/ui/PagePlaceholder";
+import { ReviewQueue } from "@/components/dashboard/ReviewQueue";
 
 export default function ReviewQueuePage() {
   return (
-    <PagePlaceholder
-      title="Review Queue"
-      description="Reports flagged for human review: low AI confidence or high/critical severity."
-    />
+    <>
+      <h1 className="text-2xl font-bold">Review queue</h1>
+      <p className="text-sm opacity-70">Reports with low AI confidence, high/critical severity, or no AI check.</p>
+      <ReviewQueue />
+    </>
   );
 }
