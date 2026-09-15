@@ -11,9 +11,9 @@ Add a new dated entry at the top for each session. Keep old entries — they sho
 
 | Item | Current state |
 |---|---|
-| Primary provider | Gemini, `gemini-3.6-flash` (`thinkingBudget: 0`) |
-| Fallback provider | **Not configured** — primary failures go straight to the keyword matcher |
-| Real AI classifications so far | 1 successful direct call; 0 through the app (all hit 404/503, keyword fallback used) |
+| Primary provider | Gemini, `gemini-3.1-flash-lite` (`thinkingBudget: 0`, 15 RPM free tier) |
+| Fallback provider | Gemini, `gemini-3.5-flash` (same key, separate 5 RPM quota) |
+| Real AI classifications so far | 1 through the app (`SGP-KBL2UX`), 3 direct calls. No real incident photos yet |
 | Labeled benchmark dataset | **Not started** (need 40–60 images, see `benchmark/README.md`) |
 | Cost tracking for Gemini 3.6 | **Not working** — no price in `src/lib/ai/normalize.ts`, so `cost_usd` is null and the daily budget cap ignores Gemini spend |
 
@@ -33,7 +33,7 @@ flowchart TD
     P -- "429 / 5xx / timeout" --> P2[Retry once after 1s]
     P -- "other 4xx / bad JSON" --> F
     P2 -- success --> R
-    P2 -- fails --> F[Fallback provider]
+    P2 -- fails --> F[Fallback: gemini-3.5-flash]
     F -- success --> R
     F -- "fails / not set" --> K[Keyword matcher<br/>confidence always 0]
     K --> Q[pending_review<br/>human decides]
@@ -43,10 +43,35 @@ flowchart TD
     classDef ok fill:#DCFCE7,stroke:#16A34A,color:#14532D
     classDef bad fill:#FEE2E2,stroke:#DC2626,color:#7F1D1D
     classDef warn fill:#FEF9C3,stroke:#CA8A04,color:#713F12
-    class B,C,D,K,Q ok
-    class F bad
-    class P,P2 warn
+    class B,C,D,F,K,P,P2,Q ok
+
+
 ```
+
+---
+
+## 2026-09-15 (later) — Switched primary to `gemini-3.1-flash-lite`
+
+**Why:** Free tier hit the **requests-per-minute** limit (5 RPM) on `gemini-3.6-flash` and `gemini-3.8-flash`. Token usage was under 1% (2.22K / 250K TPM). `gemini-3.1-flash-lite` allows **15 RPM**. Limits are per model, so the `gemini-3.5-flash` fallback has its own quota.
+
+**Config (`.env.local`):** `AI_MODEL=gemini-3.1-flash-lite`, `AI_FALLBACK_MODEL=gemini-3.5-flash`
+
+| Input | Result | Confidence | Latency | Tokens in/out |
+|---|---|---|---|---|
+| "Sunog sa balay sa among silingan, daghang aso, naay tawo sulod" | `fire` / `critical`, hazards: heavy smoke, people trapped inside | 0.95 | 2179 ms | 211 / 54 |
+| Grey placeholder photo + "Natumba ang kahoy sa dalan, nababagan ang karsada" | `fallen_debris` / `moderate`, hazards: blocked road, fallen tree | 0.95 | 4522 ms | 1270 / 36 |
+
+Also: first successful classification through the app, via the test UI (`SGP-KBL2UX`, still on `gemini-3.6-flash`): `fallen_debris` / `moderate`, confidence 0.85, 12.3 s, first try → `classified`, priority **P2 (64)**.
+
+```mermaid
+xychart-beta
+    title "Latency of successful classifications (ms)"
+    x-axis ["3.6-flash (app)", "3.6-flash (direct)", "3.1-flash-lite text", "3.1-flash-lite photo"]
+    y-axis "Milliseconds" 0 --> 13000
+    bar [12296, 11593, 2179, 4522]
+```
+
+**Caution:** confidence 0.95 on a blank grey photo means the model trusted the text entirely. Accuracy on real photos is still unmeasured — run the benchmark before relying on it.
 
 ---
 
