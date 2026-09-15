@@ -25,8 +25,11 @@ export async function POST(request: Request) {
 
   const form = await request.formData();
   const description = String(form.get("description") ?? "").trim().slice(0, 2000);
-  const lat = Number(form.get("lat"));
-  const lng = Number(form.get("lng"));
+  // Number(null) and Number("") are 0, so require non-empty values first.
+  const rawLat = String(form.get("lat") ?? "").trim();
+  const rawLng = String(form.get("lng") ?? "").trim();
+  const lat = rawLat ? Number(rawLat) : NaN;
+  const lng = rawLng ? Number(rawLng) : NaN;
   const photo = form.get("photo");
 
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
