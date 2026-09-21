@@ -263,32 +263,37 @@ A **modular monolith**: one Next.js app with clearly separated modules. Faster t
 ### 7.2 High-level architecture
 
 ```mermaid
-flowchart LR
+%%{init: {"flowchart": {"nodeSpacing": 25, "rankSpacing": 40, "padding": 8}, "themeVariables": {"fontSize": "14px"}}}%%
+flowchart TB
     subgraph Users
+        direction LR
         C([Citizen])
         R([Responder / Admin])
     end
 
-    subgraph Presentation["Presentation Layer — Next.js on Vercel"]
+    subgraph Presentation["Presentation Layer<br/>Next.js on Vercel"]
+        direction LR
         CP[Citizen Portal]
         RT[Report Tracking]
         RD[Responder Dashboard]
     end
 
-    subgraph Application["Application Layer — Next.js Route Handlers"]
+    subgraph Application["Application Layer<br/>Next.js Route Handlers"]
+        direction TB
         API["/api/* routes"]
         IN[Report Intake]
+        AS[Assignment & Status]
         AI[AI Classification]
         PS[Priority Scoring]
-        AS[Assignment & Status]
         AU[Audit Log]
     end
 
     subgraph Data["Data & AI Layer"]
-        DB[("Supabase PostgreSQL<br/>+ PostGIS")]
-        ST[("Supabase Storage<br/>report photos")]
-        SA[Supabase Auth]
+        direction LR
         LLM["Vision-LLM API<br/>Gemini / Claude / GPT"]
+        ST[("Supabase Storage<br/>report photos")]
+        DB[("Supabase PostgreSQL<br/>+ PostGIS")]
+        SA[Supabase Auth]
     end
 
     C --> CP & RT
@@ -422,16 +427,18 @@ Severity is never conveyed by color alone — always pair with a label or icon.
 ### 9.1 Entity relationship diagram *(planned — Supabase PostgreSQL + PostGIS via Prisma)*
 
 ```mermaid
+%%{init: {"er": {"layoutDirection": "TB", "entityPadding": 10, "minEntityWidth": 90}, "themeVariables": {"fontSize": "14px"}}}%%
 erDiagram
+    direction TB
+    AREAS ||--o{ REPORTS : contains
     REPORTS ||--o{ CLASSIFICATIONS : "classified by"
-    REPORTS ||--o| REVIEWS : "reviewed in"
     REPORTS ||--o| PRIORITY_SCORES : "scored as"
+    REPORTS ||--o| REVIEWS : "reviewed in"
     REPORTS ||--o{ ASSIGNMENTS : "assigned via"
     REPORTS ||--o{ AUDIT_LOGS : "tracked by"
-    TEAMS ||--o{ ASSIGNMENTS : receives
-    PROFILES }o--o| TEAMS : "member of"
     PROFILES ||--o{ REVIEWS : performs
-    AREAS ||--o{ REPORTS : contains
+    PROFILES }o--o| TEAMS : "member of"
+    TEAMS ||--o{ ASSIGNMENTS : receives
 
     REPORTS {
         uuid id PK
