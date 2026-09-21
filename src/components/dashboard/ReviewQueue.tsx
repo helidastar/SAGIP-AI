@@ -127,7 +127,10 @@ export function ReviewQueue({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function ReviewForm({ item, onDone }: { item: QueueItem; onDone: () => void }) {
+type ReviewTarget = Pick<QueueItem, "id" | "description" | "photoUrl" | "classification">;
+
+/** Confirm/correct or reject a flagged report. `bare` hides the photo and description (for the incident page). */
+export function ReviewForm({ item, onDone, bare = false }: { item: ReviewTarget; onDone: () => void; bare?: boolean }) {
   const c = item.classification;
   const [finalType, setFinalType] = useState(c?.incidentType ?? "other");
   const [finalSeverity, setFinalSeverity] = useState<string>(c?.severity ?? "moderate");
@@ -146,8 +149,8 @@ function ReviewForm({ item, onDone }: { item: QueueItem; onDone: () => void }) {
   }
 
   return (
-    <div className="mb-3 flex flex-col gap-3 border border-line p-3 md:flex-row">
-      {item.photoUrl ? (
+    <div className={bare ? "flex flex-col gap-3" : "mb-3 flex flex-col gap-3 border border-line p-3 md:flex-row"}>
+      {bare ? null : item.photoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL
         <img src={item.photoUrl} alt="Report photo" className="h-48 w-full border border-faint object-cover md:w-64" />
       ) : (
@@ -157,8 +160,8 @@ function ReviewForm({ item, onDone }: { item: QueueItem; onDone: () => void }) {
         </div>
       )}
       <div className="flex flex-1 flex-col gap-3">
-        <p className="text-sm">{item.description || <em className="text-muted">No description</em>}</p>
-        {c ? (
+        {!bare && <p className="text-sm">{item.description || <em className="text-muted">No description</em>}</p>}
+        {bare ? null : c ? (
           <p className="flex flex-wrap items-center gap-2 text-sm">
             <span className="font-mono text-[11px] text-muted">AI:</span>
             <Tag>{c.incidentType.replace("_", " ")}</Tag>
@@ -169,7 +172,7 @@ function ReviewForm({ item, onDone }: { item: QueueItem; onDone: () => void }) {
         ) : (
           <p className="font-mono text-[11px] text-muted">no classification yet</p>
         )}
-        {c && c.hazards.length > 0 && <p className="text-xs text-muted">Hazards: {c.hazards.join(", ")}</p>}
+        {!bare && c && c.hazards.length > 0 && <p className="text-xs text-muted">Hazards: {c.hazards.join(", ")}</p>}
         <div className="grid gap-2 sm:grid-cols-3">
           <Field label="Final type">
             <select value={finalType} onChange={(e) => setFinalType(e.target.value)} className={inputClass}>
@@ -188,9 +191,9 @@ function ReviewForm({ item, onDone }: { item: QueueItem; onDone: () => void }) {
         <ErrorText>{error}</ErrorText>
         {result && <p className="font-mono text-xs">{result}</p>}
         <div className="flex flex-wrap gap-2">
-          <Button disabled={busy || !!result} onClick={() => send({ finalType, finalSeverity, notes })}>Confirm</Button>
+          <Button disabled={busy || !!result} onClick={() => send({ finalType, finalSeverity, notes })}>Confirm and rank</Button>
           <Button variant="danger" disabled={busy || !!result} onClick={() => send({ reject: true, notes })}>Reject</Button>
-          <Link href={`/dashboard/incidents/${item.id}`} className="ml-auto self-center font-mono text-[11px] uppercase underline">Full detail</Link>
+          {!bare && <Link href={`/dashboard/incidents/${item.id}`} className="ml-auto self-center font-mono text-[11px] uppercase underline">Full detail</Link>}
         </div>
       </div>
     </div>

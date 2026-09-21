@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { IncidentMap } from "@/components/dashboard/IncidentMap";
+import { WorkflowStrip } from "@/components/dashboard/WorkflowStrip";
 import { ErrorText, Panel, PriorityCircle, Tag } from "@/components/ui/basics";
 import { SeverityChip } from "@/components/ui/SeverityChip";
 import { api } from "@/lib/api-client";
-import { INCIDENT_TYPES, REPORT_STATUSES } from "@/lib/constants";
+import { INCIDENT_TYPES } from "@/lib/constants";
+import { stepFor, WORKFLOW } from "@/lib/workflow";
 import type { Severity } from "@/types";
 
 interface Incident {
@@ -51,17 +53,20 @@ export function IncidentList() {
     return () => { cancelled = true; };
   }, [status, band, type, reload]);
 
+  const filteredStep = WORKFLOW.find((w) => w.statuses.join(",") === status)?.label;
+
   return (
+    <>
+    <WorkflowStrip active={status} onSelect={setStatus} reload={reload} />
     <Panel
       title="Dashboard — ranked incidents + map"
-      hint="priority-ranked list, live map"
+      hint={filteredStep ? `showing: ${filteredStep}` : "all open incidents, highest priority first"}
       bodyClassName="grid lg:grid-cols-2"
       actions={
         <>
-          <select value={status} onChange={(e) => setStatus(e.target.value)} className={selectClass} aria-label="Status">
-            <option value="">Open</option>
-            {REPORT_STATUSES.map((s) => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
-          </select>
+          {status && (
+            <button onClick={() => setStatus("")} className="font-mono text-[11px] uppercase underline">Show all open</button>
+          )}
           <select value={band} onChange={(e) => setBand(e.target.value)} className={selectClass} aria-label="Band">
             <option value="">All bands</option>
             {["P1", "P2", "P3", "P4"].map((b) => <option key={b}>{b}</option>)}
@@ -93,7 +98,7 @@ export function IncidentList() {
                   </span>
                 </span>
                 <span className="flex shrink-0 flex-col items-end gap-1">
-                  {i.status === "pending_review" ? <Tag>Review</Tag> : <Tag className="border-faint text-muted">{i.status.replace("_", " ")}</Tag>}
+                  <NextStep status={i.status} />
                   {i.priority && <span className="font-mono text-[10px] text-muted">{i.priority.score}{i.priority.overridden ? " · override" : ""}</span>}
                 </span>
               </Link>
@@ -105,5 +110,19 @@ export function IncidentList() {
       </div>
       <IncidentMap reload={reload} />
     </Panel>
+    </>
+  );
+}
+
+/** Who acts next on this incident; steps waiting on staff are filled so they stand out. */
+function NextStep({ status }: { status: string }) {
+  const step = stepFor(status);
+  if (!step) return <Tag className="border-faint text-muted line-through">{status.replace("_", " ")}</Tag>;
+  const actionNeeded = step.key === "review" || step.key === "assign";
+  return (
+    <span className="flex flex-col items-end gap-0.5">
+      <Tag className={actionNeeded ? "bg-foreground text-background" : "border-faint text-muted"}>{step.next}</Tag>
+      <span className="font-mono text-[9px] text-muted">{status === "in_progress" ? "in progress" : `by ${step.actor.toLowerCase()}`}</span>
+    </span>
   );
 }
