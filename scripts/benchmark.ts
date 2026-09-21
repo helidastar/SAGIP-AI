@@ -23,6 +23,7 @@ import { parseArgs } from "node:util";
 import { createClaudeClassifier } from "@/lib/ai/claude";
 import { createGeminiClassifier } from "@/lib/ai/gemini";
 import { createLlamaClassifier } from "@/lib/ai/llama";
+import { createLocalClassifier } from "@/lib/ai/local";
 import { needsReview } from "@/lib/ai/review";
 import type { Classifier, ClassifierResult } from "@/lib/ai/types";
 import { INCIDENT_TYPES, SEVERITY } from "@/lib/constants";
@@ -137,7 +138,9 @@ function makeClassifier(spec: string): Classifier {
     if (!key) throw new Error("Set LLAMA_API_KEY to benchmark Llama");
     return createLlamaClassifier(key, model, process.env.LLAMA_BASE_URL || undefined);
   }
-  throw new Error(`Unknown provider "${provider}" in --models (use gemini:<model>, claude:<model> or llama:<model>)`);
+  // Our own ONNX model: free, no key. The "model" part is the .onnx path (default models/sagip-classifier.onnx).
+  if (provider === "local") return createLocalClassifier(model);
+  throw new Error(`Unknown provider "${provider}" in --models (use gemini:<model>, claude:<model>, llama:<model> or local[:<path.onnx>])`);
 }
 
 async function runModel(classifier: Classifier, labels: Label[], dir: string, concurrency: number, log: (r: Run) => Promise<void>) {

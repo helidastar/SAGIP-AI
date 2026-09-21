@@ -38,6 +38,19 @@ const DEFAULT_SEVERITY: Record<IncidentType, Severity> = {
 const normalize = (text: string) => ` ${text.toLowerCase().normalize("NFKD").replace(/[^\p{L}\p{N}\s-]/gu, " ").replace(/\s+/g, " ")} `;
 const matches = (text: string, words: string[]) => words.filter((w) => text.includes(` ${w} `));
 
+/** Severity from description keywords, else the default for the incident type. */
+export function severityFromText(description: string, incidentType: IncidentType) {
+  const text = normalize(description);
+  const match = SEVERITY_KEYWORDS.find(([, words]) => matches(text, words).length > 0);
+  return { severity: match?.[0] ?? DEFAULT_SEVERITY[incidentType], from: match ? ("keyword" as const) : ("type_default" as const) };
+}
+
+/** Hazard words mentioned in the description, across all incident types. */
+export function hazardsFromText(description: string) {
+  const text = normalize(description);
+  return [...new Set(Object.values(TYPE_KEYWORDS).flatMap((words) => matches(text, words)))].slice(0, 10);
+}
+
 export const keywordClassifier: Classifier = {
   model: "keyword-fallback",
   async classify({ description }) {
@@ -55,15 +68,14 @@ export const keywordClassifier: Classifier = {
       }
     }
 
-    const severityMatch = SEVERITY_KEYWORDS.find(([, words]) => matches(text, words).length > 0);
-    const severity = severityMatch?.[0] ?? DEFAULT_SEVERITY[incidentType];
+    const { severity, from } = severityFromText(description, incidentType);
 
     return {
       incidentType,
       severity,
       confidence: 0,
       hazards: [...new Set(hazards)].slice(0, 10),
-      raw: { matchedWords: [...new Set(hazards)], severityFrom: severityMatch ? "keyword" : "type_default" },
+      raw: { matchedWords: [...new Set(hazards)], severityFrom: from },
       latencyMs: 0,
       costUsd: 0,
     };
