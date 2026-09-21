@@ -9,7 +9,8 @@
     "lint": "eslint",
     "seed": "node --env-file=.env.local scripts/seed.mjs",
     "benchmark": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/benchmark.ts",
-    "dataset:prepare": "node --conditions=react-server --import tsx scripts/prepare-dataset.ts"
+    "dataset:prepare": "node --conditions=react-server --import tsx scripts/prepare-dataset.ts",
+    "make-admin": "node --env-file=.env.local scripts/make-admin.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.125.0",
