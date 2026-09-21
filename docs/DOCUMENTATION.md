@@ -263,7 +263,7 @@ A **modular monolith**: one Next.js app with clearly separated modules. Faster t
 ### 7.2 High-level architecture
 
 ```mermaid
-%%{init: {"flowchart": {"nodeSpacing": 25, "rankSpacing": 40, "padding": 8}, "themeVariables": {"fontSize": "14px"}}}%%
+%%{init: {"flowchart": {"nodeSpacing": 25, "rankSpacing": 40, "padding": 8, "subGraphTitleMargin": {"top": 6, "bottom": 22}}, "themeVariables": {"fontSize": "14px"}}}%%
 flowchart TB
     subgraph Users
         direction LR
@@ -271,14 +271,14 @@ flowchart TB
         R([Responder / Admin])
     end
 
-    subgraph Presentation["Presentation Layer<br/>Next.js on Vercel"]
+    subgraph Presentation["Presentation Layer (Next.js on Vercel)"]
         direction LR
         CP[Citizen Portal]
         RT[Report Tracking]
         RD[Responder Dashboard]
     end
 
-    subgraph Application["Application Layer<br/>Next.js Route Handlers"]
+    subgraph Application["Application Layer (Next.js Route Handlers)"]
         direction TB
         API["/api/* routes"]
         IN[Report Intake]
