@@ -1,13 +1,6 @@
-import { PagePlaceholder } from "@/components/ui/PagePlaceholder";
+import { IncidentDetail } from "@/components/dashboard/IncidentDetail";
 
-export default async function IncidentDetailPage({
-  params,
-}: PageProps<"/dashboard/incidents/[id]">) {
+export default async function IncidentDetailPage({ params }: PageProps<"/dashboard/incidents/[id]">) {
   const { id } = await params;
-  return (
-    <PagePlaceholder
-      title={`Incident ${id}`}
-      description="Photo, AI classification, priority score breakdown, audit history, and assignment controls."
-    />
-  );
+  return <IncidentDetail id={id} />;
 }
