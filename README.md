@@ -45,6 +45,8 @@ Blueprint stage (Draft v1.1). Requirements, architecture, and data design are do
 > **The complete project documentation is in [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md).**
 >
 > It covers the system architecture, data model, API endpoints, setup instructions, common tasks, known issues, and the AI benchmarking plan.
+>
+> **New to the team?** Start with the [onboarding guide](docs/ONBOARDING.md).
 
 ## Contributors
 
