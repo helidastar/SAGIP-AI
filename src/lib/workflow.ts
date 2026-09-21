@@ -27,7 +27,7 @@ export const WORKFLOW: WorkflowStep[] = [
   },
   {
     key: "review",
-    label: "Human review",
+    label: "Review",
     actor: "Any staff",
     statuses: ["pending_review"],
     next: "Needs review",
