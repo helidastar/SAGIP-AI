@@ -84,8 +84,8 @@ The team has no budget. Rule from now on: only free tiers that reset daily and *
 ### Llama (Meta) — added, tested, not usable for free
 | Check | Result |
 |---|---|
-| `llama` provider added (`src/lib/ai/llama.ts`), OpenAI-compatible, any host via `AI_BASE_URL` | ✅ Stub-server test: request format, image upload, JSON parsing, cost, 429 → retry all correct |
-| Groq (free, daily reset) — 1 real call | ❌ 404 `model_not_found`. Groq's model list has **no Llama chat/vision models** left, only `llama-prompt-guard-2` (prompt-injection filters) |
+| `llama` provider added (`src/lib/ai/llama.ts`), OpenAI-compatible, any host via `AI_BASE_URL` | Passed. Stub-server test: request format, image upload, JSON parsing, cost, 429 → retry all correct |
+| Groq (free, daily reset) — 1 real call | Failed. 404 `model_not_found`. Groq's model list has **no Llama chat/vision models** left, only `llama-prompt-guard-2` (prompt-injection filters) |
 | OpenRouter (`meta-llama/llama-4-scout`, $0.10 / $0.30 per 1M) | Works on paper, but needs credits. **Rejected** by the team (cost risk) |
 
 API usage this session: 1 failed Groq call (no generation), 1 free model-list call. No Gemini quota used.
@@ -95,10 +95,10 @@ Instead of an API, train a small image classifier (EfficientNet-B0 / MobileNetV3
 
 | Piece | File | Status |
 |---|---|---|
-| Training notebook (split, augment, train, test-set metrics, ONNX export + check) | `training/sagip_classifier_colab.ipynb` | ✅ Code cells syntax-checked. Not run yet (needs photos + GPU) |
-| Provider | `src/lib/ai/local.ts` | ✅ Tested with a fake ONNX model |
-| Chain: escalate unsure local answers to the fallback | `src/lib/ai/chain.ts` (new step `escalation`) | ✅ Tested, see below |
-| Benchmark support | `npm run benchmark -- --models local,gemini:gemini-3.1-flash-lite` | ✅ |
+| Training notebook (split, augment, train, test-set metrics, ONNX export + check) | `training/sagip_classifier_colab.ipynb` | Passed. Code cells syntax-checked. Not run yet (needs photos + GPU) |
+| Provider | `src/lib/ai/local.ts` | Passed. Tested with a fake ONNX model |
+| Chain: escalate unsure local answers to the fallback | `src/lib/ai/chain.ts` (new step `escalation`) | Passed. Tested, see below |
+| Benchmark support | `npm run benchmark -- --models local,gemini:gemini-3.1-flash-lite` | Done |
 
 How the local provider works:
 - The model sees **only the photo** and predicts the incident type. Confidence = its top softmax probability.
@@ -158,14 +158,14 @@ Direct `generateContent` calls, short text prompt, JSON output, `thinkingBudget:
 
 | Model | Try 1 | Try 2 | Try 3 | Verdict |
 |---|---|---|---|---|
-| `gemini-2.5-flash` | 404 | 404 | — | ❌ "no longer available to new users" (was our old default; 2 calls from the first app run, not in the 3-try probe) |
-| `gemini-2.5-flash-lite` | 404 | 404 | 404 | ❌ Not available |
-| `gemini-3.6-flash` | ok 1738 ms | ok 1550 ms | ok 1343 ms | ✅ Now default. But see §3: 503 on 5 of 6 tries ~2 min earlier |
-| `gemini-3.5-flash` | ok 1189 ms | ok 1249 ms | ok 1253 ms | ✅ Fastest and most stable in this run → **candidate fallback** |
-| `gemini-3.1-flash-lite` | ok 1032 ms | ok 1754 ms | ok 2040 ms | ✅ Stable, likely cheapest → candidate fallback / benchmark |
-| `gemini-3.7-flash` | ok 4776 ms | 503 | 503 | ⚠️ Unreliable |
-| `gemini-3.8-flash` | ok 10291 ms | 503 | ok 8257 ms | ⚠️ Slow and unreliable |
-| `gemini-flash-latest` | 503 | 503 | 503 | ❌ Unavailable during test |
+| `gemini-2.5-flash` | 404 | 404 | — | Unavailable. "no longer available to new users" (was our old default; 2 calls from the first app run, not in the 3-try probe) |
+| `gemini-2.5-flash-lite` | 404 | 404 | 404 | Unavailable |
+| `gemini-3.6-flash` | ok 1738 ms | ok 1550 ms | ok 1343 ms | Available. Now default. But see §3: 503 on 5 of 6 tries ~2 min earlier |
+| `gemini-3.5-flash` | ok 1189 ms | ok 1249 ms | ok 1253 ms | Available. Fastest and most stable in this run → **candidate fallback** |
+| `gemini-3.1-flash-lite` | ok 1032 ms | ok 1754 ms | ok 2040 ms | Available. Stable, likely cheapest → candidate fallback / benchmark |
+| `gemini-3.7-flash` | ok 4776 ms | 503 | 503 | Unreliable |
+| `gemini-3.8-flash` | ok 10291 ms | 503 | ok 8257 ms | Slow and unreliable |
+| `gemini-flash-latest` | 503 | 503 | 503 | Unavailable during test |
 
 Successful calls out of 3 per model:
 
@@ -212,7 +212,7 @@ xychart-beta
 
 | Input | Tries | Result | Latency | Tokens in/out |
 |---|---|---|---|---|
-| Text: "Baha abot hawak sa among barangay, daghang tawo na-stranded sa atop" | 4 × 503 | ❌ No result | — | — |
+| Text: "Baha abot hawak sa among barangay, daghang tawo na-stranded sa atop" | 4 × 503 | Failed, no result | — | — |
 | Photo (plain blue 800×600 placeholder) + "Nabangga ang motor ug jeep, nasamad ang driver" | 503, then ok | `road_accident`, `high`, confidence 0.5, hazards: injured driver, road obstruction, traffic disruption | **11,593 ms** | 1265 / 30 |
 
 Notes:
@@ -226,8 +226,8 @@ Notes:
 
 | Run | Primary result | Retry | Fallback provider | Final step | Correct? |
 |---|---|---|---|---|---|
-| #1 (`gemini-2.5-flash`) | 404, `transient: false` | Skipped (correct — 404 isn't retryable) | Not configured | `keyword-fallback` | ✅ |
-| #2 (`gemini-3.6-flash`) | 503, `transient: true` | 503 after ~1 s | Not configured | `keyword-fallback` | ✅ |
+| #1 (`gemini-2.5-flash`) | 404, `transient: false` | Skipped (correct — 404 isn't retryable) | Not configured | `keyword-fallback` | Yes |
+| #2 (`gemini-3.6-flash`) | 503, `transient: true` | 503 after ~1 s | Not configured | `keyword-fallback` | Yes |
 
 Run #2, photo report `SGP-3P5AED`:
 
@@ -285,7 +285,7 @@ pie showData
 
 ```mermaid
 flowchart LR
-    subgraph Tested["✅ Tested"]
+    subgraph Tested["Tested"]
         T1[Submit + validate report]
         T2[Track by code]
         T3[Background classification]
@@ -294,7 +294,7 @@ flowchart LR
         T6[Database security]
         T7[Rate limit]
     end
-    subgraph Pending["⏳ Not tested yet"]
+    subgraph Pending["Not tested yet"]
         N1[Staff login]
         N2[Review queue + review]
         N3[Incidents, status, assign, priority]
@@ -311,19 +311,19 @@ flowchart LR
 
 | Area | Checks | Result |
 |---|---|---|
-| Report validation (missing location, no photo/description, non-image file) | 3 | ✅ (location bug fixed, see §5) |
-| Submit photo report / text report → 201 `received` + `SGP-XXXXXX` code | 2 | ✅ |
-| Track by code (case-insensitive), unknown code → 404 | 2 | ✅ |
-| Background classification finishes (`after()`) | 2 | ✅ ~4–11 s |
-| Area linked from location, one classification row, consistent routing | 6 | ✅ |
-| Original 3000×2000 photo kept in storage (AI gets 1024 px copy) | 1 | ✅ |
-| 12 staff endpoints without login → 401 | 12 | ✅ |
-| Login with unknown account → 401 | 1 | ✅ |
-| Public key cannot read reports/classifications/audit_logs/priority_scores/incidents/profiles/teams | 7 | ✅ |
-| Public key can read areas (public by design) | 1 | ✅ |
-| Public key cannot run `upsert_area` / `backfill_report_areas` | 2 | ✅ after migration 0005 |
-| Public key cannot insert reports or list private photos | 2 | ✅ |
-| Rate limit: 6th request from one IP → 429, `Retry-After: 600` | 1 | ✅ |
+| Report validation (missing location, no photo/description, non-image file) | 3 | Pass (location bug fixed, see §5) |
+| Submit photo report / text report → 201 `received` + `SGP-XXXXXX` code | 2 | Pass |
+| Track by code (case-insensitive), unknown code → 404 | 2 | Pass |
+| Background classification finishes (`after()`) | 2 | Pass ~4–11 s |
+| Area linked from location, one classification row, consistent routing | 6 | Pass |
+| Original 3000×2000 photo kept in storage (AI gets 1024 px copy) | 1 | Pass |
+| 12 staff endpoints without login → 401 | 12 | Pass |
+| Login with unknown account → 401 | 1 | Pass |
+| Public key cannot read reports/classifications/audit_logs/priority_scores/incidents/profiles/teams | 7 | Pass |
+| Public key can read areas (public by design) | 1 | Pass |
+| Public key cannot run `upsert_area` / `backfill_report_areas` | 2 | Pass after migration 0005 |
+| Public key cannot insert reports or list private photos | 2 | Pass |
+| Rate limit: 6th request from one IP → 429, `Retry-After: 600` | 1 | Pass |
 
 **Not tested yet:** staff login and everything behind it (review queue, review, incidents, status, assign, priority override, reclassify, map, areas, teams) — needs test staff accounts. Also untested: fallback provider step, daily budget cap, stuck-report recovery.
 
