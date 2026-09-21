@@ -263,32 +263,37 @@ A **modular monolith**: one Next.js app with clearly separated modules. Faster t
 ### 7.2 High-level architecture
 
 ```mermaid
-flowchart LR
+%%{init: {"flowchart": {"nodeSpacing": 25, "rankSpacing": 40, "padding": 8, "subGraphTitleMargin": {"top": 6, "bottom": 22}}, "themeVariables": {"fontSize": "14px"}}}%%
+flowchart TB
     subgraph Users
+        direction LR
         C([Citizen])
         R([Responder / Admin])
     end
 
-    subgraph Presentation["Presentation Layer — Next.js on Vercel"]
+    subgraph Presentation["Presentation Layer (Next.js on Vercel)"]
+        direction LR
         CP[Citizen Portal]
         RT[Report Tracking]
         RD[Responder Dashboard]
     end
 
-    subgraph Application["Application Layer — Next.js Route Handlers"]
+    subgraph Application["Application Layer (Next.js Route Handlers)"]
+        direction TB
         API["/api/* routes"]
         IN[Report Intake]
+        AS[Assignment & Status]
         AI[AI Classification]
         PS[Priority Scoring]
-        AS[Assignment & Status]
         AU[Audit Log]
     end
 
     subgraph Data["Data & AI Layer"]
-        DB[("Supabase PostgreSQL<br/>+ PostGIS")]
-        ST[("Supabase Storage<br/>report photos")]
-        SA[Supabase Auth]
+        direction LR
         LLM["Vision-LLM API<br/>Gemini / Claude / GPT"]
+        ST[("Supabase Storage<br/>report photos")]
+        DB[("Supabase PostgreSQL<br/>+ PostGIS")]
+        SA[Supabase Auth]
     end
 
     C --> CP & RT
@@ -422,16 +427,18 @@ Severity is never conveyed by color alone — always pair with a label or icon.
 ### 9.1 Entity relationship diagram *(planned — Supabase PostgreSQL + PostGIS via Prisma)*
 
 ```mermaid
+%%{init: {"er": {"layoutDirection": "TB", "entityPadding": 10, "minEntityWidth": 90}, "themeVariables": {"fontSize": "14px"}}}%%
 erDiagram
+    direction TB
+    AREAS ||--o{ REPORTS : contains
     REPORTS ||--o{ CLASSIFICATIONS : "classified by"
-    REPORTS ||--o| REVIEWS : "reviewed in"
     REPORTS ||--o| PRIORITY_SCORES : "scored as"
+    REPORTS ||--o| REVIEWS : "reviewed in"
     REPORTS ||--o{ ASSIGNMENTS : "assigned via"
     REPORTS ||--o{ AUDIT_LOGS : "tracked by"
-    TEAMS ||--o{ ASSIGNMENTS : receives
-    PROFILES }o--o| TEAMS : "member of"
     PROFILES ||--o{ REVIEWS : performs
-    AREAS ||--o{ REPORTS : contains
+    PROFILES }o--o| TEAMS : "member of"
+    TEAMS ||--o{ ASSIGNMENTS : receives
 
     REPORTS {
         uuid id PK
@@ -661,7 +668,7 @@ src/
 
 ## 13. Backend Implementation
 
-### 13.1 AI classifier module *(planned `src/lib/ai/`)*
+### 13.1 AI classifier module (`src/lib/ai/`)
 ```ts
 export interface IncidentClassification {
   incidentType: IncidentType;
@@ -672,10 +679,23 @@ export interface IncidentClassification {
 
 export interface Classifier {
   model: string;
-  classify(input: { imageUrl: string; description: string }): Promise<IncidentClassification>;
+  classify(input: { image?: { data: Buffer; mimeType: string }; description: string },
+           options?: { signal?: AbortSignal }): Promise<ClassifierResult>;
 }
 ```
-Providers (`gemini.ts`, `claude.ts`, `openai.ts`) implement the same interface; `AI_PROVIDER` env var picks one. All use one fixed prompt and validate output against a JSON schema (e.g. with Zod). Invalid output → retry once, then `pending_review`.
+Every provider implements the same interface; `AI_PROVIDER` picks the primary and `AI_FALLBACK_PROVIDER` the fallback.
+
+| Provider | File | Cost | Status |
+|---|---|---|---|
+| `gemini` | `gemini.ts` | Free tier (daily reset) | **In use** (primary + fallback) |
+| `local` | `local.ts` | Free, runs on our server (ONNX) | Code ready, model not trained yet |
+| `claude` | `claude.ts` | Paid only | Not configured |
+| `llama` | `llama.ts` | Needs credits on current hosts | Not configured (see AI log 2026-09-21) |
+| keyword matcher | `keyword.ts` | Free | Always the last step |
+
+API providers share one prompt and JSON schema (`prompt.ts`), and output is validated by `normalizeClassification()`. The `local` provider is our own image model (trained with `training/sagip_classifier_colab.ipynb`). It predicts only the incident type from the photo; severity and hazards come from the description keywords.
+
+**Chain (`chain.ts`):** primary → retry once on 429/5xx/timeout → fallback → keyword matcher. When the primary is `local`, answers below `CONFIDENCE_THRESHOLD` are **escalated** to the fallback for a second opinion. If that fails, the local answer is kept and goes to human review.
 
 ### 13.2 Constants *(planned `src/lib/constants.ts`)*
 ```ts
@@ -732,10 +752,15 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>   # server only, never expose
 DATABASE_URL=postgresql://...                  # pooled connection for Prisma
 DIRECT_URL=postgresql://...                    # direct connection for migrations
-AI_PROVIDER=gemini                             # gemini | claude | openai
-AI_API_KEY=<provider-key>
+AI_PROVIDER=gemini                             # gemini | local | claude | llama | mock
+AI_API_KEY=<provider-key>                      # not needed for local
+AI_MODEL=gemini-3.1-flash-lite                 # for local: path to the .onnx file
+AI_FALLBACK_PROVIDER=gemini
+AI_FALLBACK_API_KEY=<provider-key>
+AI_FALLBACK_MODEL=gemini-3.5-flash
 CONFIDENCE_THRESHOLD=0.7
 ```
+See `.env.example` for the full list (timeouts, base URLs, daily budget, rate limit).
 Never commit `.env.local`.
 
 ### 14.3 Database init
@@ -777,7 +802,9 @@ Change `CONFIDENCE_THRESHOLD` or `PRIORITY_WEIGHTS`. Document the reason (e.g. b
 Create the user in Supabase Auth, then set `profiles.role` (`responder` or `admin`) and `profiles.team_id`.
 
 ### 15.5 Switch AI provider
-Set `AI_PROVIDER` and `AI_API_KEY`. The `classifications.model` column records which model produced each result.
+Set `AI_PROVIDER` and `AI_API_KEY`. The `classifications.model` column records which model and chain step produced each result (e.g. `primary:gemini-3.1-flash-lite`, `escalation:gemini-3.5-flash`, `keyword-fallback`).
+
+To use our own model: train it with `training/sagip_classifier_colab.ipynb`, put `sagip-classifier.onnx` and `labels.json` in `models/`, then set `AI_PROVIDER=local` (no key). Keep Gemini as the fallback so unsure answers get a second opinion.
 
 ### 15.6 Add a new area
 Add the polygon, population, and risk index to `prisma/seed-data/areas.geojson` and re-run `npm run db:seed` (idempotent).
@@ -860,9 +887,21 @@ A research and evaluation plan, not the final model choice.
 | Claude Haiku 4.5 | Strong structured JSON output | ~$1 | ~$5 | ~$0.0022 |
 | Claude Sonnet 4.6 | Escalation tier for low-confidence cases | ~$3 | ~$15 | ~$0.0064 |
 
-*Estimates as of drafting — reconfirm current pricing before testing.* Cost per scan assumes a ~1000×1000 px photo (~1,350 input tokens incl. prompt) and ~150 output tokens. Out of scope this round: flagship models as primary candidates and self-hosted models (YOLO, custom CNNs).
+*Estimates as of drafting — reconfirm current pricing before testing.* Cost per scan assumes a ~1000×1000 px photo (~1,350 input tokens incl. prompt) and ~150 output tokens.
 
 At these costs, a few thousand classifications a month is only a few dollars, so **accuracy and reliability should drive the choice, not cost**.
+
+**Update (2026-09-21) — free only.** The team has no budget, so the candidates are now limited to options that cost nothing:
+
+| Candidate | Cost | Notes |
+|---|---|---|
+| Gemini `gemini-3.1-flash-lite` | Free tier, daily reset | Current primary. Higher free RPM than Flash |
+| Gemini `gemini-3.5-flash` | Free tier, daily reset | Current fallback |
+| **Own model** (EfficientNet-B0 / MobileNetV3, fine-tuned) | Free (Colab training, runs on our server) | Photo → incident type only. Was out of scope; now in scope as the no-quota option |
+| Llama 4 Scout / Maverick | Needs credits on every current host | Dropped. Groq no longer serves Llama vision models |
+| Claude, GPT | Paid only | Dropped |
+
+Paid rows in the table above stay for reference only.
 
 ### B.2 Image size vs. token cost (Claude reference: ≈ width × height / 750)
 | Image size | Megapixels | Tokens (approx.) | Note |
@@ -896,6 +935,15 @@ At these costs, a few thousand classifications a month is only a few dollars, so
 7. Recommend primary model, escalation model, and the review threshold.
 
 > The small test set is directional, not statistically rigorous — expand it with real submission data later.
+
+### B.6 Own model: training and comparison
+1. Collect 100–300 labeled photos per incident type (folders named after `INCIDENT_TYPES`) from the free datasets listed in `training/README.md`, then run `npm run dataset:prepare` to clean them and hold out the benchmark photos.
+2. Train on free Colab with `training/sagip_classifier_colab.ipynb`: 70/15/15 split with a locked test set, two-step fine-tuning, and ONNX export.
+3. Record test-set accuracy, per-class results, confusion matrix and Brier score (the notebook saves `metrics.json`).
+4. Compare with Gemini on the **same photos**: `npm run benchmark -- --models local,gemini:gemini-3.1-flash-lite`. Keep benchmark photos out of the training split, or the comparison is unfair.
+5. If the local model is close to Gemini on type accuracy with **0 missed urgent**, make it the primary (`AI_PROVIDER=local`) with Gemini as escalation. Otherwise keep Gemini primary.
+
+Save free-tier quota: develop with `AI_PROVIDER=mock`, validate with `--dry-run`, and run paid-provider benchmarks with small `--limit` and `--concurrency 1`.
 
 ---
 
