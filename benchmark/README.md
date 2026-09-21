@@ -29,10 +29,21 @@ npm run benchmark -- --models gemini:gemini-3.6-flash,claude:claude-haiku-4-5,ll
 ```
 Use `--limit 5` for a cheap smoke test first.
 
-Llama runs against any OpenAI-compatible host (Groq, Together, OpenRouter, Meta's
-Llama API, self-hosted vLLM). The default is Groq; set `LLAMA_BASE_URL` for another.
-Cost is 15% of the score, so check the Llama prices in `src/lib/ai/normalize.ts`
-match your host before trusting the ranking.
+**Free tier:** Gemini's free quota resets daily. Run with `--limit 10 --concurrency 1`
+once rather than repeatedly, so you don't use up the quota.
+
+**Our own model (free, no quota):** train it with `training/sagip_classifier_colab.ipynb`,
+put `sagip-classifier.onnx` and `labels.json` in `models/`, then compare it with Gemini:
+```bash
+npm run benchmark -- --models local,gemini:gemini-3.1-flash-lite --concurrency 1 --yes
+```
+`local` alone uses `models/sagip-classifier.onnx`; `local:<path.onnx>` picks another file.
+Keep benchmark photos out of the training split, or the local model's score will be inflated.
+The local model predicts only the incident type from the photo; severity comes from the
+description keywords, so expect it to score lower on severity than Gemini.
+
+Llama runs against any OpenAI-compatible host, but no current host offers Llama vision for
+free (Groq dropped it), so it's not part of the free setup. See the AI log (2026-09-21).
 
 ## 4. Read the results
 Each run writes `benchmark/results/<timestamp>/`:

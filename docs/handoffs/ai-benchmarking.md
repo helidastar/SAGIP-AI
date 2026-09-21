@@ -15,7 +15,10 @@ Add a new dated entry at the top for each session. Keep old entries — they sho
 | Fallback provider | Gemini, `gemini-3.5-flash` (same key, separate 5 RPM quota) |
 | Real AI classifications so far | 1 through the app (`SGP-KBL2UX`), 3 direct calls. No real incident photos yet |
 | Labeled benchmark dataset | **Not started** (need 40–60 images, see `benchmark/README.md`) |
-| Cost tracking for Gemini 3.x | **Not working** — no price in `src/lib/ai/normalize.ts`, so `cost_usd` is null and the daily budget cap ignores Gemini spend |
+| Cost tracking for Gemini 3.x | **Not working** — no price in `src/lib/ai/normalize.ts`, so `cost_usd` is null and the daily budget cap ignores Gemini spend. Matters less while on the free tier with no billing linked |
+| Team constraint | **Free only.** No paid APIs, no billing accounts. Free tiers that reset daily, for development and the final demo (Nov 2026) |
+| Llama provider | In the code (`llama.ts`), **not usable for free**: Groq dropped Llama vision models, other hosts need credits. Not planned |
+| Own model (`local` provider) | Code ready (`local.ts`). Training notebook ready (`training/sagip_classifier_colab.ipynb`). **Waiting on training photos** (100+ per type) |
 
 ### How a report is classified (current setup)
 
@@ -45,6 +48,78 @@ flowchart TD
     classDef warn fill:#FEF9C3,stroke:#CA8A04,color:#713F12
     class B,C,D,F,K,P,P2,Q ok
 ```
+
+### Planned setup once our own model is trained
+
+Set `AI_PROVIDER=local`. Our model answers first for free. Only unsure answers use the Gemini free-tier quota.
+
+```mermaid
+flowchart TD
+    A[Photo report] --> L[Primary: local ONNX model<br/>free, on our server]
+    L -- "confidence ≥ 0.70" --> R{Severity low/moderate?}
+    L -- "confidence < 0.70" --> E[Escalation: Gemini free tier]
+    L -- "no photo / model error" --> F[Fallback: Gemini free tier]
+    E -- success --> R
+    E -- fails --> LQ[Keep local answer<br/>low confidence → review]
+    F -- success --> R
+    F -- fails --> K[Keyword matcher]
+    K --> Q[pending_review]
+    LQ --> Q
+    R -- yes --> S[classified]
+    R -- no --> Q
+
+    classDef plan fill:#E0F2FE,stroke:#0284C7,color:#0C4A6E
+    class L,E,LQ plan
+```
+
+---
+
+## 2026-09-21 — Llama checked and dropped; own-model path added
+
+**Branch:** `feat/ai` · **Tester:** Claude Code session · **Environment:** local, no app server
+
+### Decision: free AI only
+The team has no budget. Rule from now on: only free tiers that reset daily and **cannot charge** (no billing account linked). Paid providers stay in the code but are not configured.
+
+### Llama (Meta) — added, tested, not usable for free
+| Check | Result |
+|---|---|
+| `llama` provider added (`src/lib/ai/llama.ts`), OpenAI-compatible, any host via `AI_BASE_URL` | ✅ Stub-server test: request format, image upload, JSON parsing, cost, 429 → retry all correct |
+| Groq (free, daily reset) — 1 real call | ❌ 404 `model_not_found`. Groq's model list has **no Llama chat/vision models** left, only `llama-prompt-guard-2` (prompt-injection filters) |
+| OpenRouter (`meta-llama/llama-4-scout`, $0.10 / $0.30 per 1M) | Works on paper, but needs credits. **Rejected** by the team (cost risk) |
+
+API usage this session: 1 failed Groq call (no generation), 1 free model-list call. No Gemini quota used.
+
+### Own model — `local` provider (commit `c955909`)
+Instead of an API, train a small image classifier (EfficientNet-B0 / MobileNetV3, transfer learning) on free Colab and run it on our server with ONNX Runtime. No quota, no cost, works offline.
+
+| Piece | File | Status |
+|---|---|---|
+| Training notebook (split, augment, train, test-set metrics, ONNX export + check) | `training/sagip_classifier_colab.ipynb` | ✅ Code cells syntax-checked. Not run yet (needs photos + GPU) |
+| Provider | `src/lib/ai/local.ts` | ✅ Tested with a fake ONNX model |
+| Chain: escalate unsure local answers to the fallback | `src/lib/ai/chain.ts` (new step `escalation`) | ✅ Tested, see below |
+| Benchmark support | `npm run benchmark -- --models local,gemini:gemini-3.1-flash-lite` | ✅ |
+
+How the local provider works:
+- The model sees **only the photo** and predicts the incident type. Confidence = its top softmax probability.
+- **Severity and hazards come from the description keywords** (same English/Filipino/Cebuano lists as the keyword matcher), else a default per type. Severity is not trained yet.
+- Needs a photo. Text-only reports skip to the fallback.
+- Still runs when the daily budget is reached, since it's free.
+
+Chain test (fake model: red → fire, blue → flood; fake fallback server, no real API):
+
+| Case | Final step | Result | Fallback calls |
+|---|---|---|---|
+| Confident local answer (red photo) | `primary` | fire, used as-is | 0 |
+| Unsure local answer (grey photo) | `escalation` | fallback's answer | 1 |
+| Unsure, fallback returns 500 | `primary` | local answer kept → review (low confidence) | 1 (failed) |
+| No photo | `fallback` | fallback's answer | 1 |
+
+### Open issues
+1. **Collect training photos:** 100–300 per incident type, messy real-world ones included. Nothing else on this path can start without them.
+2. Build the 40–60 photo benchmark set (can come from the same collection, but **not** from the training split).
+3. Model file `models/sagip-classifier.onnx` + `labels.json` must be deployed with the app (~20 MB).
+4. Gemini 3.x prices still missing (see Quick status). Low priority while on the free tier.
 
 ---
 
