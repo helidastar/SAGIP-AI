@@ -13,13 +13,16 @@
  *   --dry-run           Validate the dataset and print the plan without calling any API
  *   --yes               Required to make paid API calls
  *
- * API keys: GEMINI_API_KEY, ANTHROPIC_API_KEY, or AI_API_KEY for the provider named in AI_PROVIDER.
+ * API keys: GEMINI_API_KEY, ANTHROPIC_API_KEY, LLAMA_API_KEY, or AI_API_KEY for the
+ * provider named in AI_PROVIDER. Llama defaults to Groq; set LLAMA_BASE_URL for
+ * another OpenAI-compatible host.
  */
 import { mkdir, readFile, writeFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { createClaudeClassifier } from "@/lib/ai/claude";
 import { createGeminiClassifier } from "@/lib/ai/gemini";
+import { createLlamaClassifier } from "@/lib/ai/llama";
 import { needsReview } from "@/lib/ai/review";
 import type { Classifier, ClassifierResult } from "@/lib/ai/types";
 import { INCIDENT_TYPES, SEVERITY } from "@/lib/constants";
@@ -129,7 +132,12 @@ function makeClassifier(spec: string): Classifier {
     if (!key) throw new Error("Set ANTHROPIC_API_KEY to benchmark Claude");
     return createClaudeClassifier(key, model);
   }
-  throw new Error(`Unknown provider "${provider}" in --models (use gemini:<model> or claude:<model>)`);
+  if (provider === "llama") {
+    const key = envKey("LLAMA_API_KEY");
+    if (!key) throw new Error("Set LLAMA_API_KEY to benchmark Llama");
+    return createLlamaClassifier(key, model, process.env.LLAMA_BASE_URL || undefined);
+  }
+  throw new Error(`Unknown provider "${provider}" in --models (use gemini:<model>, claude:<model> or llama:<model>)`);
 }
 
 async function runModel(classifier: Classifier, labels: Label[], dir: string, concurrency: number, log: (r: Run) => Promise<void>) {

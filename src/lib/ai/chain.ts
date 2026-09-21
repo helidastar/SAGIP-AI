@@ -27,11 +27,11 @@ export interface ChainOutcome {
 }
 
 function providersFromEnv() {
-  const make = (provider?: string, key?: string, model?: string) =>
-    provider && provider !== "mock" && key ? createProvider(provider, key, model || undefined) : null;
+  const make = (provider?: string, key?: string, model?: string, baseUrl?: string) =>
+    provider && provider !== "mock" && key ? createProvider(provider, key, model || undefined, baseUrl || undefined) : null;
   return {
-    primary: make(process.env.AI_PROVIDER ?? "gemini", process.env.AI_API_KEY, process.env.AI_MODEL),
-    fallback: make(process.env.AI_FALLBACK_PROVIDER, process.env.AI_FALLBACK_API_KEY, process.env.AI_FALLBACK_MODEL),
+    primary: make(process.env.AI_PROVIDER ?? "gemini", process.env.AI_API_KEY, process.env.AI_MODEL, process.env.AI_BASE_URL),
+    fallback: make(process.env.AI_FALLBACK_PROVIDER, process.env.AI_FALLBACK_API_KEY, process.env.AI_FALLBACK_MODEL, process.env.AI_FALLBACK_BASE_URL),
   };
 }
 

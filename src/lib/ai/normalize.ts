@@ -8,6 +8,11 @@ const PRICES: Record<string, [number, number]> = {
   "claude-haiku-4-5": [1, 5],
   "claude-sonnet-5": [2, 10],
   "claude-opus-5": [5, 25],
+  // Llama prices vary by host (Groq, Together, OpenRouter, self-hosted). These are
+  // Groq's; override them if you point AI_BASE_URL somewhere else, or the cost
+  // component of the benchmark score will be wrong.
+  "llama-4-scout-17b-16e-instruct": [0.11, 0.34],
+  "llama-4-maverick-17b-128e-instruct": [0.2, 0.6],
 };
 
 export function estimateCost(model: string, inputTokens?: number, outputTokens?: number) {
