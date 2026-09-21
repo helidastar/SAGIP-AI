@@ -115,9 +115,14 @@ Chain test (fake model: red → fire, blue → flood; fake fallback server, no r
 | Unsure, fallback returns 500 | `primary` | local answer kept → review (low confidence) | 1 (failed) |
 | No photo | `fallback` | fallback's answer | 1 |
 
+### Dataset preparation (added later the same day)
+- `training/README.md`: free public datasets (Kaggle, CrisisMMD, MEDIC and others), their licenses, and how their classes map to ours. Gaps: `medical_emergency`, `fallen_debris` and street-level `road_accident` need our own photos.
+- `npm run dataset:prepare`: removes broken, tiny and duplicate photos (perceptual hash, keeps the largest copy), flags photos filed under two types, shrinks to 1024 px, and holds out 6 per type for `benchmark/dataset/` with a `labels.csv` whose severity column is left blank for a person to fill in.
+- Tested with generated photos: duplicates, a resized copy, a tiny and a corrupt file, a cross-type conflict and a bad folder name were all handled. Rebuilding with `--holdout 0` kept all 4 benchmark photos out of training. An existing `labels.csv` is never overwritten without `--force`.
+
 ### Open issues
-1. **Collect training photos:** 100–300 per incident type, messy real-world ones included. Nothing else on this path can start without them.
-2. Build the 40–60 photo benchmark set (can come from the same collection, but **not** from the training split).
+1. **Collect training photos:** 100–300 per incident type, messy real-world ones included. Nothing else on this path can start without them. See `training/README.md`.
+2. Fill in severity in `benchmark/dataset/labels.csv` after running `npm run dataset:prepare`.
 3. Model file `models/sagip-classifier.onnx` + `labels.json` must be deployed with the app (~20 MB).
 4. Gemini 3.x prices still missing (see Quick status). Low priority while on the free tier.
 

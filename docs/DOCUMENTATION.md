@@ -937,7 +937,7 @@ Paid rows in the table above stay for reference only.
 > The small test set is directional, not statistically rigorous — expand it with real submission data later.
 
 ### B.6 Own model: training and comparison
-1. Collect 100–300 labeled photos per incident type (folders named after `INCIDENT_TYPES`).
+1. Collect 100–300 labeled photos per incident type (folders named after `INCIDENT_TYPES`) from the free datasets listed in `training/README.md`, then run `npm run dataset:prepare` to clean them and hold out the benchmark photos.
 2. Train on free Colab with `training/sagip_classifier_colab.ipynb`: 70/15/15 split with a locked test set, two-step fine-tuning, and ONNX export.
 3. Record test-set accuracy, per-class results, confusion matrix and Brier score (the notebook saves `metrics.json`).
 4. Compare with Gemini on the **same photos**: `npm run benchmark -- --models local,gemini:gemini-3.1-flash-lite`. Keep benchmark photos out of the training split, or the comparison is unfair.

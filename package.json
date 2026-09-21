@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "node --env-file=.env.local scripts/seed.mjs",
-    "benchmark": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/benchmark.ts"
+    "benchmark": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/benchmark.ts",
+    "dataset:prepare": "node --conditions=react-server --import tsx scripts/prepare-dataset.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.125.0",

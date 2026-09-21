@@ -46,3 +46,8 @@ next-env.d.ts
 /benchmark/dataset/*
 !/benchmark/dataset/labels.example.csv
 /benchmark/results/
+
+# training photos and trained model (large; share via Google Drive)
+/training/raw/
+/training/dataset/
+/models/*.onnx
