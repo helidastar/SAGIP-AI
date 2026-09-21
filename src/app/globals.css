@@ -1,16 +1,22 @@
 @import "tailwindcss";
 
+/*
+ * Wireframe style from the initial UI sketch: black and white, boxed panels,
+ * mono uppercase labels. Temporary, for testing; the team will replace it.
+ */
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #111111;
+  --line: #111111;
+  --muted: #8a8a8a;
+  --faint: #d9d9d9;
+  --grid: #ececec;
 
-  /* Brand */
-  --brand-primary: #1e3a5f;
-  --review: #7c3aed;
-
-  /* Severity scale: used identically in lists, map markers, and detail views */
+  /* Kept for severity text/markers; the sketch itself is monochrome. */
+  --brand-primary: #111111;
+  --review: #111111;
   --sev-low: #16a34a;
-  --sev-moderate: #eab308;
+  --sev-moderate: #ca8a04;
   --sev-high: #ea580c;
   --sev-critical: #dc2626;
 }
@@ -18,25 +24,22 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-line: var(--line);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-grid: var(--grid);
   --color-brand: var(--brand-primary);
   --color-review: var(--review);
   --color-sev-low: var(--sev-low);
   --color-sev-moderate: var(--sev-moderate);
   --color-sev-high: var(--sev-high);
   --color-sev-critical: var(--sev-critical);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-grotesk);
+  --font-mono: var(--font-space-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-grotesk), Arial, Helvetica, sans-serif;
 }

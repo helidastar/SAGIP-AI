@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Button, Card, ErrorText, inputClass, StatusPill } from "@/components/ui/basics";
+import { Button, ErrorText, Hint, inputClass, Panel } from "@/components/ui/basics";
 import { api } from "@/lib/api-client";
 
 interface Tracked {
@@ -11,6 +11,14 @@ interface Tracked {
   incidentType: string | null;
   updatedAt: string;
 }
+
+/** The four citizen-facing steps, and which internal statuses belong to each. */
+const TIMELINE = [
+  { label: "Received", statuses: ["received"] },
+  { label: "Under review", statuses: ["pending_review", "classified"] },
+  { label: "Responder assigned", statuses: ["assigned", "in_progress"] },
+  { label: "Resolved", statuses: ["resolved"] },
+];
 
 export function TrackReport({ initialCode = "" }: { initialCode?: string }) {
   const [code, setCode] = useState(initialCode);
@@ -44,8 +52,11 @@ export function TrackReport({ initialCode = "" }: { initialCode?: string }) {
     return () => clearInterval(timer);
   }, [report, lookup]);
 
+  const current = report ? TIMELINE.findIndex((s) => s.statuses.includes(report.status)) : -1;
+  const closed = report?.status === "rejected";
+
   return (
-    <div className="flex flex-col gap-4">
+    <Panel title="Track report" step="3/3" bodyClassName="flex flex-col gap-3 p-3">
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -54,24 +65,48 @@ export function TrackReport({ initialCode = "" }: { initialCode?: string }) {
         }}
         className="flex gap-2"
       >
-        <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="SGP-XXXXXX" className={inputClass} />
-        <Button type="submit" disabled={loading}>Check</Button>
+        <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="SGP-XXXXXX" aria-label="Tracking code" className={`${inputClass} font-mono uppercase`} />
+        <Button type="submit" disabled={loading || !code.trim()}>Go</Button>
       </form>
+      <Hint>tracking code input</Hint>
       <ErrorText>{error}</ErrorText>
+
       {report && (
-        <Card className="flex flex-col gap-2">
-          <p className="font-mono text-lg font-bold">{report.trackingCode}</p>
-          <p className="text-lg">{report.publicStatus}</p>
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <StatusPill status={report.status} />
-            {report.incidentType && <span>Type: {report.incidentType.replace("_", " ")}</span>}
+        <>
+          <div className="border-b border-faint pb-3">
+            <p className="font-mono text-sm font-bold">{report.trackingCode}</p>
+            <p className="text-base">{report.publicStatus}</p>
+            {report.incidentType && <p className="font-mono text-[11px] text-muted">type: {report.incidentType.replace("_", " ")}</p>}
           </div>
-          <p className="text-xs opacity-60">
+
+          <Hint>status timeline</Hint>
+          {closed ? (
+            <p className="border border-line px-3 py-2 font-mono text-xs uppercase">Closed by responders</p>
+          ) : (
+            <ol className="flex flex-col">
+              {TIMELINE.map((step, i) => {
+                const done = i <= current;
+                return (
+                  <li key={step.label} className="flex items-stretch gap-3">
+                    <div className="flex w-4 flex-col items-center">
+                      <span className={`mt-0.5 h-4 w-4 shrink-0 rounded-full border border-line ${done ? "bg-foreground" : "bg-background"} ${done ? "" : "border-muted"}`} />
+                      {i < TIMELINE.length - 1 && <span className={`w-px flex-1 ${i < current ? "bg-foreground" : "bg-muted"}`} />}
+                    </div>
+                    <span className={`pb-6 font-mono text-xs uppercase tracking-wider ${i === current ? "font-bold" : done ? "" : "text-muted"}`}>
+                      {step.label}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+
+          <p className="font-mono text-[10px] text-muted">
             Updated {new Date(report.updatedAt).toLocaleString()}
             {report.status === "received" && " · refreshing..."}
           </p>
-        </Card>
+        </>
       )}
-    </div>
+    </Panel>
   );
 }

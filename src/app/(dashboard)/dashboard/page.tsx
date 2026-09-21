@@ -1,10 +1,11 @@
 import { IncidentList } from "@/components/dashboard/IncidentList";
+import { ReviewQueue } from "@/components/dashboard/ReviewQueue";
 
 export default function DashboardPage() {
   return (
     <>
-      <h1 className="text-2xl font-bold">Incidents</h1>
       <IncidentList />
+      <ReviewQueue compact />
     </>
   );
 }
