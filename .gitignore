@@ -51,3 +51,4 @@ next-env.d.ts
 /training/raw/
 /training/dataset/
 /models/*.onnx
+/training/*.zip
