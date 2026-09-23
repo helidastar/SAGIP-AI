@@ -88,6 +88,20 @@ npm run make-admin -- someone@example.com --name "Full Name"
 npm run make-admin -- someone@example.com --role responder
 ```
 
+### Scripts you should know
+| Command | What it does |
+|---|---|
+| `npm run dev` | Start the app |
+| `npm run seed` | Load teams and areas into Supabase |
+| `npm run make-admin -- <email>` | Set a staff role |
+| `npm run benchmark -- --dry-run` | Check the labeled benchmark photos, free |
+| `npm run dataset:prepare -- --dry-run` | Check training photos before building the dataset |
+| `npm run export:training-data -- --dry-run` | Preview exporting reviewed reports into `training/raw/` as new training data |
+
+`export:training-data` turns the review queue into free, human-checked training labels. Run it about
+once a week, then re-run `dataset:prepare` before the next training run. It downloads real citizen
+photos, so treat them as private and remove or blur identifying details.
+
 `admin` can assign teams, override scores and re-run the AI. `responder` can review reports and update incidents assigned to their team. Test with both roles.
 
 ## 7. How we work
