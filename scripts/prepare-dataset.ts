@@ -12,6 +12,7 @@
  *   --input <dir>     Raw photos (default training/raw)
  *   --out <dir>       Training set for Colab (default training/dataset)
  *   --holdout <n>     Photos per type moved to benchmark/dataset (default 6, 0 = none)
+ *   --max-size <px>   Longest side of the saved photos (default 1024; 512 keeps the Drive upload small)
  *   --dry-run         Only report what would happen
  *   --force           Replace an existing benchmark/dataset/labels.csv (loses hand-filled severities)
  *
@@ -19,7 +20,7 @@
  *   - Skips unreadable files and photos under 128 px
  *   - Removes duplicates, including resized/re-saved copies (perceptual hash)
  *   - Flags the same photo filed under two types (a labeling mistake): both copies are skipped
- *   - Shrinks to 1024 px JPEG so the Drive upload stays small
+ *   - Shrinks to 1024 px JPEG (or --max-size) so the Drive upload stays small
  *   - Holds out photos for the benchmark so they are never trained on
  */
 import { createHash } from "node:crypto";
@@ -31,6 +32,7 @@ import { INCIDENT_TYPES } from "@/lib/constants";
 
 const IMAGE_EXT = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff"]);
 const MIN_SIDE = 128;
+/** Default longest side of saved photos; training only needs 224 px, so --max-size 512 uploads much faster. */
 const MAX_SIDE = 1024;
 /** Hashes this close (out of 64 bits) are treated as the same photo. */
 const NEAR_DUPLICATE_BITS = 4;
@@ -41,6 +43,7 @@ const { values: args } = parseArgs({
     input: { type: "string", default: "training/raw" },
     out: { type: "string", default: "training/dataset" },
     holdout: { type: "string", default: "6" },
+    "max-size": { type: "string" },
     "dry-run": { type: "boolean", default: false },
     force: { type: "boolean", default: false },
   },
@@ -85,6 +88,7 @@ async function main() {
   const out = path.resolve(args.out!);
   const benchDir = path.resolve("benchmark/dataset");
   const holdout = Math.max(0, Number(args.holdout) || 0);
+  const maxSide = Math.max(224, Number(args["max-size"]) || MAX_SIDE);
 
   const folders = (await readdir(input, { withFileTypes: true })).filter((e) => e.isDirectory()).map((e) => e.name);
   const unknown = folders.filter((f) => !(INCIDENT_TYPES as readonly string[]).includes(f));
@@ -186,7 +190,7 @@ async function main() {
     await mkdir(path.dirname(dest), { recursive: true });
     await sharp(photo.file, { failOn: "none" })
       .rotate()
-      .resize({ width: MAX_SIDE, height: MAX_SIDE, fit: "inside", withoutEnlargement: true })
+      .resize({ width: maxSide, height: maxSide, fit: "inside", withoutEnlargement: true })
       .flatten({ background: "#ffffff" })
       .jpeg({ quality: 85, mozjpeg: true })
       .toFile(dest);
