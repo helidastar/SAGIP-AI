@@ -42,7 +42,7 @@ The dashboard map is a dependency-free SVG component, not a map library.
 
 Implemented and in testing, targeting the demonstration in November 2026. The citizen portal, responder dashboard, API, AI classification chain and priority scoring are built and integrated on `development`.
 
-The current interface is a temporary wireframe used for testing; the final visual design is still in progress. Our own image classifier reaches 79.8 percent test accuracy across 6 incident types and runs free on the server, with the Gemini free tier as backup. See the [AI log](https://github.com/helidastar/SAGIP-AI/blob/development/docs/handoffs/ai-benchmarking.md) for the measured results.
+The current interface is a temporary wireframe used for testing; the final visual design is still in progress. Our own image classifier reaches 79.8 percent test accuracy across 6 incident types and runs free on the server, with the Gemini free tier as backup. See the [AI log](docs/handoffs/ai-benchmarking.md) for the measured results.
 
 ## Getting Started
 
