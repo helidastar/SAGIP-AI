@@ -1,6 +1,7 @@
 # SAGIP-AI — Project Documentation
 
-> **Status:** Draft v1.1 — blueprint / planning stage. No app code has been written yet. Anything marked *(planned)* describes the intended MVP design, taken from the *SAGIP-AI Project Documentation* (CCRVIBE 2.0, September 03, 2026).
+> **Status:** Implemented and in testing, targeting the demonstration in November 2026. The citizen portal, responder dashboard, API, AI classification chain and priority scoring are built; the current UI is a temporary wireframe for testing. Sections still marked *(proposed)* or *(v1.5)* are not built yet.
+> Originally drafted from the *SAGIP-AI Project Documentation* (CCRVIBE 2.0, September 03, 2026).
 > Diagrams are written in [Mermaid](https://mermaid.js.org/) and render directly on GitHub.
 
 ## Table of Contents
@@ -33,16 +34,16 @@
 |-------|-------|
 | **Feature / Product** | SAGIP-AI — Smart AI for Geospatial Intelligence and Prediction |
 | **Type** | Mobile-first citizen web portal + desktop responder/admin dashboard |
-| **Status** | Draft v1.1 (blueprint — architecture and requirements defined) |
+| **Status** | Implemented, in testing (November 2026 demonstration) |
 | **Course / Event** | CCRVIBE 2.0 |
 | **Instructor** | Rex A. Seadiño Jr. |
 | **Primary users** | Citizens reporting emergencies (fire, flood, accident, structural damage, medical, etc.) |
 | **Secondary users** | Responders / field teams, admins / dispatch, LGU / DRRMO |
 | **Frontend + API** | Next.js (App Router), TypeScript |
-| **Database** | Supabase (PostgreSQL + PostGIS), accessed via Prisma |
+| **Database** | Supabase (PostgreSQL + PostGIS). Schema in `supabase/migrations/*.sql`, accessed with `@supabase/supabase-js` |
 | **Storage / Auth** | Supabase Storage (report photos), Supabase Auth (role-based, responders/admins only) |
-| **AI** | External vision-LLM API (swappable — Gemini 2.5 Flash / Claude Haiku 4.5 / GPT-4o mini under evaluation) |
-| **Maps** | Leaflet + OpenStreetMap tiles (or Google Maps API) |
+| **AI** | Gemini free tier (`gemini-3.1-flash-lite` primary, `gemini-3.5-flash` fallback) plus our own local ONNX image classifier. `claude` and `llama` providers exist in code but are not configured. Free tiers only, no paid APIs |
+| **Maps** | Custom SVG map in `src/components/dashboard/IncidentMap.tsx` (no map library). Incident detail links out to OpenStreetMap |
 | **Hosting** | Vercel (app) + Supabase (DB, storage, auth) |
 | **Architecture style** | Modular monolith |
 | **Key flow** | Citizen reports → AI classifies → human review if flagged → priority score → ranked on responder dashboard |
@@ -61,12 +62,14 @@
 ### Branches
 | Branch | Purpose | Status |
 |--------|---------|--------|
-| `main` | Stable, reviewed work and project documentation. Production deploys come from here. | Exists |
-| `development` | Integration branch for ongoing implementation work. | Exists |
-| `frontend` *(suggested)* | Citizen portal + responder dashboard UI | Suggested |
-| `backend` *(suggested)* | Supabase schema, API routes, AI classifier, priority scoring | Suggested |
+| `main` | Stable, reviewed work. **Protected:** changes require a pull request with one approval; force-pushes and deletion are blocked. | Active |
+| `development` | Integration branch. All feature branches merge here first. | Active |
+| `feat/ai` | AI classifier, providers, benchmark, dataset tools, training notebook | Active |
+| `feat/UI` | Citizen portal and responder dashboard | Active |
+| `feat/backend` | Supabase schema, API routes, staff scripts | Active |
+| `feat/docs` | Documentation | Active |
 
-**Branch flow:** `feature branches → development → main` (via pull requests).
+**Branch flow:** `feat/<area> → development → main` (via pull requests).
 
 ### Contributors
 | Name | GitHub |
@@ -76,11 +79,8 @@
 | Reign Marie Hamo-ay | [@Reignnnh04](https://github.com/Reignnnh04) |
 | John Vincent Fabroa | [@Beynsz](https://github.com/Beynsz) |
 
-### Commit history (to date)
-| Date | Author | Commit |
-|------|--------|--------|
-| 2026-08-27 | Charity Ricabo | Initial commit |
-| 2026-09-11 | Charity Ricabo | RENAME |
+### Commit history
+See [the commit history on GitHub](https://github.com/helidastar/SAGIP-AI/commits/development). Commit messages follow `type(scope): what changed`, for example `feat(ai): add local onnx classifier provider`.
 
 ---
 
@@ -176,7 +176,7 @@ Citizen-facing labels collapse these into: **Received → Under review → Respo
 
 Two distinct interfaces, one shared design system (see [Section 8](#8-design-system)).
 
-### 5.1 Citizen portal *(planned — mobile-first, no account required)*
+### 5.1 Citizen portal (mobile-first, no account required)
 | Screen | Contents |
 |--------|----------|
 | **Report incident** | Camera / photo upload, short text description, GPS location auto-captured (editable pin on map), submit button |
@@ -186,7 +186,7 @@ Two distinct interfaces, one shared design system (see [Section 8](#8-design-sys
 
 Design priorities: minimal steps, large touch targets, plain language, works on low-end phones and weak connections.
 
-### 5.2 Responder / admin dashboard *(planned — desktop, authenticated)*
+### 5.2 Responder / admin dashboard (desktop, authenticated)
 | View | Contents |
 |------|----------|
 | **Ranked incident list** | Open incidents sorted by priority score; severity color chip, type, location, age, status, "needs review" badge; manual override of rank |
@@ -399,18 +399,20 @@ flowchart LR
 
 Both surfaces share one set of tokens (color, typography, components) even though their layouts differ.
 
-### 8.1 Colors *(proposed)*
-| Token | Use |
-|-------|-----|
-| `--sev-low` `#16A34A` | Low severity |
-| `--sev-moderate` `#EAB308` | Moderate severity |
-| `--sev-high` `#EA580C` | High severity |
-| `--sev-critical` `#DC2626` | Critical severity |
-| `--brand-primary` `#1E3A5F` | Headers, primary actions |
-| `--review` `#7C3AED` | "Needs review" badge |
-| `--surface` / `--text` | Neutral background and text |
+### 8.1 Colors (temporary test UI)
+The current interface follows the team's initial wireframe sketch: black and white, square-cornered
+boxed panels and mono uppercase labels. It exists so the backend can be tested and demonstrated;
+the final visual design is still being worked on. Tokens are defined in `src/app/globals.css`.
 
-Severity is never conveyed by color alone — always pair with a label or icon.
+| Token | Value | Use |
+|-------|-------|-----|
+| `--foreground` / `--background` | `#111111` / `#ffffff` | Text and page background |
+| `--line` | `#111111` | Panel borders |
+| `--muted` / `--faint` / `--grid` | greys | Secondary text, dividers, map grid |
+| `--sev-low` `--sev-moderate` `--sev-high` `--sev-critical` | green, amber, orange, red | Severity, the only colors kept |
+
+Severity is never conveyed by color alone — always pair with a label. High and critical are also
+filled rather than outlined, so they stand out in a monochrome interface.
 
 ### 8.2 Typography & layout
 - System / Inter font stack, large base size on citizen portal (≥ 16px) for readability under stress.
@@ -424,7 +426,7 @@ Severity is never conveyed by color alone — always pair with a label or icon.
 
 ## 9. Data Model
 
-### 9.1 Entity relationship diagram *(planned — Supabase PostgreSQL + PostGIS via Prisma)*
+### 9.1 Entity relationship diagram (Supabase PostgreSQL + PostGIS)
 
 ```mermaid
 %%{init: {"er": {"layoutDirection": "TB", "entityPadding": 10, "minEntityWidth": 90}, "themeVariables": {"fontSize": "14px"}}}%%
@@ -539,7 +541,7 @@ erDiagram
 
 ## 10. API Endpoints
 
-*(planned — Next.js Route Handlers under `src/app/api`)*
+Implemented as Next.js Route Handlers under `src/app/api`.
 
 ### 10.1 Citizen (public)
 | Method | Route | Description |
@@ -591,7 +593,7 @@ erDiagram
   "status": "classified",
   "location": { "lat": 10.3157, "lng": 123.8854, "area": "Barangay Lahug" },
   "classification": {
-    "model": "gemini-2.5-flash",
+    "model": "primary:gemini-3.1-flash-lite",
     "incidentType": "flood",
     "severity": "high",
     "confidence": 0.82,
@@ -611,7 +613,7 @@ erDiagram
 
 ## 11. Data Sources & Seeding
 
-### 11.1 Sources *(planned)*
+### 11.1 Sources
 | Data | Source |
 |------|--------|
 | Incident types, severity tiers, weights | `src/lib/constants.ts` |
@@ -621,17 +623,17 @@ erDiagram
 | Benchmark images | 40–60 labeled Philippine incident photos (see [Appendix B](#appendix-b--ai-classification-benchmarking-plan)) |
 
 ### 11.2 Seed script
-`npm run db:seed` → `prisma/seed.ts` loads constants, areas from `prisma/seed-data/areas.geojson`, demo teams/profiles, and optional sample reports for dashboard demos.
+`npm run seed` → `scripts/seed.mjs` loads teams and areas into Supabase. It reads `scripts/data/areas.sample.geojson` by default; pass another GeoJSON path as an argument to use real barangay boundaries.
 
 ### 11.3 Idempotent process
-- Use `upsert` keyed on natural keys (area `name`, team `name`, report `tracking_code`) so re-running the seed never duplicates rows.
-- Sample reports are tagged `is_demo = true` and can be cleared with `npm run db:seed -- --reset-demo`.
+- The seed uses `upsert` keyed on natural keys (area `name`, team `name`) so re-running it never duplicates rows.
+- Test reports are created through the app and can be deleted from the Supabase table editor; deleting a report cascades to its classifications and audit logs.
 
 ---
 
 ## 12. Frontend Architecture
 
-### 12.1 Folder structure *(planned — Next.js App Router)*
+### 12.1 Folder structure (Next.js App Router)
 ```
 src/
 ├── app/
@@ -651,17 +653,21 @@ src/
 │   ├── dashboard/                 # IncidentList, IncidentMap, ScoreBreakdown
 │   └── ui/                        # SeverityChip, PriorityBadge, StatusPill, DefinitionsModal
 ├── lib/
-│   ├── ai/                        # classifier interface + providers
+│   ├── ai/                        # classifier interface + providers (gemini, claude, llama, local, keyword)
+│   ├── reports/                   # intake, classification, scoring helpers
 │   ├── scoring/                   # priority formula + banding
-│   ├── supabase/                  # client/server helpers
-│   ├── prisma.ts
+│   ├── supabase/                  # admin + server clients
+│   ├── api-client.ts              # browser fetch helper
+│   ├── auth.ts                    # staff session guards
+│   ├── rate-limit.ts
+│   ├── workflow.ts                # workflow steps shown in the dashboard
 │   └── constants.ts
 └── types/
 ```
 
 ### 12.2 Styling
 - Tailwind CSS with design tokens from [Section 8](#8-design-system) exposed as CSS variables.
-- Map: `react-leaflet` with OpenStreetMap tiles; markers use the severity scale.
+- Map: a dependency-free SVG scatter plot (`src/components/dashboard/IncidentMap.tsx`) that plots open incidents on a plain grid; filled markers are high or critical severity. Incident detail links out to OpenStreetMap for the exact location.
 - Citizen pages must stay lightweight (compress photos client-side to ~1000×1000 px before upload — also cuts AI token cost).
 
 ---
@@ -697,7 +703,7 @@ API providers share one prompt and JSON schema (`prompt.ts`), and output is vali
 
 **Chain (`chain.ts`):** primary → retry once on 429/5xx/timeout → fallback → keyword matcher. When the primary is `local`, answers below `CONFIDENCE_THRESHOLD` are **escalated** to the fallback for a second opinion. If that fails, the local answer is kept and goes to human review.
 
-### 13.2 Constants *(planned `src/lib/constants.ts`)*
+### 13.2 Constants (`src/lib/constants.ts`)
 ```ts
 export const INCIDENT_TYPES = [
   "fire", "flood", "landslide", "road_accident",
@@ -717,7 +723,7 @@ export const TYPE_WEIGHTS: Record<IncidentType, number> = {
 };
 ```
 
-### 13.3 Priority banding *(planned `src/lib/scoring/`)*
+### 13.3 Priority banding (`src/lib/scoring/`)
 ```ts
 export const PRIORITY_BANDS = [
   { band: "P1", min: 80, label: "Immediate" },
@@ -750,7 +756,7 @@ export function toBand(score: number) {
 NEXT_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>   # server only, never expose
-DATABASE_URL=postgresql://...                  # pooled connection for Prisma
+DATABASE_URL=postgresql://...                  # pooled connection (SQL tools)
 DIRECT_URL=postgresql://...                    # direct connection for migrations
 AI_PROVIDER=gemini                             # gemini | local | claude | llama | mock
 AI_API_KEY=<provider-key>                      # not needed for local
@@ -769,10 +775,9 @@ git clone https://github.com/helidastar/SAGIP-AI.git
 cd SAGIP-AI
 git checkout development
 npm install
-npx prisma migrate dev
-npm run db:seed
+npm run seed
 ```
-In Supabase: enable `postgis`, create a private `report-photos` bucket, and apply the RLS policies in `supabase/policies.sql`.
+In Supabase: enable `postgis`, run the SQL files in `supabase/migrations/` in order (SQL Editor or the Supabase CLI), and create a private `report-photos` bucket. Row-level security policies are part of those migrations.
 
 ### 14.4 Running
 ```bash
@@ -807,7 +812,7 @@ Set `AI_PROVIDER` and `AI_API_KEY`. The `classifications.model` column records w
 To use our own model: train it with `training/sagip_classifier_colab.ipynb`, put `sagip-classifier.onnx` and `labels.json` in `models/`, then set `AI_PROVIDER=local` (no key). Keep Gemini as the fallback so unsure answers get a second opinion.
 
 ### 15.6 Add a new area
-Add the polygon, population, and risk index to `prisma/seed-data/areas.geojson` and re-run `npm run db:seed` (idempotent).
+Add the polygon, population, and risk index to the GeoJSON passed to the seed script (`scripts/data/areas.sample.geojson` by default) and re-run `npm run seed` (idempotent).
 
 ---
 
@@ -849,8 +854,8 @@ Add the polygon, population, and risk index to `prisma/seed-data/areas.geojson` 
 | Change severity / weights / thresholds | `src/lib/constants.ts` |
 | Change the scoring formula | `src/lib/scoring/` |
 | Change / add an AI provider | `src/lib/ai/` |
-| Change the DB schema | `prisma/schema.prisma` → `npx prisma migrate dev` |
-| Seed data | `npm run db:seed` |
+| Change the DB schema | add a file in `supabase/migrations/` and run it in Supabase |
+| Seed data | `npm run seed` |
 | API contract | [Section 10](#10-api-endpoints) |
 
 **Rules of thumb**
@@ -964,5 +969,9 @@ Save free-tier quota: develop with `AI_PROVIDER=mock`, validate with `--dry-run`
 | Known issues, caveats & open questions | Done |
 | Quick reference & appendices | Done |
 | Final priority-scoring design doc (after model selection) | Pending |
-| Benchmark results | Pending |
+| Team onboarding guide (`docs/ONBOARDING.md`) | Done |
+| Own-model training guide (`training/README.md`) and notebook | Done |
+| First training run recorded (`docs/handoffs/ai-benchmarking.md`) | Done |
+| Benchmark results (our model against Gemini on the same photos) | Pending: benchmark severities not labeled yet |
+| Final UI design (current interface is a temporary wireframe) | Pending |
 | Pilot partner confirmed | Pending |
