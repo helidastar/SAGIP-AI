@@ -52,3 +52,4 @@ next-env.d.ts
 /training/dataset/
 /models/*.onnx
 /training/*.zip
+/models/*.onnx.data
