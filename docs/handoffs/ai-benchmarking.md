@@ -13,12 +13,12 @@ Add a new dated entry at the top for each session. Keep old entries — they sho
 |---|---|
 | Primary provider | Gemini, `gemini-3.1-flash-lite` (`thinkingBudget: 0`, 15 RPM free tier) |
 | Fallback provider | Gemini, `gemini-3.5-flash` (same key, separate 5 RPM quota) |
-| Real AI classifications so far | 1 through the app (`SGP-KBL2UX`), 3 direct calls. No real incident photos yet |
-| Labeled benchmark dataset | **Not started** (need 40–60 images, see `benchmark/README.md`) |
+| Real AI classifications so far | 1 through the app (`SGP-KBL2UX`), 3 direct Gemini calls. Our own model has additionally been run on 36 held-out photos at no cost |
+| Labeled benchmark dataset | 36 held-out photos in `benchmark/dataset/`. **Severity column still blank**, so the Gemini comparison cannot run yet |
 | Cost tracking for Gemini 3.x | **Not working** — no price in `src/lib/ai/normalize.ts`, so `cost_usd` is null and the daily budget cap ignores Gemini spend. Matters less while on the free tier with no billing linked |
 | Team constraint | **Free only.** No paid APIs, no billing accounts. Free tiers that reset daily, for development and the final demo (Nov 2026) |
 | Llama provider | In the code (`llama.ts`), **not usable for free**: Groq dropped Llama vision models, other hosts need credits. Not planned |
-| Own model (`local` provider) | Code ready (`local.ts`). Training notebook ready (`training/sagip_classifier_colab.ipynb`). **Waiting on training photos** (100+ per type) |
+| Own model (`local` provider) | **Trained and installed** (2026-09-23): 79.8% test accuracy over 6 types, 41 ms per photo, free. Not yet the primary provider |
 
 ### How a report is classified (current setup)
 
@@ -71,6 +71,73 @@ flowchart TD
     classDef plan fill:#E0F2FE,stroke:#0284C7,color:#0C4A6E
     class L,E,LQ plan
 ```
+
+---
+
+## 2026-09-23 — First training run of our own model, installed and tested
+
+**Branch:** `feat/ai` · **Tester:** Claude Code session · **Environment:** Colab T4 GPU (training), local CPU (inference). No paid APIs, no Gemini quota used.
+
+### Dataset
+Built from three free Kaggle downloads with `npm run dataset:prepare`: the Comprehensive Disaster Dataset (CDD), a cyclone/wildfire/flood/earthquake set, a forest-fire set, and two general disaster sets.
+
+| Type | Training photos | Sources |
+|---|---|---|
+| flood | 1,666 | 5 |
+| fire | 1,498 | 5 |
+| structural_damage | 1,472 | 4 (earthquake damage) |
+| other (normal scenes) | 1,139 | 4 |
+| landslide | 691 | 2 |
+| medical_emergency | 229 | 1 |
+| road_accident | 0 | none found in free datasets |
+| fallen_debris | 0 | none found in free datasets |
+
+Total 6,695 training photos, plus 36 held out for the benchmark and never trained on.
+The script removed 239 duplicates (including a second copy of CDD inside another download), 18 photos filed under two types, 2 too small and 1 unreadable.
+
+Data problems found and worth citing in the thesis:
+- CDD repeats the same photos in `Damaged_Infrastructure/Earthquake` and `Land_Disaster/Land_Slide`. All 36 Earthquake photos had a twin in the landslide folder. The landslide copies were removed as mislabeled.
+- CDD `Human_Damage` is graphic conflict imagery, not Philippine medical emergencies.
+- Many flood photos are aerial, while citizens submit ground-level phone photos.
+
+### Training (`training/sagip_classifier_colab.ipynb`)
+EfficientNet-B0, transfer learning: 5 epochs on the new head, then 10 fine-tuning the whole model. Class weights compensate for the rare types.
+
+| Metric | Result |
+|---|---|
+| Test accuracy (1,005 unseen photos) | **79.8%** |
+| Best validation accuracy | 79.7% |
+| Brier score (confidence reliability, lower is better) | 0.124 |
+| Exported model size | 16.5 MB (ONNX, weights in a separate `.onnx.data` file) |
+
+Per type (recall): fire 193/225 (86%), landslide 82/104 (79%), other 135/171 (79%), flood 193/250 (77%), structural_damage 166/221 (75%), medical_emergency 33/34 (97%).
+
+**Known weakness: `medical_emergency` is over-predicted.** It catches almost every true case, but 96 photos were predicted as medical when only 33 were, so its precision is about 34 percent. Cause: far fewer training photos (229 against roughly 1,500), so the class weighting overshot. Other confusions match the data problems above: structural_damage against landslide (17) and flood (6).
+
+Artifacts: `docs/training-runs/2026-09-23/` (metrics.json, confusion_matrix.png, labels.json).
+
+### Installed and tested locally (`local` provider)
+Model copied to `models/`, then run against the 36 held-out benchmark photos through `src/lib/ai/local.ts`.
+
+| Check | Result |
+|---|---|
+| Accuracy on held-out photos | 26/36 (72.2%) |
+| Mean latency | 41 ms per photo (CPU, no API call) |
+| Cost | Zero |
+| Wrong answers with confidence at or above 0.70 | **0** |
+
+At the current `CONFIDENCE_THRESHOLD` of 0.7, 21 of 36 photos would be classified automatically and **all 21 were correct**; the other 15 fall below the threshold and go to human review. This is the behaviour the design intends: the model is useful on clear photos and defers when unsure.
+
+### Notes
+- The ONNX export produces two files. `sagip-classifier.onnx` and `sagip-classifier.onnx.data` must stay together in `models/`, or the model will not load.
+- `labels.json` lists only the 6 trained types. The provider rejects any class the app does not know, so this is checked at load time.
+- Both files are git-ignored because of their size; share them through Drive.
+
+### Open issues
+1. No `road_accident` or `fallen_debris` photos. The model cannot predict them, so those reports fall to the other types or to human review.
+2. Fix the `medical_emergency` over-prediction: more photos for that type, or less aggressive class weighting.
+3. Fill in the severity column in `benchmark/dataset/labels.csv`, then run the benchmark to compare this model against Gemini on identical photos.
+4. Severity is still taken from description keywords; the model only predicts the incident type.
 
 ---
 
