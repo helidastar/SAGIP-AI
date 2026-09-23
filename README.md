@@ -3,17 +3,15 @@
 Everything a developer needs to get the app running. Follow the steps in order.
 This branch holds only this file. The code lives on `development`.
 
-Ask **Charity ([@helidastar](https://github.com/helidastar))** for anything marked "ask Charity".
-
 ---
 
-## 1. Get access (ask Charity)
+## 1. Get access (ask your team)
 
 | What | Why | How you get it |
 |---|---|---|
 | GitHub repository | To pull and push code | Invite as a collaborator, accept the email |
 | Supabase project | Database, photo storage, staff logins | Invite to the organization (Developer role) |
-| Staff account | To open the dashboard | Charity creates it, then sends you a temporary password |
+| Staff account | To open the dashboard | Temporary password |
 
 ## 2. Install
 
@@ -30,7 +28,7 @@ git checkout development
 npm install
 ```
 
-## 4. Create the `.env` file (ask Charity)
+## 4. Create the `.env` file
 
 Copy `.env.example` to a new file named **`.env.local`** in the project root, then fill it in.
 `.env.local` is git-ignored, so it stays on your computer. Never paste keys in the group chat.
@@ -106,7 +104,7 @@ without telling the team. Delete any junk test data you create.
 |---|---|
 | `Another next dev server is already running` | It is already running; open http://localhost:3000 |
 | "Invalid email or password" | Check the account exists in Supabase → Authentication → Users |
-| "This account is not registered as staff" | Ask Charity to run `npm run make-admin -- <your email>` |
+| "This account is not registered as staff" | Ask your PM to run `npm run make-admin -- <your email>` |
 | Reports stay on "Report received" | Check the `npm run dev` terminal for errors. With `AI_PROVIDER=mock` they should move within seconds |
 | Pages load but no data appears | Compare `.env.local` with `.env.example`, then restart `npm run dev` |
 | Teammates' changes are missing | `git pull origin development`, then `npm install` |
