@@ -71,12 +71,34 @@ The script removes unreadable and tiny photos and duplicates (including resized 
 
 **Target:** at least 100 training photos per type (the script shows how many are missing), 300 is better.
 
-## 3. Train
+## 3. Keep growing the set from real reports (ongoing)
+
+Once the app is live, every report an admin corrects or confirms in the review queue is a
+free, human-verified label. Pull those into `training/raw/` alongside the public datasets:
+
+```bash
+npm run export:training-data -- --dry-run   # preview: what would be exported, per type
+npm run export:training-data                 # download the photos
+```
+
+**Privacy:** these are real citizen photos and may show faces or plate numbers. Blur or remove
+those before training, keep `training/raw` inside the team, and say in the thesis how consent
+and anonymity are handled.
+
+Only reports with a human review (`reviews.final_type`) are exported by default — an unchecked
+AI guess isn't a trustworthy label. It's safe to run on a schedule (weekly is enough): already-
+exported photos are skipped, nothing is re-downloaded or duplicated.
+
+**Team habit:** review the queue as part of normal ops (you're already doing this), then once a
+week someone runs the export above and re-runs `npm run dataset:prepare` to fold the new photos
+into the training set before the next Colab run.
+
+## 4. Train
 1. Zip the `training/dataset` folder itself, so the zip contains `dataset/<type>/...`. On Windows, right-click the folder, then **Compress to ZIP file**.
 2. Upload it to Google Drive as `MyDrive/sagip/dataset.zip`.
 3. Open the notebook in [Colab](https://colab.research.google.com) (**File → Upload notebook**), set **Runtime → Change runtime type → T4 GPU**, then **Runtime → Run all**.
 
-## 4. Use the model
+## 5. Use the model
 1. Download `sagip-classifier.onnx` and `labels.json` from `MyDrive/sagip/runs/<date>/` into `models/`.
 2. Compare it with Gemini on the benchmark photos:
    ```bash
