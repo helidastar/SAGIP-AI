@@ -50,6 +50,8 @@ next-env.d.ts
 # training photos and trained model (large; share via Google Drive)
 /training/raw/
 /training/dataset/
-/models/*.onnx
 /training/*.zip
-/models/*.onnx.data
+
+# trained model files (large; share via Drive) and local editor/agent settings
+/models/
+/.claude/
