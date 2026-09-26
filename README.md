@@ -12,7 +12,7 @@ An AI-assisted emergency reporting and incident prioritization platform. Citizen
 ![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?logo=supabase&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Vercel-000000?logo=vercel&logoColor=white)
 
-**[Read the Full Documentation](docs/DOCUMENTATION.md)**
+**[Read the Full Documentation](docs/DOCUMENTATION.md)** · **[Train Our Own AI Model](training/README.md)**
 
 </div>
 
