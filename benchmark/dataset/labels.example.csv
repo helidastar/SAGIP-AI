@@ -1,0 +1,4 @@
+file,description,incidentType,severity,bucket
+flood/flood-01.jpg,"Baha sa among kalsada, abot tuhod",flood,moderate,flood
+fire/fire-01.jpg,Sunog sa balay sa silingan,fire,critical,fire
+ambiguous/water-01.jpg,Tubig sa sulod sa balay,other,low,ambiguous
