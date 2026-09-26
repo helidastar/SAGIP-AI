@@ -96,6 +96,8 @@ export function createLocalClassifier(modelPath = DEFAULT_MODEL_PATH): Classifie
         severity,
         confidence: probs[best],
         hazards: hazardsFromText(description),
+        // The image model only predicts a type; it has no notion of hoax intent.
+        hoaxSuspected: false,
         raw: { probabilities: Object.fromEntries(labels.classes.map((c, i) => [c, Number(probs[i].toFixed(4))])), severityFrom: from },
         latencyMs: Date.now() - started,
         costUsd: 0,

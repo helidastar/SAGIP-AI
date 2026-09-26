@@ -32,5 +32,6 @@ export function normalizeClassification(raw: unknown): IncidentClassification {
     : "moderate";
   const confidence = Math.min(1, Math.max(0, Number(r.confidence) || 0));
   const hazards = Array.isArray(r.hazards) ? r.hazards.map(String).slice(0, 10) : [];
-  return { incidentType, severity, confidence, hazards };
+  const hoaxSuspected = r.hoaxSuspected === true;
+  return { incidentType, severity, confidence, hazards, hoaxSuspected };
 }

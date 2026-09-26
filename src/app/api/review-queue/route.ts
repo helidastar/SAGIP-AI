@@ -19,7 +19,7 @@ export const GET = withStaff(async () => {
     .select(`
       id, tracking_code, description, photo_path, status, created_at,
       area:areas ( name ),
-      classifications ( model, incident_type, severity, confidence, hazards, created_at )
+      classifications ( model, incident_type, severity, confidence, hazards, hoax_suspected, created_at )
     `)
     .or(`status.eq.pending_review,and(status.eq.received,created_at.lt.${stuckBefore})`)
     .order("created_at", { ascending: true })
@@ -59,6 +59,7 @@ export const GET = withStaff(async () => {
             severity: c.severity,
             confidence: Number(c.confidence),
             hazards: c.hazards,
+            hoaxSuspected: c.hoax_suspected,
           }
         : null,
     };

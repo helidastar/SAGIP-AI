@@ -75,6 +75,8 @@ export const keywordClassifier: Classifier = {
       severity,
       confidence: 0,
       hazards: [...new Set(hazards)].slice(0, 10),
+      // Keyword matching can't judge intent; every report already goes to review regardless.
+      hoaxSuspected: false,
       raw: { matchedWords: [...new Set(hazards)], severityFrom: from },
       latencyMs: 0,
       costUsd: 0,

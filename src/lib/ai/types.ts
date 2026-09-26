@@ -6,6 +6,8 @@ export interface IncidentClassification {
   /** 0 to 1 */
   confidence: number;
   hazards: string[];
+  /** True if the AI suspects this isn't a genuine report. Never auto-rejects — only flags it for review. */
+  hoaxSuspected: boolean;
 }
 
 export interface ClassifierInput {

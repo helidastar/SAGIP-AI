@@ -19,13 +19,15 @@ interface QueueItem {
   keywordOnly: boolean;
   urgentUnverified: boolean;
   createdAt: string;
-  classification: { model: string; incidentType: string; severity: Severity; confidence: number; hazards: string[] } | null;
+  classification: { model: string; incidentType: string; severity: Severity; confidence: number; hazards: string[]; hoaxSuspected?: boolean } | null;
 }
 
 /** Why a report is in the queue, as the sketch's tags: CRITICAL, HIGH, LOW CONF, etc. */
 function flags(item: QueueItem) {
   const c = item.classification;
   const out: { label: string; strong?: boolean }[] = [];
+  // A suspected hoax is the first thing a reviewer should see.
+  if (c?.hoaxSuspected) out.push({ label: "Possible hoax", strong: true });
   if (item.urgentUnverified) out.push({ label: "Urgent · no AI", strong: true });
   if (c?.severity === "critical") out.push({ label: "Critical", strong: true });
   else if (c?.severity === "high") out.push({ label: "High" });
@@ -167,6 +169,7 @@ export function ReviewForm({ item, onDone, bare = false }: { item: ReviewTarget;
             <Tag>{c.incidentType.replace("_", " ")}</Tag>
             <SeverityChip severity={c.severity} />
             <Tag>Conf {Math.round(c.confidence * 100)}%</Tag>
+            {c.hoaxSuspected && <Tag className="bg-foreground text-background">Possible hoax</Tag>}
             <span className="font-mono text-[10px] text-muted">{c.model}</span>
           </p>
         ) : (

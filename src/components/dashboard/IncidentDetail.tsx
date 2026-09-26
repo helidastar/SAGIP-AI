@@ -23,7 +23,7 @@ interface Detail {
   teamId: string | null;
   photoUrl: string | null;
   createdAt: string;
-  classifications: { id: string; model: string; incidentType: string; severity: Severity; confidence: number; hazards: string[]; latencyMs: number | null; createdAt: string }[];
+  classifications: { id: string; model: string; incidentType: string; severity: Severity; confidence: number; hazards: string[]; hoaxSuspected?: boolean; latencyMs: number | null; createdAt: string }[];
   review: { finalType: string; finalSeverity: string; notes: string | null; reviewer: { full_name: string | null } | null; createdAt: string } | null;
   assignments: { id: string; team: { id: string; name: string } | null; assignedAt: string }[];
   auditLog: { id: string; action: string; actorId: string | null; before: unknown; after: unknown; createdAt: string }[];
@@ -211,7 +211,13 @@ export function IncidentDetail({ id }: { id: string }) {
                   <Tag>{latest.incidentType.replace("_", " ")}</Tag>
                   <SeverityChip severity={latest.severity} />
                   <Tag>Conf {Math.round(latest.confidence * 100)}%</Tag>
+                  {latest.hoaxSuspected && <Tag className="bg-foreground text-background">Possible hoax</Tag>}
                 </div>
+                {latest.hoaxSuspected && (
+                  <p className="mt-2 text-xs">
+                    The AI saw signs this may not be a genuine report. It is never rejected automatically; check the photo and description before confirming.
+                  </p>
+                )}
                 <p className="mt-2 font-mono text-[10px] text-muted">{latest.model}{latest.latencyMs ? ` · ${(latest.latencyMs / 1000).toFixed(1)} s` : ""}</p>
               </>
             ) : (
