@@ -74,6 +74,33 @@ flowchart TD
 
 ---
 
+## 2026-09-26 — Hoax-suspected flag added and tested against Gemini
+
+**Branch:** `feat/ai` (squashed into `development`) · **Environment:** local, live Gemini calls: 2
+
+### What it does
+The classifier now returns `hoaxSuspected`. It is set only when there is a clear sign the report is not genuine: an unrelated meme, screenshot or stock photo, a joking or nonsensical description, or a photo and description describing unrelated things. When in doubt the prompt says return false.
+
+A flagged report is **never rejected automatically**. `needsReview()` simply treats the flag as a third reason to send it to a human, alongside low confidence and high or critical severity. Reviewers see a "Possible hoax" tag in the review queue and on the incident page.
+
+The keyword matcher and our own image model always return false: neither can judge intent, and keyword results already go to review.
+
+Stored in `classifications.hoax_suspected` (migration `0006_hoax_flag.sql`, applied 2026-09-26).
+
+### Live test (`gemini-3.1-flash-lite`)
+| Input | Result | hoaxSuspected |
+|---|---|---|
+| Plain yellow graphic + "PRANK!! ... wala man dire sunog joke lang guys" | `other` / `low`, confidence 1.00 | **true** |
+| Real flood photo + "Baha sa amoa, abot hawak na ang tubig, naay mga tawo sa atop" | `flood` / `critical`, confidence 0.95, hazards: rising water, severe weather conditions | **false** |
+
+The fake case is the one that matters: the model was fully confident and rated it low severity, so neither the confidence rule nor the severity rule would have caught it. Without this flag the report would have been classified automatically with no human ever seeing it.
+
+### Notes
+- Token cost is unchanged in practice: 1,374 in / 44 out for the hoax case, in line with earlier photo reports.
+- The flag is advisory. A genuine report wrongly flagged only costs a reviewer a few seconds, which is the right trade for a system where a missed real emergency is far worse.
+
+---
+
 ## 2026-09-23 — First training run of our own model, installed and tested
 
 **Branch:** `feat/ai` · **Tester:** Claude Code session · **Environment:** Colab T4 GPU (training), local CPU (inference). No paid APIs, no Gemini quota used.
