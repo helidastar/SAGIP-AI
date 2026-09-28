@@ -1,6 +1,7 @@
 # SAGIP-AI — Project Documentation
 
-> **Status:** Draft v1.1 — blueprint / planning stage. No app code has been written yet. Anything marked *(planned)* describes the intended MVP design, taken from the *SAGIP-AI Project Documentation* (CCRVIBE 2.0, September 03, 2026).
+> **Status:** Implemented and in testing, targeting the demonstration in November 2026. The citizen portal, responder dashboard, API, AI classification chain and priority scoring are built; the current UI is a temporary wireframe for testing. Sections still marked *(proposed)* or *(v1.5)* are not built yet.
+> Originally drafted from the *SAGIP-AI Project Documentation* (CCRVIBE 2.0, September 03, 2026).
 > Diagrams are written in [Mermaid](https://mermaid.js.org/) and render directly on GitHub.
 
 ## Table of Contents
@@ -21,9 +22,10 @@
 15. [Common Tasks](#15-common-tasks)
 16. [Known Issues, Caveats & Open Questions](#16-known-issues-caveats--open-questions)
 17. [Quick Reference for the Next Developer](#17-quick-reference-for-the-next-developer)
-18. [Appendix A — Future Enhancements](#appendix-a--future-enhancements)
-19. [Appendix B — AI Classification Benchmarking Plan](#appendix-b--ai-classification-benchmarking-plan)
-20. [Appendix C — Documentation Checklist](#appendix-c--documentation-checklist)
+18. [Project Schedule (Gantt Chart)](#18-project-schedule-gantt-chart)
+19. [Appendix A — Future Enhancements](#appendix-a--future-enhancements)
+20. [Appendix B — AI Classification Benchmarking Plan](#appendix-b--ai-classification-benchmarking-plan)
+21. [Appendix C — Documentation Checklist](#appendix-c--documentation-checklist)
 
 ---
 
@@ -33,16 +35,16 @@
 |-------|-------|
 | **Feature / Product** | SAGIP-AI — Smart AI for Geospatial Intelligence and Prediction |
 | **Type** | Mobile-first citizen web portal + desktop responder/admin dashboard |
-| **Status** | Draft v1.1 (blueprint — architecture and requirements defined) |
+| **Status** | Implemented, in testing (November 2026 demonstration) |
 | **Course / Event** | CCRVIBE 2.0 |
 | **Instructor** | Rex A. Seadiño Jr. |
 | **Primary users** | Citizens reporting emergencies (fire, flood, accident, structural damage, medical, etc.) |
 | **Secondary users** | Responders / field teams, admins / dispatch, LGU / DRRMO |
 | **Frontend + API** | Next.js (App Router), TypeScript |
-| **Database** | Supabase (PostgreSQL + PostGIS), accessed via Prisma |
+| **Database** | Supabase (PostgreSQL + PostGIS). Schema in `supabase/migrations/*.sql`, accessed with `@supabase/supabase-js` |
 | **Storage / Auth** | Supabase Storage (report photos), Supabase Auth (role-based, responders/admins only) |
-| **AI** | External vision-LLM API (swappable — Gemini 2.5 Flash / Claude Haiku 4.5 / GPT-4o mini under evaluation) |
-| **Maps** | Leaflet + OpenStreetMap tiles (or Google Maps API) |
+| **AI** | Gemini free tier (`gemini-3.1-flash-lite` primary, `gemini-3.5-flash` fallback) plus our own local ONNX image classifier. `claude` and `llama` providers exist in code but are not configured. Free tiers only, no paid APIs |
+| **Maps** | Custom SVG map in `src/components/dashboard/IncidentMap.tsx` (no map library). Incident detail links out to OpenStreetMap |
 | **Hosting** | Vercel (app) + Supabase (DB, storage, auth) |
 | **Architecture style** | Modular monolith |
 | **Key flow** | Citizen reports → AI classifies → human review if flagged → priority score → ranked on responder dashboard |
@@ -61,12 +63,14 @@
 ### Branches
 | Branch | Purpose | Status |
 |--------|---------|--------|
-| `main` | Stable, reviewed work and project documentation. Production deploys come from here. | Exists |
-| `development` | Integration branch for ongoing implementation work. | Exists |
-| `frontend` *(suggested)* | Citizen portal + responder dashboard UI | Suggested |
-| `backend` *(suggested)* | Supabase schema, API routes, AI classifier, priority scoring | Suggested |
+| `main` | Stable, reviewed work. **Protected:** changes require a pull request with one approval; force-pushes and deletion are blocked. | Active |
+| `development` | Integration branch. All feature branches merge here first. | Active |
+| `feat/ai` | AI classifier, providers, benchmark, dataset tools, training notebook | Active |
+| `feat/UI` | Citizen portal and responder dashboard | Active |
+| `feat/backend` | Supabase schema, API routes, staff scripts | Active |
+| `feat/docs` | Documentation | Active |
 
-**Branch flow:** `feature branches → development → main` (via pull requests).
+**Branch flow:** `feat/<area> → development → main` (via pull requests).
 
 ### Contributors
 | Name | GitHub |
@@ -76,11 +80,8 @@
 | Reign Marie Hamo-ay | [@Reignnnh04](https://github.com/Reignnnh04) |
 | John Vincent Fabroa | [@Beynsz](https://github.com/Beynsz) |
 
-### Commit history (to date)
-| Date | Author | Commit |
-|------|--------|--------|
-| 2026-08-27 | Charity Ricabo | Initial commit |
-| 2026-09-11 | Charity Ricabo | RENAME |
+### Commit history
+See [the commit history on GitHub](https://github.com/helidastar/SAGIP-AI/commits/development). Commit messages follow `type(scope): what changed`, for example `feat(ai): add local onnx classifier provider`.
 
 ---
 
@@ -114,8 +115,8 @@ Emergency and incident reports from citizens (fires, floods, accidents, structur
 ### 3.5 Scope & prioritization
 | Priority | Items |
 |----------|-------|
-| **Must-have (v1 / MVP)** | Citizen report submission (photo, text, location) · AI classification (type + severity + confidence) · Deterministic, explainable priority score · Responder dashboard (ranked list + basic map + status update) · Human review flag for high-severity / low-confidence cases |
-| **Should-have (v1.5)** | Citizen-facing status tracking · Assignment workflow (incident → responder/team) · Basic analytics (volume by type / time / location) |
+| **Must-have (v1 / MVP)** | Citizen report submission (location plus photo and/or description) · AI classification (type + severity + confidence + hoax flag) · Deterministic, explainable priority score · Responder dashboard (ranked list + basic map + status update) · Human review flag for high-severity / low-confidence / suspected-hoax cases · Citizen status tracking by tracking code *(built)* · Team assignment *(built)* |
+| **Should-have (v1.5)** | Advanced assignment workflow · Basic analytics (volume by type / time / location; the Analytics page is a placeholder) |
 | **Nice-to-have (later)** | Duplicate report clustering · Offline-first submission queue · Safety guidance per incident type · Two-tier AI escalation for ambiguous cases |
 
 > **Recommended first build target:** the AI classification + priority scoring pipeline is the actual innovation. Build just enough of the portal and dashboard to prove the pipeline works end to end on real submissions.
@@ -125,7 +126,7 @@ Emergency and incident reports from citizens (fires, floods, accidents, structur
 |------|--------|-------|
 | Technical | **High** | All components are off-the-shelf (vision-LLM API, weighted formula, map dashboard, web form). Risk is integration and scope, not research. |
 | Operational | **Medium** | Needs a real pilot partner, responder trust in the ranking, and a staffing plan for reviewing flagged cases. |
-| Financial | **Low cost** | Classification costs a fraction of a cent per image; development time is the main cost. |
+| Financial | **No AI cost** | Free tiers only (Gemini free tier and our own local model, no billing account linked); development time is the main cost. |
 | Legal / liability | **Needs care** | An AI misranking a serious incident is a liability issue — mitigated by design via human-in-the-loop review. |
 
 ---
@@ -137,10 +138,10 @@ Emergency and incident reports from citizens (fires, floods, accidents, structur
 ```mermaid
 flowchart TD
     A[Citizen witnesses an incident] --> B[Opens SAGIP-AI citizen portal]
-    B --> C["Submits photo + short description + GPS location"]
+    B --> C["Submits photo and/or short description + GPS location"]
     C --> D[Receives tracking ID]
-    C --> E[AI classifies: type, severity, confidence, hazards]
-    E --> F{"Low confidence OR high/critical severity?"}
+    C --> E[AI classifies: type, severity, confidence, hazards, hoax flag]
+    E --> F{"Low confidence OR high/critical severity OR suspected hoax?"}
     F -- yes --> G[Human review queue]
     G --> H[Responder confirms or corrects]
     H --> I[Priority scoring]
@@ -157,7 +158,7 @@ flowchart TD
 stateDiagram-v2
     [*] --> received: citizen submits
     received --> classified: AI confident, severity low/moderate
-    received --> pending_review: low confidence OR high/critical
+    received --> pending_review: low confidence OR high/critical OR suspected hoax
     pending_review --> classified: responder confirms / corrects
     classified --> assigned: admin assigns team
     assigned --> in_progress: responder en route / on site
@@ -176,7 +177,7 @@ Citizen-facing labels collapse these into: **Received → Under review → Respo
 
 Two distinct interfaces, one shared design system (see [Section 8](#8-design-system)).
 
-### 5.1 Citizen portal *(planned — mobile-first, no account required)*
+### 5.1 Citizen portal (mobile-first, no account required)
 | Screen | Contents |
 |--------|----------|
 | **Report incident** | Camera / photo upload, short text description, GPS location auto-captured (editable pin on map), submit button |
@@ -186,13 +187,13 @@ Two distinct interfaces, one shared design system (see [Section 8](#8-design-sys
 
 Design priorities: minimal steps, large touch targets, plain language, works on low-end phones and weak connections.
 
-### 5.2 Responder / admin dashboard *(planned — desktop, authenticated)*
+### 5.2 Responder / admin dashboard (desktop, authenticated)
 | View | Contents |
 |------|----------|
 | **Ranked incident list** | Open incidents sorted by priority score; severity color chip, type, location, age, status, "needs review" badge; manual override of rank |
 | **Map view** | Live incident markers colored by severity (same scale as the list); click marker → incident detail |
 | **Incident detail** | Photo, description, AI output (type, severity, confidence, hazards), **priority score breakdown** (why it ranked here), audit history, assign + status controls |
-| **Review queue** | Flagged reports (low confidence / high severity) awaiting confirmation or correction |
+| **Review queue** | Flagged reports (low confidence / high severity / "Possible hoax") awaiting confirmation or correction |
 | **Analytics** *(v1.5)* | Volume over time, by type, by location; response-time tracking |
 | **Definitions / legend** | Explains severity tiers, priority bands, and scoring weights so responders can interpret rankings |
 
@@ -228,9 +229,11 @@ Incident (one real-world event)
 - The **priority score always uses the confirmed value**. Keeping both lets us measure AI accuracy over time and supports auditability.
 
 ### 6.5 Human review triggers
-A report goes to `pending_review` if **either**:
-1. `confidence < CONFIDENCE_THRESHOLD` (initial value `0.70`, tuned after benchmarking), or
-2. AI severity is `high` or `critical`.
+A report goes to `pending_review` if **any** of these is true (`needsReview()` in `src/lib/ai/review.ts`):
+
+1. `confidence < CONFIDENCE_THRESHOLD` (initial value `0.70`, tuned after benchmarking),
+2. AI severity is `high` or `critical`, or
+3. the AI sets `hoaxSuspected` (unrelated meme, screenshot or stock photo, joking description, or a photo and description that do not match). A suspected hoax is **never rejected automatically**; reviewers see a "Possible hoax" tag. Stored in `classifications.hoax_suspected` (migration `0006_hoax_flag.sql`). The keyword matcher and the local image model always return `false`.
 
 ### 6.6 Priority score *(proposed — to be finalized in its own design doc)*
 Deterministic, plain logic (not an LLM call), so every score is explainable:
@@ -399,18 +402,20 @@ flowchart LR
 
 Both surfaces share one set of tokens (color, typography, components) even though their layouts differ.
 
-### 8.1 Colors *(proposed)*
-| Token | Use |
-|-------|-----|
-| `--sev-low` `#16A34A` | Low severity |
-| `--sev-moderate` `#EAB308` | Moderate severity |
-| `--sev-high` `#EA580C` | High severity |
-| `--sev-critical` `#DC2626` | Critical severity |
-| `--brand-primary` `#1E3A5F` | Headers, primary actions |
-| `--review` `#7C3AED` | "Needs review" badge |
-| `--surface` / `--text` | Neutral background and text |
+### 8.1 Colors (temporary test UI)
+The current interface follows the team's initial wireframe sketch: black and white, square-cornered
+boxed panels and mono uppercase labels. It exists so the backend can be tested and demonstrated;
+the final visual design is still being worked on. Tokens are defined in `src/app/globals.css`.
 
-Severity is never conveyed by color alone — always pair with a label or icon.
+| Token | Value | Use |
+|-------|-------|-----|
+| `--foreground` / `--background` | `#111111` / `#ffffff` | Text and page background |
+| `--line` | `#111111` | Panel borders |
+| `--muted` / `--faint` / `--grid` | greys | Secondary text, dividers, map grid |
+| `--sev-low` `--sev-moderate` `--sev-high` `--sev-critical` | green, amber, orange, red | Severity, the only colors kept |
+
+Severity is never conveyed by color alone — always pair with a label. High and critical are also
+filled rather than outlined, so they stand out in a monochrome interface.
 
 ### 8.2 Typography & layout
 - System / Inter font stack, large base size on citizen portal (≥ 16px) for readability under stress.
@@ -424,7 +429,7 @@ Severity is never conveyed by color alone — always pair with a label or icon.
 
 ## 9. Data Model
 
-### 9.1 Entity relationship diagram *(planned — Supabase PostgreSQL + PostGIS via Prisma)*
+### 9.1 Entity relationship diagram (Supabase PostgreSQL + PostGIS)
 
 ```mermaid
 %%{init: {"er": {"layoutDirection": "TB", "entityPadding": 10, "minEntityWidth": 90}, "themeVariables": {"fontSize": "14px"}}}%%
@@ -461,6 +466,7 @@ erDiagram
         text severity
         numeric confidence
         text[] hazards
+        boolean hoax_suspected
         jsonb raw_response
         int latency_ms
         numeric cost_usd
@@ -522,7 +528,7 @@ erDiagram
 | Table | Purpose |
 |-------|---------|
 | `reports` | One citizen submission. `status` ∈ `received`, `pending_review`, `classified`, `assigned`, `in_progress`, `resolved`, `rejected`. |
-| `classifications` | Every AI run (append-only), including raw model output, latency, and cost — for auditability and benchmarking. |
+| `classifications` | Every AI run (append-only), including raw model output, latency, cost, and `hoax_suspected` — for auditability and benchmarking. |
 | `reviews` | Human confirmation/correction of a flagged report. |
 | `priority_scores` | Current score, band, per-term breakdown, and whether an admin overrode it. |
 | `assignments` | Report → team assignments (history kept). |
@@ -539,7 +545,7 @@ erDiagram
 
 ## 10. API Endpoints
 
-*(planned — Next.js Route Handlers under `src/app/api`)*
+Implemented as Next.js Route Handlers under `src/app/api`.
 
 ### 10.1 Citizen (public)
 | Method | Route | Description |
@@ -591,7 +597,7 @@ erDiagram
   "status": "classified",
   "location": { "lat": 10.3157, "lng": 123.8854, "area": "Barangay Lahug" },
   "classification": {
-    "model": "gemini-2.5-flash",
+    "model": "primary:gemini-3.1-flash-lite",
     "incidentType": "flood",
     "severity": "high",
     "confidence": 0.82,
@@ -611,7 +617,7 @@ erDiagram
 
 ## 11. Data Sources & Seeding
 
-### 11.1 Sources *(planned)*
+### 11.1 Sources
 | Data | Source |
 |------|--------|
 | Incident types, severity tiers, weights | `src/lib/constants.ts` |
@@ -621,17 +627,17 @@ erDiagram
 | Benchmark images | 40–60 labeled Philippine incident photos (see [Appendix B](#appendix-b--ai-classification-benchmarking-plan)) |
 
 ### 11.2 Seed script
-`npm run db:seed` → `prisma/seed.ts` loads constants, areas from `prisma/seed-data/areas.geojson`, demo teams/profiles, and optional sample reports for dashboard demos.
+`npm run seed` → `scripts/seed.mjs` loads teams and areas into Supabase. It reads `scripts/data/areas.sample.geojson` by default; pass another GeoJSON path as an argument to use real barangay boundaries.
 
 ### 11.3 Idempotent process
-- Use `upsert` keyed on natural keys (area `name`, team `name`, report `tracking_code`) so re-running the seed never duplicates rows.
-- Sample reports are tagged `is_demo = true` and can be cleared with `npm run db:seed -- --reset-demo`.
+- The seed uses `upsert` keyed on natural keys (area `name`, team `name`) so re-running it never duplicates rows.
+- Test reports are created through the app and can be deleted from the Supabase table editor; deleting a report cascades to its classifications and audit logs.
 
 ---
 
 ## 12. Frontend Architecture
 
-### 12.1 Folder structure *(planned — Next.js App Router)*
+### 12.1 Folder structure (Next.js App Router)
 ```
 src/
 ├── app/
@@ -651,40 +657,58 @@ src/
 │   ├── dashboard/                 # IncidentList, IncidentMap, ScoreBreakdown
 │   └── ui/                        # SeverityChip, PriorityBadge, StatusPill, DefinitionsModal
 ├── lib/
-│   ├── ai/                        # classifier interface + providers
+│   ├── ai/                        # classifier interface + providers (gemini, claude, llama, local, keyword)
+│   ├── reports/                   # intake, classification, scoring helpers
 │   ├── scoring/                   # priority formula + banding
-│   ├── supabase/                  # client/server helpers
-│   ├── prisma.ts
+│   ├── supabase/                  # admin + server clients
+│   ├── api-client.ts              # browser fetch helper
+│   ├── auth.ts                    # staff session guards
+│   ├── rate-limit.ts
+│   ├── workflow.ts                # workflow steps shown in the dashboard
 │   └── constants.ts
 └── types/
 ```
 
 ### 12.2 Styling
 - Tailwind CSS with design tokens from [Section 8](#8-design-system) exposed as CSS variables.
-- Map: `react-leaflet` with OpenStreetMap tiles; markers use the severity scale.
+- Map: a dependency-free SVG scatter plot (`src/components/dashboard/IncidentMap.tsx`) that plots open incidents on a plain grid; filled markers are high or critical severity. Incident detail links out to OpenStreetMap for the exact location.
 - Citizen pages must stay lightweight (compress photos client-side to ~1000×1000 px before upload — also cuts AI token cost).
 
 ---
 
 ## 13. Backend Implementation
 
-### 13.1 AI classifier module *(planned `src/lib/ai/`)*
+### 13.1 AI classifier module (`src/lib/ai/`)
 ```ts
 export interface IncidentClassification {
   incidentType: IncidentType;
   severity: Severity;
   confidence: number;      // 0–1
   hazards: string[];
+  hoaxSuspected: boolean;  // flags for review only, never auto-rejects
 }
 
 export interface Classifier {
   model: string;
-  classify(input: { imageUrl: string; description: string }): Promise<IncidentClassification>;
+  classify(input: { image?: { data: Buffer; mimeType: string }; description: string },
+           options?: { signal?: AbortSignal }): Promise<ClassifierResult>;
 }
 ```
-Providers (`gemini.ts`, `claude.ts`, `openai.ts`) implement the same interface; `AI_PROVIDER` env var picks one. All use one fixed prompt and validate output against a JSON schema (e.g. with Zod). Invalid output → retry once, then `pending_review`.
+Every provider implements the same interface; `AI_PROVIDER` picks the primary and `AI_FALLBACK_PROVIDER` the fallback.
 
-### 13.2 Constants *(planned `src/lib/constants.ts`)*
+| Provider | File | Cost | Status |
+|---|---|---|---|
+| `gemini` | `gemini.ts` | Free tier (daily reset) | **In use** (primary + fallback) |
+| `local` | `local.ts` | Free, runs on our server (ONNX) | Trained 2026-09-23 (79.8% test accuracy, 41 ms per photo); not yet the primary, pending the benchmark against Gemini |
+| `claude` | `claude.ts` | Paid only | Not configured |
+| `llama` | `llama.ts` | Needs credits on current hosts | Not configured (see AI log 2026-09-21) |
+| keyword matcher | `keyword.ts` | Free | Always the last step |
+
+API providers share one prompt and JSON schema (`prompt.ts`), and output is validated by `normalizeClassification()`. The `local` provider is our own image model (trained with `training/sagip_classifier_colab.ipynb`). It predicts only the incident type from the photo; severity and hazards come from the description keywords.
+
+**Chain (`chain.ts`):** primary → retry once on 429/5xx/timeout → fallback → keyword matcher. When the primary is `local`, answers below `CONFIDENCE_THRESHOLD` are **escalated** to the fallback for a second opinion. If that fails, the local answer is kept and goes to human review.
+
+### 13.2 Constants (`src/lib/constants.ts`)
 ```ts
 export const INCIDENT_TYPES = [
   "fire", "flood", "landslide", "road_accident",
@@ -704,7 +728,7 @@ export const TYPE_WEIGHTS: Record<IncidentType, number> = {
 };
 ```
 
-### 13.3 Priority banding *(planned `src/lib/scoring/`)*
+### 13.3 Priority banding (`src/lib/scoring/`)
 ```ts
 export const PRIORITY_BANDS = [
   { band: "P1", min: 80, label: "Immediate" },
@@ -737,12 +761,17 @@ export function toBand(score: number) {
 NEXT_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>   # server only, never expose
-DATABASE_URL=postgresql://...                  # pooled connection for Prisma
+DATABASE_URL=postgresql://...                  # pooled connection (SQL tools)
 DIRECT_URL=postgresql://...                    # direct connection for migrations
-AI_PROVIDER=gemini                             # gemini | claude | openai
-AI_API_KEY=<provider-key>
+AI_PROVIDER=gemini                             # gemini | local | claude | llama | mock
+AI_API_KEY=<provider-key>                      # not needed for local
+AI_MODEL=gemini-3.1-flash-lite                 # for local: path to the .onnx file
+AI_FALLBACK_PROVIDER=gemini
+AI_FALLBACK_API_KEY=<provider-key>
+AI_FALLBACK_MODEL=gemini-3.5-flash
 CONFIDENCE_THRESHOLD=0.7
 ```
+See `.env.example` for the full list (timeouts, base URLs, daily budget, rate limit).
 Never commit `.env.local`.
 
 ### 14.3 Database init
@@ -751,10 +780,9 @@ git clone https://github.com/helidastar/SAGIP-AI.git
 cd SAGIP-AI
 git checkout development
 npm install
-npx prisma migrate dev
-npm run db:seed
+npm run seed
 ```
-In Supabase: enable `postgis`, create a private `report-photos` bucket, and apply the RLS policies in `supabase/policies.sql`.
+In Supabase: enable `postgis`, run the SQL files in `supabase/migrations/` in order (SQL Editor or the Supabase CLI), and create a private `report-photos` bucket. Row-level security policies are part of those migrations.
 
 ### 14.4 Running
 ```bash
@@ -784,10 +812,12 @@ Change `CONFIDENCE_THRESHOLD` or `PRIORITY_WEIGHTS`. Document the reason (e.g. b
 Create the user in Supabase Auth, then set `profiles.role` (`responder` or `admin`) and `profiles.team_id`.
 
 ### 15.5 Switch AI provider
-Set `AI_PROVIDER` and `AI_API_KEY`. The `classifications.model` column records which model produced each result.
+Set `AI_PROVIDER` and `AI_API_KEY`. The `classifications.model` column records which model and chain step produced each result (e.g. `primary:gemini-3.1-flash-lite`, `escalation:gemini-3.5-flash`, `keyword-fallback`).
+
+To use our own model: train it with `training/sagip_classifier_colab.ipynb`, put `sagip-classifier.onnx` and `labels.json` in `models/`, then set `AI_PROVIDER=local` (no key). Keep Gemini as the fallback so unsure answers get a second opinion.
 
 ### 15.6 Add a new area
-Add the polygon, population, and risk index to `prisma/seed-data/areas.geojson` and re-run `npm run db:seed` (idempotent).
+Add the polygon, population, and risk index to the GeoJSON passed to the seed script (`scripts/data/areas.sample.geojson` by default) and re-run `npm run seed` (idempotent).
 
 ---
 
@@ -799,18 +829,23 @@ Add the polygon, population, and risk index to `prisma/seed-data/areas.geojson` 
 - **Final priority formula** — the weights in [6.6](#66-priority-score-proposed--to-be-finalized-in-its-own-design-doc) are placeholders until a model is chosen and benchmarked.
 
 ### 16.2 Risk register
-| Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
-| AI misclassifies a high-severity incident as low priority | Medium | High | Mandatory human review for low-confidence and high-severity cases; never fully automate dispatch |
-| No institutional pilot partner / no real users | Medium | High | Secure a partner before heavy build investment |
-| Responders don't trust the AI ranking | Medium | Medium | Transparent formula, visible score breakdown, manual override, involve responders in design |
-| Spam or false reports flood the dashboard | Medium | Medium | Validation, rate limiting, later duplicate clustering |
-| System overload during a disaster spike | Low–Medium | High | Load-test submission + classification; degrade gracefully |
-| Citizen photos / location exposed | Low | High | RLS, private bucket, signed URLs, privacy practices |
-| Scope creep across 4 bundled sub-products | High | Medium | Hold to MVP scope in [3.5](#35-scope--prioritization) |
-| AI vendor pricing / availability changes | Low | Low | Swappable classifier module |
-| Database not built for geo-queries | Low | Medium | PostGIS enabled from the start |
-| Single managed provider (Supabase) | Low | Medium | Standard Postgres underneath — migration possible |
+Matches the team's Risk Log spreadsheet (as of 2026-09-28). Rating = Likelihood × Impact (Low = 1, Low–Medium = 1.5, Medium = 2, High = 3); 6 or more is High, 3 or more is Medium.
+
+| ID | Risk | Likelihood | Impact | Rating | Mitigation | Status |
+|----|------|------------|--------|--------|------------|--------|
+| R-001 | AI misclassifies a high-severity incident as low priority | Medium | High | High | Human review for low-confidence, high/critical and suspected-hoax reports; dispatch is never automated | Monitoring |
+| R-002 | No institutional pilot partner / no real users | Medium | High | High | Secure an LGU, DRRMO or campus partner before heavy build investment | Open |
+| R-003 | Responders don't trust the AI ranking | Medium | Medium | Medium | Transparent formula, visible score breakdown, manual override | Open |
+| R-004 | System overload during a disaster spike | Low–Medium | High | Medium | Background classification, per-IP rate limit, managed hosting; load test pending | Open |
+| R-005 | Scope creep across 4 bundled sub-products | High | Medium | High | Hold to MVP scope in [3.5](#35-scope--prioritization) | Open |
+| R-006 | AI vendor pricing / availability changes (happened: `gemini-2.5-flash` withdrawn, free Llama vision removed) | High | Medium | High | Swappable providers (Gemini, Claude, Llama, local) with retry, fallback and keyword matcher | Monitoring |
+| R-007 | Free-tier AI quota runs out during testing, a spike or the demo | Medium | High | High | Separate-quota fallback model, keyword matcher to review, plan to make the local model primary | Monitoring |
+| R-008 | Training data gaps and bias (no road accident / fallen debris photos, few medical, mostly aerial floods) | High | Medium | High | Dataset cleaning, held-out benchmark photos, low confidence to review; collect own photos | Open |
+| R-009 | Hoax or prank reports classified automatically | Medium | High | High | `hoaxSuspected` flag sends them to review (never auto-rejected); rate limit | Monitoring |
+| R-010 | AI accuracy not validated before the demo | Medium | High | High | Label benchmark severities, run `npm run benchmark` for local vs Gemini | Open |
+| R-011 | Citizen data or admin functions exposed | Low | High | Medium | RLS, private bucket, staff auth, admin functions locked (migration 0005); 42/42 checks passed | Mitigated |
+| R-012 | Unexpected AI API charges | Low | Medium | Low | Free-only rule, no billing linked; add Gemini prices so the budget cap counts them | Mitigated |
+| R-013 | Local model files (~20 MB, git-ignored) missing at deployment | Medium | Medium | Medium | Copies in shared Drive, label check at load time, deployment checklist step | Open |
 
 ### 16.3 Technical caveats
 - AI classification is **assistive** — the UI must always show that a score came from AI and whether it was human-confirmed.
@@ -829,17 +864,83 @@ Add the polygon, population, and risk index to `prisma/seed-data/areas.geojson` 
 | Change severity / weights / thresholds | `src/lib/constants.ts` |
 | Change the scoring formula | `src/lib/scoring/` |
 | Change / add an AI provider | `src/lib/ai/` |
-| Change the DB schema | `prisma/schema.prisma` → `npx prisma migrate dev` |
-| Seed data | `npm run db:seed` |
+| Change the DB schema | add a file in `supabase/migrations/` and run it in Supabase |
+| Seed data | `npm run seed` |
 | API contract | [Section 10](#10-api-endpoints) |
 
 **Rules of thumb**
+
 1. Never let AI output skip human review for high/critical cases.
 2. Keep scoring deterministic — no LLM calls inside `scoring/`.
 3. Log every override and status change to `audit_logs`.
 4. Same severity colors everywhere.
 5. Keep the citizen flow under a minute on a low-end phone.
 6. Work on a feature branch → PR into `development` → PR into `main`.
+
+---
+
+## 18. Project Schedule (Gantt Chart)
+
+Planned schedule from the SPMP (Section 4.2): nine one-week phases from September 23 to November 24, 2026, ending with the MVP demonstration.
+
+```mermaid
+gantt
+    title SAGIP-AI Project Schedule, Sept 23 to Nov 24, 2026
+    dateFormat YYYY-MM-DD
+    axisFormat %b %d
+    section W1 Initiation
+    Finalize and sign off on SPMP                  :done, w11, 2026-09-23, 7d
+    Secure institutional pilot partner             :active, w12, 2026-09-23, 7d
+    section W2 Architecture
+    Scope and architecture lock (Next.js + Supabase) :done, w21, 2026-09-30, 7d
+    Provision PostgreSQL + PostGIS and storage     :done, w22, 2026-09-30, 7d
+    Assemble 40-60 labeled incident images         :active, w23, 2026-09-30, 7d
+    section W3 AI Benchmarking
+    Evaluate candidate models                      :done, w31, 2026-10-07, 7d
+    Test classification, severity, latency         :active, w32, 2026-10-07, 7d
+    Select primary AI classification model         :active, w33, 2026-10-07, 7d
+    section W4 Logic and API
+    Deterministic priority scoring logic           :done, w41, 2026-10-14, 7d
+    Report intake service + API routes             :done, w42, 2026-10-14, 7d
+    section W5 Citizen Portal
+    Incident submission UI (photo, text)           :done, w51, 2026-10-21, 7d
+    Auto-captured GPS location                     :done, w52, 2026-10-21, 7d
+    Tracking ID and confirmation                   :done, w53, 2026-10-21, 7d
+    section W6 AI and Scoring
+    Integrate AI classification into backend       :done, w61, 2026-10-28, 7d
+    Priority scoring + human-review flagging       :done, w62, 2026-10-28, 7d
+    section W7 Dashboard
+    Responder map view                             :done, w71, 2026-11-04, 7d
+    Ranked incident list + detail view             :done, w72, 2026-11-04, 7d
+    Manual override + status updates               :done, w73, 2026-11-04, 7d
+    section W8 Testing and QA
+    Load test submission and classification        :w81, 2026-11-11, 7d
+    Verify audit trail + role-based access         :active, w82, 2026-11-11, 7d
+    Fix critical bugs, refine UI                   :active, w83, 2026-11-11, 7d
+    section W9 Deployment
+    Deploy to Vercel + Supabase                    :w91, 2026-11-18, 7d
+    Prepare slides and live demo scripts           :w92, 2026-11-18, 7d
+    section Milestones
+    SPMP sign-off                                  :milestone, m1, 2026-09-29, 0d
+    AI model selected                              :milestone, m2, 2026-10-13, 0d
+    MVP completed                                  :milestone, m3, 2026-11-24, 0d
+```
+
+Bars show the planned weeks; the shading shows progress as of September 29, 2026 (done, in progress, or not started).
+
+| Phase | Planned | Status (2026-09-29) | Notes |
+|-------|---------|---------------------|-------|
+| W1 Initiation & Alignment | Sep 23 – Sep 29 | In progress | SPMP signed off 2026-09-17; pilot partner not yet secured (Risk R-002) |
+| W2 Architecture & Prep | Sep 30 – Oct 6 | In progress | Stack and database done; 36 held-out benchmark photos, severity labels still to fill in |
+| W3 AI Benchmarking | Oct 7 – Oct 13 | In progress | Gemini models and own model evaluated; Gemini vs local benchmark pending |
+| W4 Logic Design & API | Oct 14 – Oct 20 | Done early (Sep 15) | Priority scoring and report intake API |
+| W5 Core Dev: Citizen Portal | Oct 21 – Oct 27 | Done early (Sep 15–22) | Submission, GPS, tracking |
+| W6 Core Dev: AI & Scoring | Oct 28 – Nov 3 | Done early (Sep 15–26) | AI chain, review flagging including hoax flag |
+| W7 Core Dev: Dashboard | Nov 4 – Nov 10 | Done early (Sep 15–22) | Map, ranked list, detail, override, status, assignment |
+| W8 Testing & QA | Nov 11 – Nov 17 | In progress | 42/42 public-side checks passed; load test and staff-side tests pending |
+| W9 Deployment & Prep | Nov 18 – Nov 24 | Not started | Deployment, slides and demo scripts |
+
+The same schedule is kept as an Excel Gantt chart with task-level status (`SAGIP-AI_Gantt_Chart.xlsx`, shared with the team).
 
 ---
 
@@ -867,9 +968,21 @@ A research and evaluation plan, not the final model choice.
 | Claude Haiku 4.5 | Strong structured JSON output | ~$1 | ~$5 | ~$0.0022 |
 | Claude Sonnet 4.6 | Escalation tier for low-confidence cases | ~$3 | ~$15 | ~$0.0064 |
 
-*Estimates as of drafting — reconfirm current pricing before testing.* Cost per scan assumes a ~1000×1000 px photo (~1,350 input tokens incl. prompt) and ~150 output tokens. Out of scope this round: flagship models as primary candidates and self-hosted models (YOLO, custom CNNs).
+*Estimates as of drafting — reconfirm current pricing before testing.* Cost per scan assumes a ~1000×1000 px photo (~1,350 input tokens incl. prompt) and ~150 output tokens.
 
 At these costs, a few thousand classifications a month is only a few dollars, so **accuracy and reliability should drive the choice, not cost**.
+
+**Update (2026-09-21) — free only.** The team has no budget, so the candidates are now limited to options that cost nothing:
+
+| Candidate | Cost | Notes |
+|---|---|---|
+| Gemini `gemini-3.1-flash-lite` | Free tier, daily reset | Current primary. Higher free RPM than Flash |
+| Gemini `gemini-3.5-flash` | Free tier, daily reset | Current fallback |
+| **Own model** (EfficientNet-B0 / MobileNetV3, fine-tuned) | Free (Colab training, runs on our server) | Photo → incident type only. Was out of scope; now in scope as the no-quota option |
+| Llama 4 Scout / Maverick | Needs credits on every current host | Dropped. Groq no longer serves Llama vision models |
+| Claude, GPT | Paid only | Dropped |
+
+Paid rows in the table above stay for reference only.
 
 ### B.2 Image size vs. token cost (Claude reference: ≈ width × height / 750)
 | Image size | Megapixels | Tokens (approx.) | Note |
@@ -904,6 +1017,15 @@ At these costs, a few thousand classifications a month is only a few dollars, so
 
 > The small test set is directional, not statistically rigorous — expand it with real submission data later.
 
+### B.6 Own model: training and comparison
+1. Collect 100–300 labeled photos per incident type (folders named after `INCIDENT_TYPES`) from the free datasets listed in `training/README.md`, then run `npm run dataset:prepare` to clean them and hold out the benchmark photos.
+2. Train on free Colab with `training/sagip_classifier_colab.ipynb`: 70/15/15 split with a locked test set, two-step fine-tuning, and ONNX export.
+3. Record test-set accuracy, per-class results, confusion matrix and Brier score (the notebook saves `metrics.json`).
+4. Compare with Gemini on the **same photos**: `npm run benchmark -- --models local,gemini:gemini-3.1-flash-lite`. Keep benchmark photos out of the training split, or the comparison is unfair.
+5. If the local model is close to Gemini on type accuracy with **0 missed urgent**, make it the primary (`AI_PROVIDER=local`) with Gemini as escalation. Otherwise keep Gemini primary.
+
+Save free-tier quota: develop with `AI_PROVIDER=mock`, validate with `--dry-run`, and run paid-provider benchmarks with small `--limit` and `--concurrency 1`.
+
 ---
 
 ## Appendix C — Documentation Checklist
@@ -923,5 +1045,9 @@ At these costs, a few thousand classifications a month is only a few dollars, so
 | Known issues, caveats & open questions | Done |
 | Quick reference & appendices | Done |
 | Final priority-scoring design doc (after model selection) | Pending |
-| Benchmark results | Pending |
+| Team onboarding guide (`docs/ONBOARDING.md`) | Done |
+| Own-model training guide (`training/README.md`) and notebook | Done |
+| First training run recorded (`docs/handoffs/ai-benchmarking.md`) | Done |
+| Benchmark results (our model against Gemini on the same photos) | Pending: benchmark severities not labeled yet |
+| Final UI design (current interface is a temporary wireframe) | Pending |
 | Pilot partner confirmed | Pending |

@@ -1,0 +1,7 @@
+{
+  "model": "efficientnet_b0",
+  "test_accuracy": 0.7980099502487562,
+  "brier": 0.12400204688310623,
+  "best_val_accuracy": 0.796812749003984,
+  "n_test": 1005
+}

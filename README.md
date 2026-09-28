@@ -12,7 +12,7 @@ An AI-assisted emergency reporting and incident prioritization platform. Citizen
 ![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?logo=supabase&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Vercel-000000?logo=vercel&logoColor=white)
 
-**[Read the Full Documentation](docs/DOCUMENTATION.md)**
+**[Read the Full Documentation](docs/DOCUMENTATION.md)** · **[Train Our Own AI Model](training/README.md)**
 
 </div>
 
@@ -36,7 +36,7 @@ Emergency reports often arrive through scattered channels such as phone calls, s
 
 Next.js (App Router) · TypeScript · Tailwind CSS · Supabase (PostgreSQL + PostGIS, Auth, Storage) · Gemini free tier · our own ONNX image classifier (onnxruntime-node) · Vercel
 
-The dashboard map is a dependency-free SVG component, not a map library.
+The dashboard map is a dependency-free SVG in `src/components/dashboard/IncidentMap.tsx`, not a map library.
 
 ## Project Status
 
@@ -46,7 +46,7 @@ The current interface is a temporary wireframe used for testing; the final visua
 
 ## Getting Started
 
-New to the team? Follow the [onboarding guide](https://github.com/helidastar/SAGIP-AI/blob/development/docs/ONBOARDING.md): access, setup, `.env.local`, staff accounts and how we work.
+New to the team? Follow the [onboarding guide](docs/ONBOARDING.md): access, setup, `.env.local`, staff accounts and how we work.
 
 | Command | What it does |
 |---------|--------------|
@@ -65,7 +65,7 @@ Set `AI_PROVIDER=mock` in `.env.local` while developing so testing does not cons
 >
 > It covers the system architecture, data model, API endpoints, setup instructions, common tasks, known issues, and the AI benchmarking plan.
 >
-> **New to the team?** Start with the [onboarding guide](https://github.com/helidastar/SAGIP-AI/blob/development/docs/ONBOARDING.md).
+> **New to the team?** Start with the [onboarding guide](docs/ONBOARDING.md).
 
 ## Contributors
 

@@ -1,0 +1,21 @@
+{
+  "type": "FeatureCollection",
+  "_note": "PLACEHOLDER data for development only. Rectangles and numbers are not real barangay boundaries, populations, or risk indices. Replace with PSA census + official boundary data.",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Sample Area A", "population": 50000, "riskIndex": 0.6 },
+      "geometry": { "type": "Polygon", "coordinates": [[[123.87, 10.31], [123.90, 10.31], [123.90, 10.34], [123.87, 10.34], [123.87, 10.31]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Sample Area B", "population": 30000, "riskIndex": 0.8 },
+      "geometry": { "type": "Polygon", "coordinates": [[[123.87, 10.28], [123.90, 10.28], [123.90, 10.31], [123.87, 10.31], [123.87, 10.28]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Sample Area C", "population": 15000, "riskIndex": 0.3 },
+      "geometry": { "type": "Polygon", "coordinates": [[[123.90, 10.28], [123.93, 10.28], [123.93, 10.34], [123.90, 10.34], [123.90, 10.28]]] }
+    }
+  ]
+}
