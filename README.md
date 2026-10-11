@@ -1,83 +1,385 @@
+<a id="readme-top"></a>
+
 <div align="center">
 
 # SAGIP-AI
 
 **Smart AI for Geospatial Intelligence and Prediction**
 
-An AI-assisted emergency reporting and incident prioritization platform. Citizens report emergencies in under a minute. Responders see a ranked, map-based view of what needs help first.
+Report it in under a minute. Classify it with AI. Rank it with a formula you can read. Keep a human in command.
 
-![Status](https://img.shields.io/badge/status-in%20testing-blue)
-![Next.js](https://img.shields.io/badge/Next.js-black?logo=next.js&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
-![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?logo=supabase&logoColor=white)
-![Vercel](https://img.shields.io/badge/Vercel-000000?logo=vercel&logoColor=white)
+CPEPE362 Software Development 2 · Team CCRVibe 2.0 · Instructor: Rex A. Seadiño Jr.
 
-**[Read the Full Documentation](docs/DOCUMENTATION.md)**
+![Stack](https://img.shields.io/badge/stack-Next.js%2016%20%2B%20TypeScript-black?logo=next.js&logoColor=white)
+![Maps](https://img.shields.io/badge/maps-custom%20SVG-0EA5E9)
+![DB](https://img.shields.io/badge/db-Supabase%20%2B%20PostGIS-3FCF8E?logo=supabase&logoColor=white)
+![AI](https://img.shields.io/badge/AI-Gemini%20free%20tier%20%2B%20local%20ONNX-4285F4?logo=googlegemini&logoColor=white)
+![Deploy](https://img.shields.io/badge/deploy-Vercel%20(not%20yet%20live)-000000?logo=vercel&logoColor=white)
+![License](https://img.shields.io/badge/license-TBD-lightgrey)
+
+Pilot area: **TODO** (no named pilot partner yet, see Risk Log R-002) · Focus: citizen emergency reporting and responder triage in the Philippines
+
+**[For Reviewers](#for-reviewers)** · **[Quickstart](#collaborator-quickstart)** · **[Local Setup](#local-setup)** · **[Docs](#documentation-map)**
+
+[Report Bug](https://github.com/helidastar/SAGIP-AI/issues/new?labels=bug) · [Request Feature](https://github.com/helidastar/SAGIP-AI/issues/new?labels=enhancement)
 
 </div>
 
+<details>
+  <summary>Table of Contents</summary>
+  <ol>
+    <li><a href="#the-problem">The problem</a></li>
+    <li><a href="#what-sagip-ai-does">What SAGIP-AI does</a></li>
+    <li><a href="#for-reviewers">For reviewers</a></li>
+    <li><a href="#tech-stack">Tech stack</a></li>
+    <li><a href="#team--ccrvibe-20">Team</a></li>
+    <li><a href="#repository-structure">Repository structure</a></li>
+    <li><a href="#collaborator-quickstart">Collaborator Quickstart</a></li>
+    <li><a href="#local-setup">Local Setup</a></li>
+    <li><a href="#roadmap">Roadmap</a></li>
+    <li><a href="#contributing">Contributing</a></li>
+    <li><a href="#documentation-map">Documentation map</a></li>
+    <li><a href="#core-data-model">Core data model</a></li>
+    <li><a href="#acknowledgments">Acknowledgments</a></li>
+  </ol>
+</details>
+
 ---
 
-## About
+## The problem
 
-Emergency reports often arrive through scattered channels such as phone calls, social media, and word of mouth. Responders have no single, prioritized view of what is happening and where.
+Emergency reports arrive through scattered channels: phone calls, social media posts and word of mouth. Responders have no single, ranked view of what is happening and where, so they triage by hand, guess at severity, and the most urgent incident is not always the one handled first.
 
-**SAGIP-AI** gives citizens one simple way to report an incident with a photo, a short description, and their location. AI classifies each report, a transparent formula ranks it, and responders act on the most urgent incidents first. The AI assists and does not decide: uncertain and high-severity cases always go to a human for review.
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## Key Features
+## What SAGIP-AI does
 
-- **Citizen Reporting** — photo, description, and GPS location, with no account needed
-- **AI Classification** — incident type, severity, and confidence from a vision AI model
-- **Human Review** — flagged cases are confirmed by a responder before ranking
-- **Priority Scoring** — explainable ranking of incidents by urgency
-- **Responder Dashboard** — live map, ranked list, assignment, and status tracking
+SAGIP-AI gives citizens one simple way to report an emergency (photo, short description, GPS) **without logging in**, and gives staff a ranked list and map of open incidents with a score breakdown. Every AI output is assistive: uncertain, urgent or suspicious reports always go to a human first, staff can correct any classification or override any score, and the AI never dispatches.
 
-## Tech Stack
+```
+  citizen report  (photo + description + GPS, no login, 5 per IP per 10 min)
+        |
+        v
+  POST /api/reports ──▶ Supabase  (Postgres + PostGIS, private photo bucket)
+        |
+        v
+  AI chain:  primary model ──▶ fallback Gemini ──▶ keyword matcher
+             (8 incident types · 4 severity levels · confidence · hoax flag)
+        |
+        v
+  needs review?  confidence < 0.70 · high/critical · suspected hoax · keyword fallback
+        |  yes ──▶ review queue ──▶ staff confirm or correct
+        |  no
+        v
+  priority score 0–100  ──▶  ranked list + map  ──▶  staff assign team, update status
+  (severity, population,                              citizen tracks by code
+   location risk, type)
+```
 
-Next.js (App Router) · TypeScript · Tailwind CSS · Supabase (PostgreSQL + PostGIS, Auth, Storage) · Gemini free tier · our own ONNX image classifier (onnxruntime-node) · Vercel
+| Users can… | How |
+|---|---|
+| Report an emergency without an account | Mobile-first form at `/` (`src/components/citizen/ReportForm.tsx`), per-IP rate limit in `src/lib/rate-limit.ts` |
+| Track their report | Tracking code (`SGP-XXXXXX`) at `/track`, served by `GET /api/reports/track/{trackingCode}` |
+| Get an AI classification | `src/lib/ai/chain.ts`: primary provider, one retry, fallback provider, then keyword matcher. Never throws |
+| Have doubtful reports checked by a person | `needsReview()` in `src/lib/ai/review.ts` sends them to `/dashboard/review` |
+| See incidents ranked with the reason | Deterministic formula in `src/lib/scoring/index.ts`; the dashboard shows each factor's contribution |
+| Assign, update and override | Staff API under `src/app/api/incidents/[id]/` (assign, status, priority, reclassify), all written to `audit_logs` |
 
-The dashboard map is a dependency-free SVG component, not a map library.
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-## Project Status
+---
 
-Implemented and in testing, targeting the demonstration in November 2026. The citizen portal, responder dashboard, API, AI classification chain and priority scoring are built and integrated on `development`.
+## For reviewers
 
-The current interface is a temporary wireframe used for testing; the final visual design is still in progress. Our own image classifier reaches 79.8 percent test accuracy across 6 incident types and runs free on the server, with the Gemini free tier as backup. See the [AI log](docs/handoffs/ai-benchmarking.md) for the measured results.
+**Start here:**
 
-## Getting Started
+1. Read [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md) sections 3 to 7: problem, user flow, core concepts and architecture.
+2. Read the [AI log](docs/handoffs/ai-benchmarking.md) for what the AI has actually been measured to do so far.
+3. Run the app locally with the [Collaborator Quickstart](#collaborator-quickstart). A public URL is **TODO**: the app is not deployed yet.
 
-New to the team? Follow the [onboarding guide](https://github.com/helidastar/SAGIP-AI/blob/development/docs/ONBOARDING.md): access, setup, `.env.local`, staff accounts and how we work.
+**What we want you to notice:**
 
-| Command | What it does |
-|---------|--------------|
-| `npm run dev` | Start the app at http://localhost:3000 |
-| `npm run seed` | Load teams and areas into Supabase |
-| `npm run make-admin -- <email>` | Give a Supabase user a staff role |
-| `npm run benchmark -- --dry-run` | Check the labeled benchmark photos (free) |
-| `npm run dataset:prepare -- --dry-run` | Check training photos before building the dataset |
-| `npm run export:training-data -- --dry-run` | Preview exporting reviewed reports as new training data |
+- **Honest by design.** The AI suggests; people decide. Four review triggers (confidence below 0.70, high or critical severity, suspected hoax, keyword fallback) always send a report to a person. A suspected hoax is flagged, never auto-rejected.
+- **Explainable ranking.** The priority score is plain code, not an AI call: `100 × (0.45·severity + 0.25·population + 0.15·location risk + 0.15·type)`. These weights are **placeholders** until the weights design doc is written.
+- **Free tiers only.** Vercel Hobby, Supabase Free, the Gemini free tier and our own ONNX model running on the server. No billing account is linked.
+- **Fails safe.** If the Gemini quota runs out or the model errors, the chain falls back to the keyword matcher and human review instead of failing the report.
+- **Our own model.** An EfficientNet-B0 image classifier trained in Colab scores **79.8% on its 1,005-photo test set** ([metrics](docs/training-runs/2026-09-23/metrics.json)).
 
-Set `AI_PROVIDER=mock` in `.env.local` while developing so testing does not consume the free Gemini quota.
+**Known limits, stated plainly:**
 
-## Documentation
+- The local model covers only **6 of the 8 types** (no training photos for `road_accident` or `fallen_debris`), so those rely on Gemini. It is **not yet the primary provider**; Gemini still is.
+- AI accuracy on real Philippine phone photos is **not measured yet**. The 36-photo benchmark cannot run until its severity labels are filled in (ISS-009).
+- A report needs GPS and an internet connection. There is no offline queue.
+- The UI is still the testing wireframe. The analytics page is a placeholder and the definitions page is not started.
 
-> **The complete project documentation is in [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md).**
->
-> It covers the system architecture, data model, API endpoints, setup instructions, common tasks, known issues, and the AI benchmarking plan.
->
-> **New to the team?** Start with the [onboarding guide](https://github.com/helidastar/SAGIP-AI/blob/development/docs/ONBOARDING.md).
+| Question | Where it's answered |
+|---|---|
+| How good is the AI, really? | [docs/handoffs/ai-benchmarking.md](docs/handoffs/ai-benchmarking.md) · [docs/training-runs/2026-09-23/](docs/training-runs/2026-09-23/) · [DOCUMENTATION.md Appendix B](docs/DOCUMENTATION.md#appendix-b--ai-classification-benchmarking-plan) |
+| How is the human kept in the loop? | [DOCUMENTATION.md §6.4–6.5](docs/DOCUMENTATION.md#64-ai-estimated-vs-confirmed-severity) |
+| How is a report ranked? | [DOCUMENTATION.md §6.6–6.7](docs/DOCUMENTATION.md#66-priority-score-proposed--to-be-finalized-in-its-own-design-doc) · `src/lib/scoring/index.ts` |
+| How is the data protected? | [DOCUMENTATION.md §9.3](docs/DOCUMENTATION.md#93-security-supabase-rls) (row-level security, private photo bucket) |
+| What are the known risks and gaps? | [DOCUMENTATION.md §16](docs/DOCUMENTATION.md#16-known-issues-caveats--open-questions) |
+| How was the model trained? | [training/README.md](training/README.md) |
 
-## Contributors
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-| Name | GitHub |
-|------|--------|
-| Charity Ricabo | [@helidastar](https://github.com/helidastar) |
-| Maria Mhikyla Jayno | [@mhiksNmatch](https://github.com/mhiksNmatch) |
-| Reign Marie Hamo-ay | [@Reignnnh04](https://github.com/Reignnnh04) |
-| John Vincent Fabroa | [@Beynsz](https://github.com/Beynsz) |
+---
+
+## Tech stack
+
+| Area | Technology | Purpose |
+|---|---|---|
+| Frontend + API | Next.js 16 App Router, React 19, TypeScript | Citizen portal, staff dashboard and route handlers in one app |
+| Styling | Tailwind CSS 4 | Temporary wireframe UI (final design in progress) |
+| Maps | Custom SVG (`src/components/dashboard/IncidentMap.tsx`) | Incident pins on the dashboard, no map library; detail view links to OpenStreetMap |
+| Database | Supabase Postgres + PostGIS | Reports, classifications, scores, areas; spatial queries |
+| Auth & storage | Supabase Auth, Supabase Storage | Staff login (responder, admin); private `report-photos` bucket |
+| AI (cloud) | Gemini free tier via `@google/genai` | `gemini-3.1-flash-lite` primary, `gemini-3.5-flash` fallback |
+| AI (local) | Own EfficientNet-B0 model, `onnxruntime-node` + `sharp` | Free on-server classification of 6 types |
+| AI (last resort) | Keyword matcher (`src/lib/ai/keyword.ts`) | Always answers with confidence 0, so the report goes to review |
+| Ranking | Deterministic weighted formula | Explainable 0–100 priority score and P1–P4 bands |
+| Deployment | Vercel + Supabase | Free-tier hosting (**not deployed yet**) |
+
+Everything runs on free tiers; no billing account is linked.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Team — CCRVibe 2.0
+
+| Avatar | Name | Role | Program | GitHub |
+|---|---|---|---|---|
+| <img src="https://github.com/helidastar.png?size=60" width="40" alt="Charity Ricabo avatar"> | Charity Ricabo | AI integration | BSCpE | [@helidastar](https://github.com/helidastar) |
+| <img src="https://github.com/Beynsz.png?size=60" width="40" alt="John Vincent Fabroa avatar"> | John Vincent Fabroa | Backend | BSCpE | [@Beynsz](https://github.com/Beynsz) |
+| <img src="https://github.com/Reignnnh04.png?size=60" width="40" alt="Reign Marie Hamo-ay avatar"> | Reign Marie Hamo-ay | Citizen portal | BSCpE | [@Reignnnh04](https://github.com/Reignnnh04) |
+| <img src="https://github.com/mhiksNmatch.png?size=60" width="40" alt="Maria Mhikyla Jayno avatar"> | Maria Mhikyla Jayno | Admin dashboard | BSCpE | [@mhiksNmatch](https://github.com/mhiksNmatch) |
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+---
+
+## Repository structure
+
+```
+SAGIP-AI/
+├── README.md            # You are here: overview, reviewer guide, setup.
+├── .env.example         # Every environment variable, with defaults. Copy to .env.local.
+├── src/
+│   ├── app/
+│   │   ├── (citizen)/   # Report (/), submitted (/submitted), track (/track). No login.
+│   │   ├── (dashboard)/ # /dashboard list + map, incidents/[id], review, analytics (placeholder).
+│   │   ├── login/       # Staff login.
+│   │   └── api/         # 16 route handlers: reports, incidents, review queue, auth, teams, areas.
+│   ├── components/      # citizen/, dashboard/ (incl. IncidentMap.tsx), ui/.
+│   ├── lib/
+│   │   ├── ai/          # Provider chain, Gemini/local/keyword classifiers, review rules.
+│   │   ├── scoring/     # Deterministic priority score and bands.
+│   │   ├── reports/     # Intake, classify, score and incident queries.
+│   │   ├── supabase/    # Server and admin (service-role) clients.
+│   │   └── constants.ts # Types, severities, statuses, thresholds, weights. Single source of truth.
+│   └── types/           # Shared TypeScript types.
+├── supabase/
+│   └── migrations/      # 6 SQL migrations: schema, staff accounts, views, map/areas, locks, hoax flag.
+├── scripts/             # seed, make-admin, benchmark, dataset prep, training export, staff smoke test.
+├── benchmark/           # Labeled-photo benchmark (dataset itself is git-ignored).
+├── training/            # Colab notebook and guide for our own ONNX classifier.
+├── models/              # Trained .onnx + labels.json (git-ignored, shared via Drive).
+└── docs/                # DOCUMENTATION.md, ONBOARDING.md, AI log, training-run metrics.
+```
+
+One Next.js app holds both the pages and the API (a modular monolith), so there is one thing to deploy to Vercel. The database lives as SQL migrations under `supabase/`, and the AI tooling (benchmark, training) sits beside the app because it is run by hand, not deployed.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+---
+
+## Collaborator Quickstart
+
+The team shares one Supabase project, already migrated and seeded, so there is no backend to set up.
+
+1. Ask Charity ([@helidastar](https://github.com/helidastar)) for access to the repo and the Supabase project (see [ONBOARDING.md](docs/ONBOARDING.md)).
+2. Clone and install:
+
+   ```bash
+   git clone https://github.com/helidastar/SAGIP-AI.git
+   cd SAGIP-AI
+   git checkout development
+   npm install
+   ```
+
+3. Copy `.env.example` to `.env.local`, fill in the Supabase values, and set `AI_PROVIDER=mock` so you don't use the shared free Gemini quota.
+4. Run it:
+
+   ```bash
+   npm run dev   # http://localhost:3000
+   ```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+---
+
+## Local Setup
+
+### Prerequisites
+
+- Node.js 20+ and npm
+- Git
+- A Supabase project with the `postgis` extension enabled
+- *(optional)* Your own free Gemini key from [aistudio.google.com](https://aistudio.google.com), with no billing account linked
+- *(optional)* The trained model files `sagip-classifier.onnx` and `labels.json` in `models/` (from the team Drive) to use `AI_PROVIDER=local`
+
+### Environment variables
+
+Everything is read from one file. Copy `.env.example` and fill in real values only on your machine or in the Vercel dashboard. Never commit secrets.
+
+| File | Block | Used by |
+|---|---|---|
+| `.env.local` | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Browser and server Supabase clients |
+| `.env.local` | `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `DIRECT_URL` | Server-only admin client, seed and admin scripts (secret) |
+| `.env.local` | `AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL`, `AI_TIMEOUT_MS` | Primary classifier (`gemini`, `local` or `mock`) |
+| `.env.local` | `AI_FALLBACK_PROVIDER`, `AI_FALLBACK_API_KEY`, `AI_FALLBACK_MODEL` | Fallback classifier (`gemini`) |
+| `.env.local` | `CONFIDENCE_THRESHOLD` (default `0.7`), `AI_DAILY_BUDGET_USD` | Review trigger and daily spend cap |
+| `.env.local` | `REPORT_RATE_LIMIT` (default `5`), `REPORT_RATE_WINDOW_MS` (default `600000`) | Per-IP limit on `POST /api/reports` |
+| `.env.test.local` | `TEST_ADMIN_EMAIL`, `TEST_ADMIN_PASSWORD`, `TEST_RESPONDER_EMAIL`, `TEST_RESPONDER_PASSWORD` | `scripts/smoke-staff.mjs` only |
+
+`AI_DAILY_BUDGET_USD` does not yet count Gemini 3.x spend, because their prices are missing from `src/lib/ai/normalize.ts` (ISS-007).
+
+### Database (Supabase)
+
+1. Enable the `postgis` extension.
+2. Run the files in `supabase/migrations/` in order (`0001_init.sql` to `0006_hoax_flag.sql`) in the SQL Editor or with the Supabase CLI. They create the tables, row-level security policies and the private `report-photos` bucket.
+3. Load teams and areas, then give a staff user a role:
+
+   ```bash
+   npm run seed
+   npm run make-admin -- <email>
+   ```
+
+### Web app
+
+```bash
+npm run dev      # http://localhost:3000
+npm run build
+npm run start
+npm run lint
+```
+
+| Page | URL | Account |
+|---|---|---|
+| Report an incident | `/` | none |
+| Confirmation | `/submitted?code=SGP-XXXXXX` | none |
+| Track a report | `/track` | none |
+| Staff login | `/login` | staff |
+| Ranked list and map | `/dashboard` | staff |
+| Incident detail | `/dashboard/incidents/<id>` | staff |
+| Review queue | `/dashboard/review` | staff |
+| Analytics | `/dashboard/analytics` | staff (placeholder) |
+| Definitions | TODO | not started |
+
+### AI tooling
+
+```bash
+npm run benchmark -- --dry-run              # check the labeled benchmark photos (free)
+npm run dataset:prepare -- --dry-run        # check training photos before building the dataset
+npm run export:training-data -- --dry-run   # preview reviewed reports as new training data
+```
+
+See [benchmark/README.md](benchmark/README.md) and [training/README.md](training/README.md).
+
+### Tests
+
+There is no automated test runner in `package.json` yet. The one end-to-end check today is the staff API smoke test, run against `npm run dev`:
+
+```bash
+node --env-file=.env.local --env-file=.env.test.local scripts/smoke-staff.mjs
+```
+
+TODO: staff-side end-to-end test (ISS-010), load test (R-004), and low-end phone and weak-connection test.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+---
+
+## Roadmap
+
+- [x] Citizen report, submitted and track pages
+- [x] Staff login, ranked list and map, incident detail, review queue
+- [x] AI chain with fallback, keyword matcher and 4 human-review triggers
+- [x] Deterministic priority score with per-factor breakdown
+- [x] Own image classifier trained (79.8% test accuracy, 6 types)
+- [ ] Fill severity labels and run the 36-photo benchmark (ISS-009)
+- [ ] Make the local model the primary provider
+- [ ] Write the priority weights design doc
+- [ ] Define "severity %" and add it to the database, API and UI
+- [ ] Analytics page and endpoint, definitions page
+- [ ] Add Gemini 3.x prices to the cost tracker (ISS-007)
+- [ ] Staff end-to-end test (ISS-010), load test (R-004), low-end phone and weak-connection test
+- [ ] Final UI design on all 9 pages
+- [ ] Deploy to Vercel from `main`
+
+See the [open issues](https://github.com/helidastar/SAGIP-AI/issues) for more.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+---
+
+## Contributing
+
+Work goes from a feature branch into `development`, then into `main` through pull requests. `main` is protected and needs one approval.
+
+1. Branch from `development` (`git checkout -b feat/<area>`)
+2. Commit with a one-line message in the form `type(scope): what changed` (e.g. `feat(ai): add local onnx classifier provider`)
+3. Check your work (`npm run build` and `npm run lint`)
+4. Push the branch (`git push origin feat/<area>`)
+5. Open a pull request into `development`
+
+### Top contributors:
+
+<a href="https://github.com/helidastar/SAGIP-AI/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=helidastar/SAGIP-AI" alt="contrib.rocks image" />
+</a>
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+---
+
+## Documentation map
+
+| Doc | What's inside |
+|---|---|
+| [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md) | Full project documentation: scope, user flow, architecture, data model, API, setup, risks, schedule. |
+| [docs/ONBOARDING.md](docs/ONBOARDING.md) | Team access, setup, `.env.local`, staff accounts and how we work. |
+| [docs/handoffs/ai-benchmarking.md](docs/handoffs/ai-benchmarking.md) | AI status, live test log and open AI issues. |
+| [docs/training-runs/2026-09-23/](docs/training-runs/2026-09-23/) | Local model metrics, labels and confusion matrix. |
+| [benchmark/README.md](benchmark/README.md) | How to build and run the labeled-photo benchmark. |
+| [training/README.md](training/README.md) | Photo sources and how to train the local model. |
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Core data model
+
+`reports` · `classifications` · `reviews` · `priority_scores` · `assignments` · `teams` · `profiles` · `areas` · `audit_logs`
+
+A report moves through 7 statuses: `received`, `pending_review`, `classified`, `assigned`, `in_progress`, `resolved`, `rejected`.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+## Acknowledgments
+
+* Public disaster photo datasets used to train our classifier, listed with their licenses in [training/README.md](training/README.md)
+* [Google AI Studio](https://aistudio.google.com) for the Gemini free tier
+* [Supabase](https://supabase.com) and [Vercel](https://vercel.com) free tiers
+* [ONNX Runtime](https://onnxruntime.ai) and [sharp](https://sharp.pixelplumbing.com)
+* [OpenStreetMap](https://www.openstreetmap.org) for incident location links
+* [Img Shields](https://shields.io)
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+---
 
 <div align="center">
 
-**CCRVIBE 2.0** · Instructor: Rex A. Seadiño Jr.
+**SAGIP-AI** — the AI assists; a person always decides.
+
+Built for CCRVIBE 2.0 · License: TODO (no LICENSE file in the repo yet)
 
 </div>
