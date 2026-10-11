@@ -19,7 +19,7 @@ CPEPE362 Software Development 2 · Team CCRVibe 2.0 · Instructor: Rex A. Seadi�
 
 Pilot area: **TODO** (no named pilot partner yet, see Risk Log R-002) · Focus: citizen emergency reporting and responder triage in the Philippines
 
-**[For Reviewers](#for-reviewers-and-panelists)** · **[Quickstart](#collaborator-quickstart)** · **[Local Setup](#local-setup)** · **[Docs](#documentation-map)**
+**[For Reviewers](#for-reviewers)** · **[Quickstart](#collaborator-quickstart)** · **[Local Setup](#local-setup)** · **[Docs](#documentation-map)**
 
 [Report Bug](https://github.com/helidastar/SAGIP-AI/issues/new?labels=bug) · [Request Feature](https://github.com/helidastar/SAGIP-AI/issues/new?labels=enhancement)
 
@@ -30,7 +30,7 @@ Pilot area: **TODO** (no named pilot partner yet, see Risk Log R-002) · Focus: 
   <ol>
     <li><a href="#the-problem">The problem</a></li>
     <li><a href="#what-sagip-ai-does">What SAGIP-AI does</a></li>
-    <li><a href="#for-reviewers-and-panelists">For reviewers and panelists</a></li>
+    <li><a href="#for-reviewers">For reviewers</a></li>
     <li><a href="#tech-stack">Tech stack</a></li>
     <li><a href="#team--ccrvibe-20">Team</a></li>
     <li><a href="#repository-structure">Repository structure</a></li>
