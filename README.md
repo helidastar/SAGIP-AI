@@ -129,7 +129,7 @@ The team shares one Supabase project that is already migrated and seeded. Ask Ch
    SUPABASE_SERVICE_ROLE_KEY=      # secret, server only
    DATABASE_URL=                   # secret
    DIRECT_URL=                     # secret
-   AI_PROVIDER=mock                # mock uses no AI quota; also gemini | local | claude | llama
+   AI_PROVIDER=mock                # mock uses no AI quota; or gemini | local
    AI_API_KEY=
    ```
    The other variables (fallback provider, `CONFIDENCE_THRESHOLD`, `AI_DAILY_BUDGET_USD`, `REPORT_RATE_LIMIT`, `REPORT_RATE_WINDOW_MS`) have working defaults in `.env.example`.
