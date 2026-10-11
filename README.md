@@ -8,7 +8,7 @@
 
 Report it in under a minute. Classify it with AI. Rank it with a formula you can read. Keep a human in command.
 
-CCRVIBE 2.0 capstone · Team CCRVibe 2.0 · Instructor: Rex A. Seadiño Jr.
+CPEPE362 Software Development 2 · Team CCRVibe 2.0 · Instructor: Rex A. Seadiño Jr.
 
 ![Stack](https://img.shields.io/badge/stack-Next.js%2016%20%2B%20TypeScript-black?logo=next.js&logoColor=white)
 ![Maps](https://img.shields.io/badge/maps-custom%20SVG-0EA5E9)
@@ -89,7 +89,7 @@ SAGIP-AI gives citizens one simple way to report an emergency (photo, short desc
 
 ---
 
-## For reviewers and panelists
+## For reviewers
 
 **Start here:**
 
@@ -148,10 +148,10 @@ Everything runs on free tiers; no billing account is linked.
 
 | Avatar | Name | Role | Program | GitHub |
 |---|---|---|---|---|
-| <img src="https://github.com/helidastar.png?size=60" width="40" alt="Charity Ricabo avatar"> | Charity Ricabo | AI integration | TODO | [@helidastar](https://github.com/helidastar) |
-| <img src="https://github.com/Beynsz.png?size=60" width="40" alt="John Vincent Fabroa avatar"> | John Vincent Fabroa | Backend | TODO | [@Beynsz](https://github.com/Beynsz) |
-| <img src="https://github.com/Reignnnh04.png?size=60" width="40" alt="Reign Marie Hamo-ay avatar"> | Reign Marie Hamo-ay | Citizen portal | TODO | [@Reignnnh04](https://github.com/Reignnnh04) |
-| <img src="https://github.com/mhiksNmatch.png?size=60" width="40" alt="Maria Mhikyla Jayno avatar"> | Maria Mhikyla Jayno | Admin dashboard | TODO | [@mhiksNmatch](https://github.com/mhiksNmatch) |
+| <img src="https://github.com/helidastar.png?size=60" width="40" alt="Charity Ricabo avatar"> | Charity Ricabo | AI integration | BSCpE | [@helidastar](https://github.com/helidastar) |
+| <img src="https://github.com/Beynsz.png?size=60" width="40" alt="John Vincent Fabroa avatar"> | John Vincent Fabroa | Backend | BSCpE | [@Beynsz](https://github.com/Beynsz) |
+| <img src="https://github.com/Reignnnh04.png?size=60" width="40" alt="Reign Marie Hamo-ay avatar"> | Reign Marie Hamo-ay | Citizen portal | BSCpE | [@Reignnnh04](https://github.com/Reignnnh04) |
+| <img src="https://github.com/mhiksNmatch.png?size=60" width="40" alt="Maria Mhikyla Jayno avatar"> | Maria Mhikyla Jayno | Admin dashboard | BSCpE | [@mhiksNmatch](https://github.com/mhiksNmatch) |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
