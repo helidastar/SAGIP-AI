@@ -42,9 +42,6 @@ Keep benchmark photos out of the training split, or the local model's score will
 The local model predicts only the incident type from the photo; severity comes from the
 description keywords, so expect it to score lower on severity than Gemini.
 
-Llama runs against any OpenAI-compatible host, but no current host offers Llama vision for
-free (Groq dropped it), so it's not part of the free setup. See the AI log (2026-09-21).
-
 ## 4. Read the results
 Each run writes `benchmark/results/<timestamp>/`:
 - `report.md` — ranked summary, accuracy per bucket, confusion matrices
