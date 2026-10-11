@@ -29,16 +29,16 @@ export interface ChainOutcome {
 
 function providersFromEnv() {
   // The local model runs on our server, so it needs no API key.
-  const make = (provider?: string, key?: string, model?: string, baseUrl?: string) =>
+  const make = (provider?: string, key?: string, model?: string) =>
     provider && provider !== "mock" && (key || provider === "local")
-      ? createProvider(provider, key ?? "", model || undefined, baseUrl || undefined)
+      ? createProvider(provider, key ?? "", model || undefined)
       : null;
   const primaryProvider = process.env.AI_PROVIDER ?? "gemini";
   return {
     // Our own model is cheap but weaker, so its unsure answers get a second opinion from the fallback.
     escalateLowConfidence: primaryProvider === "local",
-    primary: make(primaryProvider, process.env.AI_API_KEY, process.env.AI_MODEL, process.env.AI_BASE_URL),
-    fallback: make(process.env.AI_FALLBACK_PROVIDER, process.env.AI_FALLBACK_API_KEY, process.env.AI_FALLBACK_MODEL, process.env.AI_FALLBACK_BASE_URL),
+    primary: make(primaryProvider, process.env.AI_API_KEY, process.env.AI_MODEL),
+    fallback: make(process.env.AI_FALLBACK_PROVIDER, process.env.AI_FALLBACK_API_KEY, process.env.AI_FALLBACK_MODEL),
   };
 }
 

@@ -14,7 +14,6 @@
     "export:training-data": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/export-training-data.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.125.0",
     "@google/genai": "^2.22.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
