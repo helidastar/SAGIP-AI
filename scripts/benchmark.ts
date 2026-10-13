@@ -3,7 +3,7 @@
  *
  * Usage:
  *   npm run benchmark -- --dry-run
- *   npm run benchmark -- --models gemini:gemini-3.6-flash,claude:claude-haiku-4-5 --yes
+ *   npm run benchmark -- --models gemini:gemini-3.1-flash-lite,local --yes
  *
  * Options:
  *   --dataset <dir>     Folder with labels.csv and images (default benchmark/dataset)
@@ -13,16 +13,12 @@
  *   --dry-run           Validate the dataset and print the plan without calling any API
  *   --yes               Required to make paid API calls
  *
- * API keys: GEMINI_API_KEY, ANTHROPIC_API_KEY, LLAMA_API_KEY, or AI_API_KEY for the
- * provider named in AI_PROVIDER. Llama defaults to Groq; set LLAMA_BASE_URL for
- * another OpenAI-compatible host.
+ * API keys: GEMINI_API_KEY, or AI_API_KEY when AI_PROVIDER=gemini. The local model needs no key.
  */
 import { mkdir, readFile, writeFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import { createClaudeClassifier } from "@/lib/ai/claude";
 import { createGeminiClassifier } from "@/lib/ai/gemini";
-import { createLlamaClassifier } from "@/lib/ai/llama";
 import { createLocalClassifier } from "@/lib/ai/local";
 import { needsReview } from "@/lib/ai/review";
 import type { Classifier, ClassifierResult } from "@/lib/ai/types";
@@ -128,19 +124,9 @@ function makeClassifier(spec: string): Classifier {
     if (!key) throw new Error("Set GEMINI_API_KEY to benchmark Gemini");
     return createGeminiClassifier(key, model);
   }
-  if (provider === "claude") {
-    const key = envKey("ANTHROPIC_API_KEY");
-    if (!key) throw new Error("Set ANTHROPIC_API_KEY to benchmark Claude");
-    return createClaudeClassifier(key, model);
-  }
-  if (provider === "llama") {
-    const key = envKey("LLAMA_API_KEY");
-    if (!key) throw new Error("Set LLAMA_API_KEY to benchmark Llama");
-    return createLlamaClassifier(key, model, process.env.LLAMA_BASE_URL || undefined);
-  }
   // Our own ONNX model: free, no key. The "model" part is the .onnx path (default models/sagip-classifier.onnx).
   if (provider === "local") return createLocalClassifier(model);
-  throw new Error(`Unknown provider "${provider}" in --models (use gemini:<model>, claude:<model>, llama:<model> or local[:<path.onnx>])`);
+  throw new Error(`Unknown provider "${provider}" in --models (use gemini:<model> or local[:<path.onnx>])`);
 }
 
 async function runModel(classifier: Classifier, labels: Label[], dir: string, concurrency: number, log: (r: Run) => Promise<void>) {

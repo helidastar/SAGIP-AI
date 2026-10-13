@@ -43,7 +43,7 @@
 | **Frontend + API** | Next.js (App Router), TypeScript |
 | **Database** | Supabase (PostgreSQL + PostGIS). Schema in `supabase/migrations/*.sql`, accessed with `@supabase/supabase-js` |
 | **Storage / Auth** | Supabase Storage (report photos), Supabase Auth (role-based, responders/admins only) |
-| **AI** | Gemini free tier (`gemini-3.1-flash-lite` primary, `gemini-3.5-flash` fallback) plus our own local ONNX image classifier. `claude` and `llama` providers exist in code but are not configured. Free tiers only, no paid APIs |
+| **AI** | Gemini free tier (`gemini-3.1-flash-lite` primary, `gemini-3.5-flash` fallback) plus our own local ONNX image classifier. Free tiers only, no paid APIs |
 | **Maps** | Custom SVG map in `src/components/dashboard/IncidentMap.tsx` (no map library). Incident detail links out to OpenStreetMap |
 | **Hosting** | Vercel (app) + Supabase (DB, storage, auth) |
 | **Architecture style** | Modular monolith |
@@ -293,7 +293,7 @@ flowchart TB
 
     subgraph Data["Data & AI Layer"]
         direction LR
-        LLM["Vision-LLM API<br/>Gemini / Claude / GPT"]
+        LLM["Gemini API<br/>free tier"]
         ST[("Supabase Storage<br/>report photos")]
         DB[("Supabase PostgreSQL<br/>+ PostGIS")]
         SA[Supabase Auth]
@@ -657,7 +657,7 @@ src/
 │   ├── dashboard/                 # IncidentList, IncidentMap, ScoreBreakdown
 │   └── ui/                        # SeverityChip, PriorityBadge, StatusPill, DefinitionsModal
 ├── lib/
-│   ├── ai/                        # classifier interface + providers (gemini, claude, llama, local, keyword)
+│   ├── ai/                        # classifier interface + providers (gemini, local, keyword)
 │   ├── reports/                   # intake, classification, scoring helpers
 │   ├── scoring/                   # priority formula + banding
 │   ├── supabase/                  # admin + server clients
@@ -700,8 +700,6 @@ Every provider implements the same interface; `AI_PROVIDER` picks the primary an
 |---|---|---|---|
 | `gemini` | `gemini.ts` | Free tier (daily reset) | **In use** (primary + fallback) |
 | `local` | `local.ts` | Free, runs on our server (ONNX) | Trained 2026-09-23 (79.8% test accuracy, 41 ms per photo); not yet the primary, pending the benchmark against Gemini |
-| `claude` | `claude.ts` | Paid only | Not configured |
-| `llama` | `llama.ts` | Needs credits on current hosts | Not configured (see AI log 2026-09-21) |
 | keyword matcher | `keyword.ts` | Free | Always the last step |
 
 API providers share one prompt and JSON schema (`prompt.ts`), and output is validated by `normalizeClassification()`. The `local` provider is our own image model (trained with `training/sagip_classifier_colab.ipynb`). It predicts only the incident type from the photo; severity and hazards come from the description keywords.
@@ -763,7 +761,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>   # server only, never expose
 DATABASE_URL=postgresql://...                  # pooled connection (SQL tools)
 DIRECT_URL=postgresql://...                    # direct connection for migrations
-AI_PROVIDER=gemini                             # gemini | local | claude | llama | mock
+AI_PROVIDER=gemini                             # gemini | local | mock
 AI_API_KEY=<provider-key>                      # not needed for local
 AI_MODEL=gemini-3.1-flash-lite                 # for local: path to the .onnx file
 AI_FALLBACK_PROVIDER=gemini
@@ -838,7 +836,7 @@ Matches the team's Risk Log spreadsheet (as of 2026-09-28). Rating = Likelihood 
 | R-003 | Responders don't trust the AI ranking | Medium | Medium | Medium | Transparent formula, visible score breakdown, manual override | Open |
 | R-004 | System overload during a disaster spike | Low–Medium | High | Medium | Background classification, per-IP rate limit, managed hosting; load test pending | Open |
 | R-005 | Scope creep across 4 bundled sub-products | High | Medium | High | Hold to MVP scope in [3.5](#35-scope--prioritization) | Open |
-| R-006 | AI vendor pricing / availability changes (happened: `gemini-2.5-flash` withdrawn, free Llama vision removed) | High | Medium | High | Swappable providers (Gemini, Claude, Llama, local) with retry, fallback and keyword matcher | Monitoring |
+| R-006 | AI vendor pricing / availability changes (happened: `gemini-2.5-flash` withdrawn, free vision models removed by some hosts) | High | Medium | High | Swappable providers (Gemini, local) with retry, fallback and keyword matcher | Monitoring |
 | R-007 | Free-tier AI quota runs out during testing, a spike or the demo | Medium | High | High | Separate-quota fallback model, keyword matcher to review, plan to make the local model primary | Monitoring |
 | R-008 | Training data gaps and bias (no road accident / fallen debris photos, few medical, mostly aerial floods) | High | Medium | High | Dataset cleaning, held-out benchmark photos, low confidence to review; collect own photos | Open |
 | R-009 | Hoax or prank reports classified automatically | Medium | High | High | `hoaxSuspected` flag sends them to review (never auto-rejected); rate limit | Monitoring |
@@ -948,7 +946,6 @@ The same schedule is kept as an Excel Gantt chart with task-level status (`SAGIP
 - Duplicate / near-duplicate report clustering (image + location + time similarity).
 - Offline-first submission queue with retry on poor connectivity.
 - Safety guidance content for citizens based on incident type.
-- Two-tier AI: escalate ambiguous cases to a stronger model (e.g. Claude Sonnet 4.6).
 - SMS / hotline intake for citizens without data.
 - Push / SMS notifications to citizens on status change.
 - Responder mobile view with navigation to the incident.
@@ -961,30 +958,17 @@ The same schedule is kept as an Excel Gantt chart with task-level status (`SAGIP
 A research and evaluation plan, not the final model choice.
 
 ### B.1 Candidate models
-| Model | Why shortlisted | Input $/1M | Output $/1M | Est. cost / scan |
-|-------|-----------------|-----------|-------------|------------------|
-| Gemini 2.5 Flash | Cheapest frontier-class option, fast | ~$0.15–0.30 | ~$0.60–2.50 | ~$0.0008 |
-| GPT-4o mini | Budget baseline | ~$0.15 | ~$0.60 | ~$0.0003 |
-| Claude Haiku 4.5 | Strong structured JSON output | ~$1 | ~$5 | ~$0.0022 |
-| Claude Sonnet 4.6 | Escalation tier for low-confidence cases | ~$3 | ~$15 | ~$0.0064 |
-
-*Estimates as of drafting — reconfirm current pricing before testing.* Cost per scan assumes a ~1000×1000 px photo (~1,350 input tokens incl. prompt) and ~150 output tokens.
-
-At these costs, a few thousand classifications a month is only a few dollars, so **accuracy and reliability should drive the choice, not cost**.
-
-**Update (2026-09-21) — free only.** The team has no budget, so the candidates are now limited to options that cost nothing:
+The team has no budget, so the candidates are limited to options that cost nothing:
 
 | Candidate | Cost | Notes |
 |---|---|---|
 | Gemini `gemini-3.1-flash-lite` | Free tier, daily reset | Current primary. Higher free RPM than Flash |
 | Gemini `gemini-3.5-flash` | Free tier, daily reset | Current fallback |
-| **Own model** (EfficientNet-B0 / MobileNetV3, fine-tuned) | Free (Colab training, runs on our server) | Photo → incident type only. Was out of scope; now in scope as the no-quota option |
-| Llama 4 Scout / Maverick | Needs credits on every current host | Dropped. Groq no longer serves Llama vision models |
-| Claude, GPT | Paid only | Dropped |
+| **Own model** (EfficientNet-B0 / MobileNetV3, fine-tuned) | Free (Colab training, runs on our server) | Photo → incident type only. The no-quota option |
 
-Paid rows in the table above stay for reference only.
+Accuracy and reliability drive the choice, since every candidate is free.
 
-### B.2 Image size vs. token cost (Claude reference: ≈ width × height / 750)
+### B.2 Image size vs. token cost (approx. tokens ≈ width × height / 750)
 | Image size | Megapixels | Tokens (approx.) | Note |
 |------------|-----------|------------------|------|
 | 500×500 | 0.25 | ~333 | Borderline usable |
