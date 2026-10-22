@@ -17,7 +17,6 @@ Add a new dated entry at the top for each session. Keep old entries — they sho
 | Labeled benchmark dataset | 36 held-out photos in `benchmark/dataset/`. **Severity column still blank**, so the Gemini comparison cannot run yet |
 | Cost tracking for Gemini 3.x | **Not working** — no price in `src/lib/ai/normalize.ts`, so `cost_usd` is null and the daily budget cap ignores Gemini spend. Matters less while on the free tier with no billing linked |
 | Team constraint | **Free only.** No paid APIs, no billing accounts. Free tiers that reset daily, for development and the final demo (Nov 2026) |
-| Llama provider | In the code (`llama.ts`), **not usable for free**: Groq dropped Llama vision models, other hosts need credits. Not planned |
 | Own model (`local` provider) | **Trained and installed** (2026-09-23): 79.8% test accuracy over 6 types, 41 ms per photo, free. Not yet the primary provider |
 
 ### How a report is classified (current setup)
@@ -168,21 +167,12 @@ At the current `CONFIDENCE_THRESHOLD` of 0.7, 21 of 36 photos would be classifie
 
 ---
 
-## 2026-09-21 — Llama checked and dropped; own-model path added
+## 2026-09-21 — Own-model path added
 
 **Branch:** `feat/ai` · **Tester:** Claude Code session · **Environment:** local, no app server
 
 ### Decision: free AI only
-The team has no budget. Rule from now on: only free tiers that reset daily and **cannot charge** (no billing account linked). Paid providers stay in the code but are not configured.
-
-### Llama (Meta) — added, tested, not usable for free
-| Check | Result |
-|---|---|
-| `llama` provider added (`src/lib/ai/llama.ts`), OpenAI-compatible, any host via `AI_BASE_URL` | Passed. Stub-server test: request format, image upload, JSON parsing, cost, 429 → retry all correct |
-| Groq (free, daily reset) — 1 real call | Failed. 404 `model_not_found`. Groq's model list has **no Llama chat/vision models** left, only `llama-prompt-guard-2` (prompt-injection filters) |
-| OpenRouter (`meta-llama/llama-4-scout`, $0.10 / $0.30 per 1M) | Works on paper, but needs credits. **Rejected** by the team (cost risk) |
-
-API usage this session: 1 failed Groq call (no generation), 1 free model-list call. No Gemini quota used.
+The team has no budget. Rule from now on: only free tiers that reset daily and **cannot charge** (no billing account linked).
 
 ### Own model — `local` provider (commit `c955909`)
 Instead of an API, train a small image classifier (EfficientNet-B0 / MobileNetV3, transfer learning) on free Colab and run it on our server with ONNX Runtime. No quota, no cost, works offline.
@@ -437,10 +427,10 @@ flowchart LR
 
 ### 6. Open issues / decisions for the team
 
-1. **Configure a fallback provider.** Suggested: `AI_FALLBACK_PROVIDER=gemini`, `AI_FALLBACK_MODEL=gemini-3.5-flash`, same key in `AI_FALLBACK_API_KEY`. Cheap insurance against 503 spikes. A different vendor (Claude) is stronger insurance against a whole-provider outage.
+1. **Configure a fallback provider.** Suggested: `AI_FALLBACK_PROVIDER=gemini`, `AI_FALLBACK_MODEL=gemini-3.5-flash`, same key in `AI_FALLBACK_API_KEY`. Cheap insurance against 503 spikes.
 2. **Add Gemini 3.x prices** to `PRICES` in `src/lib/ai/normalize.ts` from the official pricing page. Until then `cost_usd` is null and `AI_DAILY_BUDGET_USD` won't count Gemini calls.
 3. **Latency** — 11.6 s with an image during a 503 spike; `AI_TIMEOUT_MS` is 20 s. Re-measure when load is normal.
-4. **Build the labeled dataset** and run `npm run benchmark` for `gemini-3.6-flash`, `gemini-3.5-flash`, `gemini-3.1-flash-lite` (and Claude if you have a key). Only then pick the default model and confidence threshold.
+4. **Build the labeled dataset** and run `npm run benchmark` for `gemini-3.6-flash`, `gemini-3.5-flash`, `gemini-3.1-flash-lite` and `local`. Only then pick the default model and confidence threshold.
 5. **Test data in Supabase** from this session (safe to delete from the Table Editor; deleting a report cascades to its classifications and audit logs; photos stay in the `report-photos` bucket under their tracking code):
 
    | Report id | Code | Note |
