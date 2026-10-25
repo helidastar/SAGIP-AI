@@ -43,11 +43,59 @@ The Comprehensive Disaster Dataset (CDD) plus four smaller sets, mapped as follo
 
 Also note that many flood photos in these sets are aerial, while citizens submit ground-level phone photos.
 
+### Second training run (2026-10-25)
+The first model had no `road_accident` or `fallen_debris` photos (ISS-014) and scored 52% on the 50-photo benchmark.
+We added 15 public Roboflow Universe datasets, all **CC BY 4.0** (credit required, commercial use allowed). Every set was checked by eye on a contact sheet first; two were dropped as off-topic (apartment interiors, yoga and gym photos).
+
+The photo list is in [`extra-photos.tsv`](extra-photos.tsv) (type, source, id, url; 5,259 photos). Download it with:
+
+```bash
+node scripts/fetch-training-photos.mjs   # into training/raw/<type>/roboflow-<source>/, safe to re-run
+```
+
+| Our type | Dataset (Roboflow Universe, CC BY 4.0) | Photos |
+|---|---|---|
+| `road_accident` | [college-projects / accident](https://universe.roboflow.com/college-projects-2ajd2/accident-lgb8o) | 178 |
+| `road_accident` | [dataset-f4dhj / accident-detection](https://universe.roboflow.com/dataset-f4dhj/accident-detection-gewpv) | 190 |
+| `road_accident` | [dooropen / crash](https://universe.roboflow.com/dooropen/crash-km0ak) | 416 |
+| `road_accident` | [nyankosenseirokubackup / vehicle-accident](https://universe.roboflow.com/nyankosenseirokubackup/vehicle-accident-m2ryw) | 473 |
+| `road_accident` | [tammy / cctv-accident](https://universe.roboflow.com/tammy/cctv-accident) | 342 |
+| `fallen_debris` | [erykvtymons / fallen-trees-detection](https://universe.roboflow.com/erykvtymons/fallen-trees-detection-v1) | 192 |
+| `fallen_debris` | [rounak-shukla / tree-fall-detection](https://universe.roboflow.com/rounak-shukla-cefqh/tree-fall-detection-gh8z2) | 735 |
+| `fallen_debris` | [dangs-workspace / fallen-tree-detection](https://universe.roboflow.com/dangs-workspace-gac1u/fallen-tree-detection) | 18 |
+| `flood` | [andrews-workspace / flooded-od](https://universe.roboflow.com/andrews-workspace-695dm/flooded-od) | 438 |
+| `flood` | [frank-oliveira / rualivreia](https://universe.roboflow.com/frank-oliveira/rualivreia) | 469 |
+| `flood` | [yolos / flooded-house](https://universe.roboflow.com/yolos-iw5ob/flooded-house) | 197 |
+| `flood` | [longs-workspace / aug-drone-flood](https://universe.roboflow.com/longs-workspace-5qjnw/aug-drone-flood) | 250 |
+| `flood` | [final-year-project / flood-detection](https://universe.roboflow.com/final-year-project-f8l24/flood-detection-2i4xt) | 247 |
+| `structural_damage` | [muhammads-workspace / earthquake](https://universe.roboflow.com/muhammads-workspace-uooos/earthquake-5cvpq) | 615 |
+| `medical_emergency` | [fallen-people-data-set / fallen-person](https://universe.roboflow.com/fallen-people-data-set/fallen-person-uhif8) | 499 |
+
+After `dataset:prepare` (duplicates, cross-type conflicts and benchmark matches removed) the training set grew from 6,695 to **10,456 photos**:
+
+| fallen_debris | fire | flood | landslide | medical_emergency | other | road_accident | structural_damage |
+|---|---|---|---|---|---|---|---|
+| 692 | 1,497 | 3,067 | 687 | 554 | 1,139 | 820 | 2,000 |
+
+Benchmark type accuracy (50 photos, `npm run benchmark -- --models local --yes`) over the rounds:
+
+| Round | Change | Type accuracy |
+|---|---|---|
+| Start | First model (EfficientNet-B0, 6 types) | 52% |
+| 1 | + road accident and fallen debris photos | 72% |
+| 2 | One big batch for every weak type | 82% |
+| 3 | + aerial floods and CCTV crashes | 82% (more photos stopped helping) |
+| 4 | Same data, **EfficientNet-B2, 15 full epochs** | **88%** (44/50), about 70 ms per photo |
+
+Gemini (`gemini-3.1-flash-lite`) scored 79.6% on the same photos, so the local model is now the primary provider.
+
+**Caveat:** these are still public photos, not our own phone photos of Philippine scenes. The photo dataset choice matters more for the defense than another point of accuracy.
+
 ### Gaps to fill yourselves
-Public datasets cover fire, flood, landslide and collapsed buildings well. They are weak on:
-- **medical_emergency** (few public photos, and privacy concerns)
-- **fallen_debris** (fallen trees, downed power lines)
-- **road_accident** at street level (most public sets are aerial)
+Public datasets now cover all 8 types, but they are still weak on:
+- **medical_emergency** (few public photos, and privacy concerns; the second run used fallen-person photos)
+- **fallen_debris** beyond fallen trees (downed power lines, debris on roads)
+- local settings: flooded barangay streets, jeepneys, tricycles
 
 For these, take your own photos (staged or of real scenes, without identifiable faces or plate numbers), or use Philippine news photos only with permission. Add photos from local settings too, like flooded barangay streets and jeepneys, because the model learns what it sees.
 
@@ -126,14 +174,14 @@ week someone runs the export above and re-runs `npm run dataset:prepare` to fold
 into the training set before the next Colab run.
 
 ## 4. Train
-1. Zip the `training/dataset` folder itself, so the zip contains `dataset/<type>/...`. On Windows, right-click the folder, then **Compress to ZIP file**.
+1. Zip the `training/dataset` folder itself, so the zip contains `dataset/<type>/...`. On Windows, right-click the folder, then **Compress to ZIP file**, or in cmd: `tar -a -c -f training\dataset.zip -C training dataset`.
 2. Upload it to Google Drive as `MyDrive/sagip/dataset.zip`.
-3. Open the notebook in [Colab](https://colab.research.google.com) (**File → Upload notebook**), set **Runtime → Change runtime type → T4 GPU**, then **Runtime → Run all**.
+3. Open the notebook in [Colab](https://colab.research.google.com) (**File → Upload notebook**), set **Runtime → Change runtime type → T4 GPU**, then **Runtime → Run all**. The settings cell defaults to `MODEL_NAME = 'efficientnet_b2'` and `FULL_EPOCHS = 15`, the best run so far. Keep the model small: it has to fit in a Vercel function (R-017), so avoid large models such as `convnext_tiny`.
 
 ## 5. Use the model
-1. Download `sagip-classifier.onnx` and `labels.json` from `MyDrive/sagip/runs/<date>/` into `models/`.
+1. Download **all three files** from `MyDrive/sagip/runs/<date>/` into `models/`: `sagip-classifier.onnx`, `sagip-classifier.onnx.data` and `labels.json`. They belong together: an old `.onnx.data` next to a new `.onnx` gives nonsense (12% accuracy with confidence 1.00 on every photo).
 2. Compare it with Gemini on the benchmark photos:
    ```bash
    npm run benchmark -- --models local,gemini:gemini-3.1-flash-lite --concurrency 1 --yes
    ```
-3. If it performs well, set `AI_PROVIDER=local` in `.env.local` (see [DOCUMENTATION.md Appendix B.6](../docs/DOCUMENTATION.md)).
+3. If it performs well, set `AI_PROVIDER=local` and `AI_FALLBACK_PROVIDER=gemini` in `.env.local` (see [DOCUMENTATION.md Appendix B.6](../docs/DOCUMENTATION.md)). This is the team default since 2026-10-25.

@@ -11,17 +11,17 @@ Add a new dated entry at the top for each session. Keep old entries — they sho
 
 | Item | Current state |
 |---|---|
-| Primary provider | Gemini, `gemini-3.1-flash-lite` (`thinkingBudget: 0`, 15 RPM free tier) |
-| Fallback provider | Gemini, `gemini-3.5-flash` (same key, separate 5 RPM quota) |
+| Primary provider | **Our own model** (`local`, EfficientNet-B2) since 2026-10-25. On Ricabo's laptop now; production switches after the Vercel deploy test (due 2026-10-31, R-017) |
+| Fallback provider | Gemini, `gemini-3.1-flash-lite` (`thinkingBudget: 0`, 15 RPM free tier): fallback when the local model fails, and second opinion when it is below 0.70 confidence |
 | Real AI classifications so far | 1 through the app (`SGP-KBL2UX`), 3 direct Gemini calls. Our own model has additionally been run on 36 held-out photos at no cost |
 | Labeled benchmark dataset | 50 photos in `benchmark/dataset/` (all 8 types), severity labeled by 3 team members per photo. First local vs Gemini run on 2026-10-25 (see below) |
 | Cost tracking for Gemini 3.x | **Not working** — no price in `src/lib/ai/normalize.ts`, so `cost_usd` is null and the daily budget cap ignores Gemini spend. Matters less while on the free tier with no billing linked |
 | Team constraint | **Free only.** No paid APIs, no billing accounts. Free tiers that reset daily, for development and the final demo (Nov 2026) |
-| Own model (`local` provider) | **Trained and installed** (2026-09-23): 79.8% test accuracy over 6 types, 41 ms per photo, free. On the 50-photo benchmark: 52.0% type accuracy vs 79.6% for Gemini, so Gemini stays primary (2026-10-25) |
+| Own model (`local` provider) | **Retrained 2026-10-25** (EfficientNet-B2, 8 types, 10,456 photos): **88% type accuracy (44/50)** on the benchmark vs 79.6% for Gemini, about 70 ms per photo, free. First run (2026-09-23) was 52%. Now the primary |
 
-### How a report is classified (current setup)
+### How a report was classified until 2026-10-25 (Gemini primary)
 
-Green = configured and working in the latest test.
+Green = configured and working in the latest test. Still what happens if `AI_PROVIDER=gemini`.
 
 ```mermaid
 flowchart TD
@@ -48,9 +48,9 @@ flowchart TD
     class B,C,D,F,K,P,P2,Q ok
 ```
 
-### Planned setup once our own model is trained
+### Current setup (since 2026-10-25)
 
-Set `AI_PROVIDER=local`. Our model answers first for free. Only unsure answers use the Gemini free-tier quota.
+`AI_PROVIDER=local`, `AI_FALLBACK_PROVIDER=gemini`, `AI_FALLBACK_MODEL=gemini-3.1-flash-lite`. Our model answers first for free. Only unsure answers use the Gemini free-tier quota.
 
 ```mermaid
 flowchart TD
@@ -70,6 +70,40 @@ flowchart TD
     classDef plan fill:#E0F2FE,stroke:#0284C7,color:#0C4A6E
     class L,E,LQ plan
 ```
+
+---
+
+## 2026-10-25 (evening) — Retraining: 52% → 88%, local model becomes primary
+
+**Tester:** Ricabo · **Environment:** Ricabo's laptop (photo downloads, dataset prep, benchmark) and Google Colab T4 (training) · **Command:** `npm run benchmark -- --models local --yes` · **Best run:** `benchmark/results/2026-10-25T16-44-32-343Z/` (git-ignored)
+
+### What changed
+- **Photos:** 15 public Roboflow Universe datasets added, all CC BY 4.0, each checked by eye on a contact sheet (2 more were rejected as off-topic). Listed with credits in [training/README.md](../../training/README.md#second-training-run-2026-10-25); the photo list is `training/extra-photos.tsv`, downloaded with `node scripts/fetch-training-photos.mjs`. None of them is a benchmark source (`benchmark/dataset/SOURCES.md`).
+- **Training set:** 6,695 → 10,456 photos after `npm run dataset:prepare -- --holdout 0 --max-size 512`. Road accident 0 → 820, fallen debris 0 → 692, medical 229 → 554. All 8 types are now covered (ISS-014 resolved).
+- **Model:** EfficientNet-B0 → **EfficientNet-B2**, 15 full fine-tuning epochs (now the notebook defaults). About 35 MB for the three model files, chosen over larger models because of the Vercel function size limit (R-017).
+
+### Results (local model only; Gemini was returning 503 "high demand" that evening)
+| Round | Change | Type acc. | Score (B.4) | Missed urgent ↓ |
+|---|---|---|---|---|
+| Start | First model (B0, 6 types) | 52.0% | 72.9 | 7 |
+| 1 | + road accident and fallen debris photos | 72% | | |
+| 2 | One big batch for every weak type | 82% (41/50) | 85.0 | 8 |
+| 3 | + aerial floods and CCTV crashes | 82% | 83.4 | 10 |
+| 4 | Same data, EfficientNet-B2, 15 epochs | **88% (44/50)** | **86.8** | 7 |
+
+Gemini `gemini-3.1-flash-lite` on the same photos (morning run below): 79.6% type accuracy, score 62.1, 7 missed urgent.
+
+Per type in round 4: fire 6/6, other 6/6, fallen debris 8/8, landslide 6/6, medical 5/6, road accident 4–5/6, flood 3/6, structural damage 3/6. Three of the remaining misses have debatable labels (a tree on a house, flood debris, tsunami debris); relabeling is the team's call.
+
+### Decision
+**The local model is the primary provider**, with Gemini as fallback and second opinion. Appendix B step 5 asks for "close to Gemini on type accuracy and 0 missed urgent". The local model is now ahead on type accuracy, but neither model reaches 0 missed urgent (both 7), so that rule cannot separate them. Type accuracy, speed (about 70 ms vs 12.5 s) and not depending on Google's free tier decide it.
+
+### Caveats
+- **Missed urgent is a severity problem, not a type problem.** The photo model predicts the type only; severity comes from description keywords (blank in the benchmark, so a fixed default per type). Fix: ISS-016 / ISS-028 review-rule change.
+- **The combined chain has not been benchmarked yet.** The morning what-if for "local first, Gemini when unsure" with the old model gave 11 missed urgent, more than either model alone. Re-run it with the new model (`--models local,gemini:gemini-3.1-flash-lite`) once Gemini is available, before relying on the chain for severity.
+- **Public photos only.** Accuracy on real Philippine phone photos is still unmeasured.
+- **Deployment untested.** `onnxruntime-node` is 288 MB with binaries for every platform (45 MB for linux x64), and `next.config.ts` has no tracing excludes, so the function may exceed Vercel's 250 MB. Vercel preview deploy due 2026-10-31 (R-017). Fallbacks: exclude non-Linux binaries, `onnxruntime-web` (WASM), int8 quantization, separate hosting, or Gemini primary.
+- **Always copy all three model files** (`.onnx`, `.onnx.data`, `labels.json`). A stale `.onnx.data` once gave 12% with confidence 1.00 on every photo.
 
 ---
 

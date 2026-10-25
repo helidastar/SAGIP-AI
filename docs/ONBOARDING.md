@@ -54,7 +54,7 @@ Leave every other variable in `.env.example` as it is; the defaults work.
 ### About the AI key
 - Keep `AI_PROVIDER=mock` for normal work. Reports then go straight to human review and **no AI quota is used**.
 - The team uses the **free** Gemini tier only, which has a small daily limit. Do not share one key: everyone would use up the same quota.
-- Only if you need to test the real AI: create your **own** free key at [aistudio.google.com](https://aistudio.google.com) (Get API key), then set `AI_PROVIDER=gemini`, `AI_API_KEY=<your key>` and `AI_MODEL=gemini-3.1-flash-lite`. Do not link a billing account to that Google project; without billing it can never charge you.
+- To test the real AI the way the app runs it now: copy the three model files (`sagip-classifier.onnx`, `sagip-classifier.onnx.data`, `labels.json`) from the team Drive into `models/` and set `AI_PROVIDER=local` (free, no key). For Gemini as fallback, create your **own** free key at [aistudio.google.com](https://aistudio.google.com) (Get API key) and set `AI_FALLBACK_PROVIDER=gemini`, `AI_FALLBACK_API_KEY=<your key>`, `AI_FALLBACK_MODEL=gemini-3.1-flash-lite`. Do not link a billing account to that Google project; without billing it can never charge you.
 
 ## 5. Run the app
 

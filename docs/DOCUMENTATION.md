@@ -43,7 +43,7 @@
 | **Frontend + API** | Next.js (App Router), TypeScript |
 | **Database** | Supabase (PostgreSQL + PostGIS). Schema in `supabase/migrations/*.sql`, accessed with `@supabase/supabase-js` |
 | **Storage / Auth** | Supabase Storage (report photos), Supabase Auth (role-based, responders/admins only) |
-| **AI** | Gemini free tier (`gemini-3.1-flash-lite` primary, `gemini-3.5-flash` fallback) plus our own local ONNX image classifier. Free tiers only, no paid APIs |
+| **AI** | Our own local ONNX image classifier (primary since 2026-10-25, 88% type accuracy on the 50-photo benchmark) with the Gemini free tier (`gemini-3.1-flash-lite`) as fallback and second opinion. Free tiers only, no paid APIs |
 | **Maps** | Custom SVG map in `src/components/dashboard/IncidentMap.tsx` (no map library). Incident detail links out to OpenStreetMap |
 | **Hosting** | Vercel (app) + Supabase (DB, storage, auth) |
 | **Architecture style** | Modular monolith |
@@ -709,8 +709,8 @@ Every provider implements the same interface; `AI_PROVIDER` picks the primary an
 
 | Provider | File | Cost | Status |
 |---|---|---|---|
-| `gemini` | `gemini.ts` | Free tier (daily reset) | **In use** (primary + fallback) |
-| `local` | `local.ts` | Free, runs on our server (ONNX) | Trained 2026-09-23 (79.8% test accuracy, 41 ms per photo); not yet the primary, pending the benchmark against Gemini |
+| `local` | `local.ts` | Free, runs on our server (ONNX) | **Primary since 2026-10-25.** EfficientNet-B2, retrained 2026-10-25: 88% type accuracy on the 50-photo benchmark, about 70 ms per photo (first run 2026-09-23: 52%) |
+| `gemini` | `gemini.ts` | Free tier (daily reset) | **Fallback** and second opinion for local answers below 0.70 (`gemini-3.1-flash-lite`, 79.6% on the same benchmark) |
 | keyword matcher | `keyword.ts` | Free | Always the last step |
 
 API providers share one prompt and JSON schema (`prompt.ts`), and output is validated by `normalizeClassification()`. The `local` provider is our own image model (trained with `training/sagip_classifier_colab.ipynb`). It predicts only the incident type from the photo; severity and hazards come from the description keywords.
@@ -815,7 +815,7 @@ npm run lint
 Edit `src/lib/constants.ts` / `src/lib/scoring/`, then update the `DefinitionsModal` copy and [Section 6](#6-core-concepts) of this document together.
 
 ### 15.3 Adjust the confidence threshold or priority weights
-Change `CONFIDENCE_THRESHOLD` or `PRIORITY_WEIGHTS`. Document the reason (e.g. benchmark results) in the PR. Existing scores are not recalculated automatically — run `npm run scores:recompute` if needed.
+Change `CONFIDENCE_THRESHOLD` or `PRIORITY_WEIGHTS`. Document the reason (e.g. benchmark results) in the PR. Existing scores are not recalculated automatically (a `scores:recompute` script is still TODO). Weight reasons: [priority-weights.md](priority-weights.md).
 
 ### 15.4 Link a responder to a team / make someone an admin
 Create the user in Supabase Auth, then set `profiles.role` (`responder` or `admin`) and `profiles.team_id`.
@@ -823,7 +823,7 @@ Create the user in Supabase Auth, then set `profiles.role` (`responder` or `admi
 ### 15.5 Switch AI provider
 Set `AI_PROVIDER` and `AI_API_KEY`. The `classifications.model` column records which model and chain step produced each result (e.g. `primary:gemini-3.1-flash-lite`, `escalation:gemini-3.5-flash`, `keyword-fallback`).
 
-To use our own model: train it with `training/sagip_classifier_colab.ipynb`, put `sagip-classifier.onnx` and `labels.json` in `models/`, then set `AI_PROVIDER=local` (no key). Keep Gemini as the fallback so unsure answers get a second opinion.
+To use our own model (team default since 2026-10-25): train it with `training/sagip_classifier_colab.ipynb`, put all three files (`sagip-classifier.onnx`, `sagip-classifier.onnx.data`, `labels.json`) in `models/`, then set `AI_PROVIDER=local` (no key). Keep Gemini as the fallback (`AI_FALLBACK_PROVIDER=gemini`, `AI_FALLBACK_MODEL=gemini-3.1-flash-lite`) so unsure answers (confidence below 0.70) get a second opinion.
 
 ### 15.6 Add a new area
 Add the polygon, population, and risk index to the GeoJSON passed to the seed script (`scripts/data/areas.sample.geojson` by default) and re-run `npm run seed` (idempotent).
@@ -838,7 +838,7 @@ Add the polygon, population, and risk index to the GeoJSON passed to the seed sc
 - **Priority weights** — finalized 2026-10-25 in [priority-weights.md](priority-weights.md). Revisit once real area data replaces the sample file (ISS-020).
 
 ### 16.2 Risk register
-Matches the team's Risk Log spreadsheet (as of 2026-09-28). Rating = Likelihood × Impact (Low = 1, Low–Medium = 1.5, Medium = 2, High = 3); 6 or more is High, 3 or more is Medium.
+Matches the team's Risk Log spreadsheet (as of 2026-10-25). Rating = Likelihood × Impact (Low = 1, Low–Medium = 1.5, Medium = 2, High = 3); 6 or more is High, 3 or more is Medium.
 
 | ID | Risk | Likelihood | Impact | Rating | Mitigation | Status |
 |----|------|------------|--------|--------|------------|--------|
@@ -848,18 +848,23 @@ Matches the team's Risk Log spreadsheet (as of 2026-09-28). Rating = Likelihood 
 | R-004 | System overload during a disaster spike | Low–Medium | High | Medium | Background classification, per-IP rate limit, managed hosting; load test pending | Open |
 | R-005 | Scope creep across 4 bundled sub-products | High | Medium | High | Hold to MVP scope in [3.5](#35-scope--prioritization) | Open |
 | R-006 | AI vendor pricing / availability changes (happened: `gemini-2.5-flash` withdrawn, free vision models removed by some hosts) | High | Medium | High | Swappable providers (Gemini, local) with retry, fallback and keyword matcher | Monitoring |
-| R-007 | Free-tier AI quota runs out during testing, a spike or the demo | Medium | High | High | Separate-quota fallback model, keyword matcher to review, plan to make the local model primary | Monitoring |
-| R-008 | Training data gaps and bias (no road accident / fallen debris photos, few medical, mostly aerial floods) | High | Medium | High | Dataset cleaning, held-out benchmark photos, low confidence to review; collect own photos | Open |
+| R-007 | Free-tier AI quota runs out during testing, a spike or the demo | Medium | High | High | Local model is primary since 2026-10-25, so Gemini is only called for unsure answers; keyword matcher to review | Monitoring |
+| R-008 | Training data gaps and bias (no road accident / fallen debris photos, few medical, mostly aerial floods) | High | Medium | High | Dataset cleaning, held-out benchmark photos, low confidence to review. 2026-10-25: +15 CC BY datasets, 10,456 training photos, all 8 types covered; still public photos, not own phone photos | Open |
 | R-009 | Hoax or prank reports classified automatically | Medium | High | High | `hoaxSuspected` flag sends them to review (never auto-rejected); rate limit | Monitoring |
-| R-010 | AI accuracy not validated before the demo | Medium | High | High | Label benchmark severities, run `npm run benchmark` for local vs Gemini | Open |
+| R-010 | AI accuracy not validated before the demo | Medium | High | High | Done 2026-10-25 on 50 labeled photos: local 88%, Gemini 79.6% type accuracy, both 7 missed urgent (ISS-028). Real Philippine phone photos still unmeasured | Monitoring |
 | R-011 | Citizen data or admin functions exposed | Low | High | Medium | RLS, private bucket, staff auth, admin functions locked (migration 0005); 42/42 checks passed | Mitigated |
 | R-012 | Unexpected AI API charges | Low | Medium | Low | Free-only rule, no billing linked; add Gemini prices so the budget cap counts them | Mitigated |
-| R-013 | Local model files (~20 MB, git-ignored) missing at deployment | Medium | Medium | Medium | Copies in shared Drive, label check at load time, deployment checklist step | Open |
+| R-013 | Local model files (3 files, about 35 MB, git-ignored) missing at deployment | Medium | Medium | Medium | Copies in shared Drive, label check at load time, deployment checklist step | Open |
+| R-014 | Ranking based on placeholder data (sample area population and risk) | Medium | Medium | Medium | Weights finalized with reasons in [priority-weights.md](priority-weights.md) (2026-10-25); load real barangay data (ISS-020) | Open |
+| R-015 | Schedule slip before the demo | High | High | High | Must-haves first; weekly status per member; Gantt Chart tab with target and completion dates | Open |
+| R-016 | Work concentrated in one member | Medium | High | High | Each member owns their section's open tasks; onboarding guide; cross-review of PRs | Open |
+| R-017 | Local model does not run on Vercel (function size limit) | Medium | High | High | Vercel preview deploy with the model by 2026-10-31; exclude non-Linux `onnxruntime-node` binaries; fallback: WebAssembly runtime or Gemini primary | Open |
 
 ### 16.3 Technical caveats
 - AI classification is **assistive** — the UI must always show that a score came from AI and whether it was human-confirmed.
 - Serverless functions have time limits; keep classification under a few seconds or move it to a background job/queue if latency grows.
 - Phone photos are large — resize client-side before upload.
+- The local model must fit in a Vercel server function (250 MB). `onnxruntime-node` ships binaries for every platform (288 MB in total, 45 MB for linux x64), so the non-Linux binaries probably have to be excluded from the bundle. Not tested yet: Vercel preview deploy due 2026-10-31 (R-017).
 - Citizens have no account, so tracking relies on the tracking code; treat it as a bearer secret (no personal data on the public status page).
 
 ---
@@ -903,11 +908,11 @@ gantt
     section W2 Architecture
     Scope and architecture lock (Next.js + Supabase) :done, w21, 2026-09-30, 7d
     Provision PostgreSQL + PostGIS and storage     :done, w22, 2026-09-30, 7d
-    Assemble 40-60 labeled incident images         :active, w23, 2026-09-30, 7d
+    Assemble 40-60 labeled incident images         :done, w23, 2026-09-30, 7d
     section W3 AI Benchmarking
     Evaluate candidate models                      :done, w31, 2026-10-07, 7d
-    Test classification, severity, latency         :active, w32, 2026-10-07, 7d
-    Select primary AI classification model         :active, w33, 2026-10-07, 7d
+    Test classification, severity, latency         :done, w32, 2026-10-07, 7d
+    Select primary AI classification model         :done, w33, 2026-10-07, 7d
     section W4 Logic and API
     Deterministic priority scoring logic           :done, w41, 2026-10-14, 7d
     Report intake service + API routes             :done, w42, 2026-10-14, 7d
@@ -935,21 +940,21 @@ gantt
     MVP completed                                  :milestone, m3, 2026-11-24, 0d
 ```
 
-Bars show the planned weeks; the shading shows progress as of September 29, 2026 (done, in progress, or not started).
+Bars show the planned weeks; the shading shows progress as of October 25, 2026 (done, in progress, or not started).
 
-| Phase | Planned | Status (2026-09-29) | Notes |
+| Phase | Planned | Status (2026-10-25) | Notes |
 |-------|---------|---------------------|-------|
-| W1 Initiation & Alignment | Sep 23 – Sep 29 | In progress | SPMP signed off 2026-09-17; pilot partner not yet secured (Risk R-002) |
-| W2 Architecture & Prep | Sep 30 – Oct 6 | In progress | Stack and database done; 36 held-out benchmark photos, severity labels still to fill in |
-| W3 AI Benchmarking | Oct 7 – Oct 13 | In progress | Gemini models and own model evaluated; Gemini vs local benchmark pending |
-| W4 Logic Design & API | Oct 14 – Oct 20 | Done early (Sep 15) | Priority scoring and report intake API |
+| W1 Initiation & Alignment | Sep 23 – Sep 29 | In progress | SPMP done; pilot partner not yet secured (Risk R-002) |
+| W2 Architecture & Prep | Sep 30 – Oct 6 | Done late (Oct 25) | Stack and database done; 50 benchmark photos labeled by 3 team members each |
+| W3 AI Benchmarking | Oct 7 – Oct 13 | Done late (Oct 25) | Benchmark run on 50 photos; own model retrained to 88% (Gemini 79.6%) and selected as primary |
+| W4 Logic Design & API | Oct 14 – Oct 20 | Done (weights doc Oct 25) | Priority scoring and report intake API; weights finalized in [priority-weights.md](priority-weights.md) |
 | W5 Core Dev: Citizen Portal | Oct 21 – Oct 27 | Done early (Sep 15–22) | Submission, GPS, tracking |
-| W6 Core Dev: AI & Scoring | Oct 28 – Nov 3 | Done early (Sep 15–26) | AI chain, review flagging including hoax flag |
+| W6 Core Dev: AI & Scoring | Oct 28 – Nov 3 | Mostly done | AI chain, review flagging including hoax flag; local model as primary goes live after the Vercel deploy test (due Oct 31) |
 | W7 Core Dev: Dashboard | Nov 4 – Nov 10 | Done early (Sep 15–22) | Map, ranked list, detail, override, status, assignment |
-| W8 Testing & QA | Nov 11 – Nov 17 | In progress | 42/42 public-side checks passed; load test and staff-side tests pending |
+| W8 Testing & QA | Nov 11 – Nov 17 | In progress | 42/42 public-side checks passed; staff-side test due Oct 30; load test pending |
 | W9 Deployment & Prep | Nov 18 – Nov 24 | Not started | Deployment, slides and demo scripts |
 
-The same schedule is kept as an Excel Gantt chart with task-level status (`SAGIP-AI_Gantt_Chart.xlsx`, shared with the team).
+The live, task-level version is the **Gantt Chart** tab of the team tracker (Google Sheet `SAGIP-AI_CCRVibe2.0`): each task's owner, status, target date, completion date and a flag such as "Done, 12 d late", read from the Progress Checklist.
 
 ---
 
@@ -973,9 +978,9 @@ The team has no budget, so the candidates are limited to options that cost nothi
 
 | Candidate | Cost | Notes |
 |---|---|---|
-| Gemini `gemini-3.1-flash-lite` | Free tier, daily reset | Current primary. Higher free RPM than Flash |
-| Gemini `gemini-3.5-flash` | Free tier, daily reset | Current fallback |
-| **Own model** (EfficientNet-B0 / MobileNetV3, fine-tuned) | Free (Colab training, runs on our server) | Photo → incident type only. The no-quota option |
+| **Own model** (EfficientNet-B2, fine-tuned) | Free (Colab training, runs on our server) | **Primary since 2026-10-25.** Photo → incident type only. The no-quota option |
+| Gemini `gemini-3.1-flash-lite` | Free tier, daily reset | Fallback and second opinion for unsure local answers. Was primary until 2026-10-25 |
+| Gemini `gemini-3.5-flash` | Free tier, daily reset | Earlier fallback |
 
 Accuracy and reliability drive the choice, since every candidate is free.
 
@@ -1012,12 +1017,22 @@ Accuracy and reliability drive the choice, since every candidate is free.
 
 > The small test set is directional, not statistically rigorous — expand it with real submission data later.
 
+**Result and decision (2026-10-25).** On the 50-photo benchmark (all 8 types, severity labeled by 3 team members per photo):
+
+| Model | Type accuracy | Missed urgent | Time per photo |
+|---|---|---|---|
+| Own model, first run (EfficientNet-B0, 6 types) | 52.0% | 7 | ~40 ms |
+| Gemini `gemini-3.1-flash-lite` | 79.6% | 7 | ~12.5 s |
+| **Own model, retrained (EfficientNet-B2, 8 types)** | **88% (44/50)** | 7 | ~70 ms |
+
+**Decision:** the own model is the primary provider, with Gemini as fallback and second opinion. Both models miss the same number of urgent reports (7), because severity comes from the description keywords for the local model (ISS-016) and Gemini was confidently wrong on photos the team itself disagreed on (ISS-028). So the "0 missed urgent" rule in B.6 step 5 cannot separate them; type accuracy, speed and free-tier independence decide it. Fixing missed urgent is a review-rule change (ISS-016, ISS-028), not a model choice. Details: [docs/handoffs/ai-benchmarking.md](handoffs/ai-benchmarking.md), [training/README.md](../training/README.md).
+
 ### B.6 Own model: training and comparison
 1. Collect 100–300 labeled photos per incident type (folders named after `INCIDENT_TYPES`) from the free datasets listed in `training/README.md`, then run `npm run dataset:prepare` to clean them and hold out the benchmark photos.
 2. Train on free Colab with `training/sagip_classifier_colab.ipynb`: 70/15/15 split with a locked test set, two-step fine-tuning, and ONNX export.
 3. Record test-set accuracy, per-class results, confusion matrix and Brier score (the notebook saves `metrics.json`).
 4. Compare with Gemini on the **same photos**: `npm run benchmark -- --models local,gemini:gemini-3.1-flash-lite`. Keep benchmark photos out of the training split, or the comparison is unfair.
-5. If the local model is close to Gemini on type accuracy with **0 missed urgent**, make it the primary (`AI_PROVIDER=local`) with Gemini as escalation. Otherwise keep Gemini primary.
+5. If the local model is close to Gemini on type accuracy with **0 missed urgent**, make it the primary (`AI_PROVIDER=local`) with Gemini as escalation. Otherwise keep Gemini primary. (Applied on 2026-10-25: see the result under B.5.)
 
 Save free-tier quota: develop with `AI_PROVIDER=mock`, validate with `--dry-run`, and run paid-provider benchmarks with small `--limit` and `--concurrency 1`.
 
