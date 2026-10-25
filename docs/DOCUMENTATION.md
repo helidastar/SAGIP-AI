@@ -228,6 +228,17 @@ Incident (one real-world event)
 - **Confirmed severity** — what a responder set during review (or equals AI severity if no review was needed).
 - The **priority score always uses the confirmed value**. Keeping both lets us measure AI accuracy over time and supports auditability.
 
+#### Severity % (decided 2026-10-25)
+**Severity %** is the AI's confidence that its severity tier is correct, from 0 to 100%. The dashboard shows it next to the severity chip, for example `High · 82%`.
+
+- It is **not** a second severity scale. The 4 tiers in [6.2](#62-severity-tiers) stay the only severity scale.
+- It does **not** change the priority score ([6.6](#66-priority-score-proposed--to-be-finalized-in-its-own-design-doc)) or the 4 human review triggers ([6.5](#65-human-review-triggers)). Trigger 1 keeps using the overall `confidence`.
+- Source: a new `severityConfidence` field (0 to 1) in the Gemini response schema (`src/lib/ai/prompt.ts`), saved per classification in a new nullable column `classifications.severity_confidence`. The UI shows it as a whole-number percent.
+- Empty (shown as `–`) when the classifier gives no severity confidence: the local image model (it does not predict severity, ISS-016) and the keyword matcher. A severity a responder confirmed in review shows no %, because a person set it.
+- Limit: the number is the model's own estimate and is not calibrated. The benchmark measures whether the severity tier is right, not whether 80% really means right 8 times in 10.
+- Option rejected: a 0-100 severity score. It would be a second scale beside the 4 tiers, and the benchmark labels are tiers only, so its accuracy could not be measured.
+- Build order: migration (Backend 19), classifier field (AI 22), API field, UI next to the severity chip (Admin 12), then a test.
+
 ### 6.5 Human review triggers
 A report goes to `pending_review` if **any** of these is true (`needsReview()` in `src/lib/ai/review.ts`):
 
