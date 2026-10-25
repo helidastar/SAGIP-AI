@@ -232,7 +232,7 @@ Incident (one real-world event)
 **Severity %** is the AI's confidence that its severity tier is correct, from 0 to 100%. The dashboard shows it next to the severity chip, for example `High · 82%`.
 
 - It is **not** a second severity scale. The 4 tiers in [6.2](#62-severity-tiers) stay the only severity scale.
-- It does **not** change the priority score ([6.6](#66-priority-score-proposed--to-be-finalized-in-its-own-design-doc)) or the 4 human review triggers ([6.5](#65-human-review-triggers)). Trigger 1 keeps using the overall `confidence`.
+- It does **not** change the priority score ([6.6](#66-priority-score)) or the 4 human review triggers ([6.5](#65-human-review-triggers)). Trigger 1 keeps using the overall `confidence`.
 - Source: a new `severityConfidence` field (0 to 1) in the Gemini response schema (`src/lib/ai/prompt.ts`), saved per classification in a new nullable column `classifications.severity_confidence`. The UI shows it as a whole-number percent.
 - Empty (shown as `–`) when the classifier gives no severity confidence: the local image model (it does not predict severity, ISS-016) and the keyword matcher. A severity a responder confirmed in review shows no %, because a person set it.
 - Limit: the number is the model's own estimate and is not calibrated. The benchmark measures whether the severity tier is right, not whether 80% really means right 8 times in 10.
@@ -246,8 +246,8 @@ A report goes to `pending_review` if **any** of these is true (`needsReview()` i
 2. AI severity is `high` or `critical`, or
 3. the AI sets `hoaxSuspected` (unrelated meme, screenshot or stock photo, joking description, or a photo and description that do not match). A suspected hoax is **never rejected automatically**; reviewers see a "Possible hoax" tag. Stored in `classifications.hoax_suspected` (migration `0006_hoax_flag.sql`). The keyword matcher and the local image model always return `false`.
 
-### 6.6 Priority score *(proposed — to be finalized in its own design doc)*
-Deterministic, plain logic (not an LLM call), so every score is explainable:
+### 6.6 Priority score
+Deterministic, plain logic (not an LLM call), so every score is explainable. The reason for each weight, worked examples and rejected alternatives are in [priority-weights.md](priority-weights.md) (finalized 2026-10-25).
 
 ```
 priority = 100 × ( w_sev  × severity_norm
@@ -255,7 +255,7 @@ priority = 100 × ( w_sev  × severity_norm
                  + w_loc  × location_risk_norm
                  + w_type × type_weight )
 
-initial weights: w_sev = 0.45, w_pop = 0.25, w_loc = 0.15, w_type = 0.15
+weights: w_sev = 0.45, w_pop = 0.25, w_loc = 0.15, w_type = 0.15
 ```
 Each input is normalized to 0–1. The dashboard shows each term's contribution.
 
@@ -835,7 +835,7 @@ Add the polygon, population, and risk index to the GeoJSON passed to the seed sc
 ### 16.1 Open questions
 - **No named pilot partner yet** (barangay, city DRRMO, or campus safety office). Without one, there are no real incidents to rank. Resolve early.
 - **Who staffs the review queue in real time?** This is a process and staffing question, not only a software one.
-- **Final priority formula** — the weights in [6.6](#66-priority-score-proposed--to-be-finalized-in-its-own-design-doc) are placeholders until a model is chosen and benchmarked.
+- **Priority weights** — finalized 2026-10-25 in [priority-weights.md](priority-weights.md). Revisit once real area data replaces the sample file (ISS-020).
 
 ### 16.2 Risk register
 Matches the team's Risk Log spreadsheet (as of 2026-09-28). Rating = Likelihood × Impact (Low = 1, Low–Medium = 1.5, Medium = 2, High = 3); 6 or more is High, 3 or more is Medium.
