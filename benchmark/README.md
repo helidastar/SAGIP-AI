@@ -33,7 +33,7 @@ Use `--limit 5` for a cheap smoke test first.
 once rather than repeatedly, so you don't use up the quota.
 
 **Our own model (free, no quota):** train it with `training/sagip_classifier_colab.ipynb`,
-put `sagip-classifier.onnx` and `labels.json` in `models/`, then compare it with Gemini:
+put all three model files (`sagip-classifier.onnx`, `sagip-classifier.onnx.data`, `labels.json`) in `models/`, then compare it with Gemini:
 ```bash
 npm run benchmark -- --models local,gemini:gemini-3.1-flash-lite --concurrency 1 --yes
 ```
