@@ -11,17 +11,17 @@ Add a new dated entry at the top for each session. Keep old entries — they sho
 
 | Item | Current state |
 |---|---|
-| Primary provider | Gemini, `gemini-3.1-flash-lite` (`thinkingBudget: 0`, 15 RPM free tier) |
-| Fallback provider | Gemini, `gemini-3.5-flash` (same key, separate 5 RPM quota) |
+| Primary provider | **Our own model** (`local`, EfficientNet-B2) since 2026-10-25. On Ricabo's laptop now; production switches after the Vercel deploy test (due 2026-10-31, R-017) |
+| Fallback provider | Gemini, `gemini-3.1-flash-lite` (`thinkingBudget: 0`, 15 RPM free tier): fallback when the local model fails, and second opinion when it is below 0.70 confidence |
 | Real AI classifications so far | 1 through the app (`SGP-KBL2UX`), 3 direct Gemini calls. Our own model has additionally been run on 36 held-out photos at no cost |
-| Labeled benchmark dataset | 36 held-out photos in `benchmark/dataset/`. **Severity column still blank**, so the Gemini comparison cannot run yet |
+| Labeled benchmark dataset | 50 photos in `benchmark/dataset/` (all 8 types), severity labeled by 3 team members per photo. First local vs Gemini run on 2026-10-25 (see below) |
 | Cost tracking for Gemini 3.x | **Not working** — no price in `src/lib/ai/normalize.ts`, so `cost_usd` is null and the daily budget cap ignores Gemini spend. Matters less while on the free tier with no billing linked |
 | Team constraint | **Free only.** No paid APIs, no billing accounts. Free tiers that reset daily, for development and the final demo (Nov 2026) |
-| Own model (`local` provider) | **Trained and installed** (2026-09-23): 79.8% test accuracy over 6 types, 41 ms per photo, free. Not yet the primary provider |
+| Own model (`local` provider) | **Retrained 2026-10-25** (EfficientNet-B2, 8 types, 10,456 photos): **88% type accuracy (44/50)** on the benchmark vs 79.6% for Gemini, about 70 ms per photo, free. First run (2026-09-23) was 52%. Now the primary |
 
-### How a report is classified (current setup)
+### How a report was classified until 2026-10-25 (Gemini primary)
 
-Green = configured and working in the latest test.
+Green = configured and working in the latest test. Still what happens if `AI_PROVIDER=gemini`.
 
 ```mermaid
 flowchart TD
@@ -48,9 +48,9 @@ flowchart TD
     class B,C,D,F,K,P,P2,Q ok
 ```
 
-### Planned setup once our own model is trained
+### Current setup (since 2026-10-25)
 
-Set `AI_PROVIDER=local`. Our model answers first for free. Only unsure answers use the Gemini free-tier quota.
+`AI_PROVIDER=local`, `AI_FALLBACK_PROVIDER=gemini`, `AI_FALLBACK_MODEL=gemini-3.1-flash-lite`. Our model answers first for free. Only unsure answers use the Gemini free-tier quota.
 
 ```mermaid
 flowchart TD
@@ -70,6 +70,94 @@ flowchart TD
     classDef plan fill:#E0F2FE,stroke:#0284C7,color:#0C4A6E
     class L,E,LQ plan
 ```
+
+---
+
+## 2026-10-25 (evening) — Retraining: 52% → 88%, local model becomes primary
+
+**Tester:** Ricabo · **Environment:** Ricabo's laptop (photo downloads, dataset prep, benchmark) and Google Colab T4 (training) · **Command:** `npm run benchmark -- --models local --yes` · **Best run:** `benchmark/results/2026-10-25T16-44-32-343Z/` (git-ignored)
+
+### What changed
+- **Photos:** 15 public Roboflow Universe datasets added, all CC BY 4.0, each checked by eye on a contact sheet (2 more were rejected as off-topic). Listed with credits in [training/README.md](../../training/README.md#second-training-run-2026-10-25); the photo list is `training/extra-photos.tsv`, downloaded with `node scripts/fetch-training-photos.mjs`. None of them is a benchmark source (`benchmark/dataset/SOURCES.md`).
+- **Training set:** 6,695 → 10,456 photos after `npm run dataset:prepare -- --holdout 0 --max-size 512`. Road accident 0 → 820, fallen debris 0 → 692, medical 229 → 554. All 8 types are now covered (ISS-014 resolved).
+- **Model:** EfficientNet-B0 → **EfficientNet-B2**, 15 full fine-tuning epochs (now the notebook defaults). About 35 MB for the three model files, chosen over larger models because of the Vercel function size limit (R-017).
+
+### Results (local model only; Gemini was returning 503 "high demand" that evening)
+| Round | Change | Type acc. | Score (B.4) | Missed urgent ↓ |
+|---|---|---|---|---|
+| Start | First model (B0, 6 types) | 52.0% | 72.9 | 7 |
+| 1 | + road accident and fallen debris photos | 72% | | |
+| 2 | One big batch for every weak type | 82% (41/50) | 85.0 | 8 |
+| 3 | + aerial floods and CCTV crashes | 82% | 83.4 | 10 |
+| 4 | Same data, EfficientNet-B2, 15 epochs | **88% (44/50)** | **86.8** | 7 |
+
+Gemini `gemini-3.1-flash-lite` on the same photos (morning run below): 79.6% type accuracy, score 62.1, 7 missed urgent.
+
+Per type in round 4: fire 6/6, other 6/6, fallen debris 8/8, landslide 6/6, medical 5/6, road accident 4–5/6, flood 3/6, structural damage 3/6. Three of the remaining misses have debatable labels (a tree on a house, flood debris, tsunami debris); relabeling is the team's call.
+
+### Decision
+**The local model is the primary provider**, with Gemini as fallback and second opinion. Appendix B step 5 asks for "close to Gemini on type accuracy and 0 missed urgent". The local model is now ahead on type accuracy, but neither model reaches 0 missed urgent (both 7), so that rule cannot separate them. Type accuracy, speed (about 70 ms vs 12.5 s) and not depending on Google's free tier decide it.
+
+### Caveats
+- **Missed urgent is a severity problem, not a type problem.** The photo model predicts the type only; severity comes from description keywords (blank in the benchmark, so a fixed default per type). Fix: ISS-016 / ISS-028 review-rule change.
+- **The combined chain has not been benchmarked yet.** The morning what-if for "local first, Gemini when unsure" with the old model gave 11 missed urgent, more than either model alone. Re-run it with the new model (`--models local,gemini:gemini-3.1-flash-lite`) once Gemini is available, before relying on the chain for severity.
+- **Public photos only.** Accuracy on real Philippine phone photos is still unmeasured.
+- **Deployment untested.** `onnxruntime-node` is 288 MB with binaries for every platform (45 MB for linux x64), and `next.config.ts` has no tracing excludes, so the function may exceed Vercel's 250 MB. Vercel preview deploy due 2026-10-31 (R-017). Fallbacks: exclude non-Linux binaries, `onnxruntime-web` (WASM), int8 quantization, separate hosting, or Gemini primary.
+- **Always copy all three model files** (`.onnx`, `.onnx.data`, `labels.json`). A stale `.onnx.data` once gave 12% with confidence 1.00 on every photo.
+
+---
+
+## 2026-10-25 — Benchmark: our own model vs Gemini on 50 labeled photos
+
+**Tester:** Ricabo · **Environment:** Ricabo's laptop, development branch · **Command:** `npm run benchmark -- --models local,gemini:gemini-3.1-flash-lite --concurrency 1 --yes` · **Results folder:** `benchmark/results/2026-10-25T12-59-35-998Z/` (git-ignored)
+
+### Dataset
+- 50 photos: 6 each of fire, flood, landslide, structural_damage, medical_emergency, other and road_accident, plus 8 fallen_debris. The 36 held out from training plus 14 added on 2026-10-24 (road_accident and fallen_debris, CC BY 4.0, credited in `benchmark/dataset/SOURCES.md`).
+- Severity: 3 team members labeled each photo without seeing the others' answers. 42 photos were settled by majority (16 had all 3 agree). 7 three-way ties were settled by guest votes, and 1 that was still tied was set by Ricabo. Final split: 9 low, 10 moderate, 9 high, 22 critical. The labels are in the tracker tab "Severity Labels".
+- Photo only: the description was left blank for both models. The local model then uses a fixed severity per type, so its severity numbers measure that default, not the photo.
+
+### Results
+| Model | Score (B.4) | Type acc. | Severity exact | Severity ±1 | Brier ↓ | Review rate | Missed urgent ↓ | Errors | Mean / p95 latency |
+|---|---|---|---|---|---|---|---|---|---|
+| local:sagip-classifier | 72.9 | 52.0% (26/50) | 28.0% | 70.0% | 0.188 | 72.0% | 7 | 0 | 39 / 39 ms |
+| gemini-3.1-flash-lite | 62.1 | 79.6% (39/49) | 51.0% | 91.8% | 0.165 | 61.2% | 7 | 1 | 12,489 / 44,233 ms |
+
+Pass mark (Appendix B, step 5): the local model becomes primary only if it is close to Gemini on type accuracy **and** has 0 missed urgent. **Result: fail.** It is 27.6 points behind on type accuracy, and both models have 7 missed urgent. **Gemini stays primary.**
+
+### What the numbers mean
+- **The local model's higher Score is from cost and latency only.** Cost and latency are 25% of the B.4 score and are scored relative to the best model in the run. The local model is free and about 300 times faster, so it wins those parts. It loses on every accuracy measure.
+- **The local model cannot predict road_accident or fallen_debris** (0/14, ISS-014). On the 36 photos of the 6 types it knows, it got 26 right (72%).
+- **What-if: local first, Gemini when unsure** (the planned chain, worked out from the same runs, not run live): 43/50 type correct with 26 Gemini calls, but **11** missed urgent. That is worse than either model alone, because the local model is confidently wrong on severity.
+- **Gemini is weak on medical_emergency (2/6) and structural_damage (2/6).** It is 100% on fire, flood, road_accident and fallen_debris.
+- **Gemini latency:** the p95 of 44 s is over the app's 20 s timeout (`AI_TIMEOUT_MS`). In the app, those calls would time out and move on to the fallback model. The one error (`other/06_01_0108.jpg`, "operation was aborted") was a timeout.
+
+### Missed urgent (rated low/moderate with confidence ≥ 0.70, so it would skip review)
+| Model | Photo | Label | Model said (type, severity, confidence) |
+|---|---|---|---|
+| Gemini | landslide/04_01_0076.jpg | high | fallen_debris, low, 0.90 |
+| Gemini | structural_damage/05_01_0093.jpg | high | road_accident, moderate, 0.95 |
+| Gemini | structural_damage/05_01_0527.jpg | critical | fallen_debris, moderate, 0.95 |
+| Gemini | structural_damage/05_01_0703.jpg | high | structural_damage, moderate, 0.90 |
+| Gemini | road_accident/rf_0etA2hB934TW6bZt5vYg.jpg | high | road_accident, moderate, 0.95 |
+| Gemini | fallen_debris/rf_MBOF5PiYbpJflWoHGBjw.jpg | high | fallen_debris, moderate, 1.00 |
+| Gemini | fallen_debris/rf_xxjSckFABJajOgNFJfIM.jpg | high | fallen_debris, moderate, 0.95 |
+| Local | flood/03_0020.jpg | critical | flood, moderate, 0.86 |
+| Local | landslide/04_01_0171.jpg | critical | landslide, moderate, 0.96 |
+| Local | landslide/04_01_0329.jpg | critical | landslide, moderate, 0.87 |
+| Local | structural_damage/05_01_0093.jpg | high | structural_damage, moderate, 0.84 |
+| Local | road_accident/rf_0aFgT2Po04EEumtJSBxs.jpg | critical | flood, moderate, 0.95 |
+| Local | fallen_debris/rf_MBOF5PiYbpJflWoHGBjw.jpg | high | landslide, moderate, 0.74 |
+| Local | fallen_debris/rf_xxjSckFABJajOgNFJfIM.jpg | high | landslide, moderate, 0.76 |
+
+- Gemini's misses were all rated **moderate or low with confidence 0.90 or higher**, so raising the confidence threshold (0.70) would not catch them.
+- On all 7 of Gemini's misses, the team's own labels were split (not all 3 the same), and on 4 of them a team member said moderate or low. On both fallen_debris photos, most guests said moderate. The label, not only the model, is uncertain on these photos. Don't relabel to improve the score; report it as a limit.
+- structural_damage/05_01_0093.jpg looks like a car crash (flagged during labeling). Gemini called it road_accident.
+
+### Open issues
+- 7 missed urgent on Gemini (target 0). Logged as a new issue. Changing the review triggers would change the fixed count of 4, so it is a team decision, not a code fix.
+- Photo-only test: real reports include a description, which this run did not test.
+- Photos are public datasets (Kaggle and Roboflow), not Philippine phone photos. Real-photo accuracy is still unmeasured.
+- n = 50 (6-8 per type): directional, not statistically rigorous (Appendix B.5).
 
 ---
 
