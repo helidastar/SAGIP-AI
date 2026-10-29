@@ -3,8 +3,8 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import * as ort from "onnxruntime-node";
 import sharp from "sharp";
-import { INCIDENT_TYPES } from "@/lib/constants";
-import type { IncidentType } from "@/types";
+import { INCIDENT_TYPES, SEVERITY } from "@/lib/constants";
+import type { IncidentType, Severity } from "@/types";
 import { hazardsFromText, severityFromText } from "./keyword";
 import type { Classifier } from "./types";
 
@@ -12,8 +12,10 @@ import type { Classifier } from "./types";
  * Our own image classifier, trained with training/sagip_classifier_colab.ipynb and
  * exported to ONNX. Runs on the server CPU: no API, no quota, no cost.
  *
- * It only predicts the incident type from the photo. Severity and hazards come
+ * Today's model only predicts the incident type from the photo. Severity and hazards come
  * from the description keywords, so high/critical still depends on the citizen's words.
+ * A model exported with a second "severity" output (ISS-016, docs/local-severity-design.md)
+ * also gives the severity and its confidence; hazards still come from keywords.
  */
 const DEFAULT_MODEL_PATH = "models/sagip-classifier.onnx";
 
@@ -22,6 +24,8 @@ interface Labels {
   image_size: number;
   mean: number[];
   std: number[];
+  /** Order of the severity output, only in models trained with a severity head. */
+  severity_classes?: string[];
 }
 
 /** Matches the notebook's eval transform: resize shorter side to size*256/224, center-crop, normalize. */
@@ -68,6 +72,8 @@ export function createLocalClassifier(modelPath = DEFAULT_MODEL_PATH): Classifie
       const labels: Labels = JSON.parse(await readFile(labelsPath, "utf8"));
       const unknown = labels.classes.filter((c) => !(INCIDENT_TYPES as readonly string[]).includes(c));
       if (unknown.length) throw new Error(`labels.json has classes the app doesn't know: ${unknown.join(", ")}`);
+      const badSeverity = (labels.severity_classes ?? []).filter((c) => !(c in SEVERITY));
+      if (badSeverity.length) throw new Error(`labels.json has severities the app doesn't know: ${badSeverity.join(", ")}`);
       return { session: await ort.InferenceSession.create(resolved), labels };
     })().catch((err) => {
       loading = null;
@@ -89,12 +95,27 @@ export function createLocalClassifier(modelPath = DEFAULT_MODEL_PATH): Classifie
 
       const best = probs.indexOf(Math.max(...probs));
       const incidentType = labels.classes[best] as IncidentType;
-      const { severity, from } = severityFromText(description, incidentType);
+
+      // Severity head if the model has one, else the description keywords.
+      let severity: Severity;
+      let severityConfidence: number | null = null;
+      let from: "model" | "keyword" | "type_default";
+      const severityOutput = output.severity;
+      if (severityOutput && labels.severity_classes?.length) {
+        const sevProbs = softmax(severityOutput.data as Float32Array);
+        const top = sevProbs.indexOf(Math.max(...sevProbs));
+        severity = labels.severity_classes[top] as Severity;
+        severityConfidence = sevProbs[top];
+        from = "model";
+      } else {
+        ({ severity, from } = severityFromText(description, incidentType));
+      }
 
       return {
         incidentType,
         severity,
         confidence: probs[best],
+        severityConfidence,
         hazards: hazardsFromText(description),
         // The image model only predicts a type; it has no notion of hoax intent.
         hoaxSuspected: false,
