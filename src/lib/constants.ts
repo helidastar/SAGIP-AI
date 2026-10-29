@@ -39,7 +39,7 @@ export const CONFIDENCE_THRESHOLD = Number(process.env.CONFIDENCE_THRESHOLD ?? 0
 /** AI severities that always require human review. */
 export const REVIEW_SEVERITIES = ["high", "critical"] as const;
 
-/** Proposed weights; placeholders until the priority-scoring design doc is finalized. */
+/** Priority score weights. Reasons and examples: docs/priority-weights.md (finalized 2026-10-25). */
 export const PRIORITY_WEIGHTS = {
   severity: 0.45,
   population: 0.25,

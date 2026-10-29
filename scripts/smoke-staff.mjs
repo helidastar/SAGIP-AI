@@ -1,26 +1,34 @@
 // End-to-end smoke test for the staff (login-protected) API.
 //
-// 1. Create two users in Supabase → Authentication → Add user (one admin, one responder)
-//    and make the admin an admin (see supabase/migrations/0002_staff_accounts.sql).
-// 2. Put their logins in .env.test.local (git-ignored, keep it out of chat):
-//      TEST_ADMIN_EMAIL=...
-//      TEST_ADMIN_PASSWORD=...
-//      TEST_RESPONDER_EMAIL=...
-//      TEST_RESPONDER_PASSWORD=...
-// 3. With `npm run dev` running:
-//      node --env-file=.env.local --env-file=.env.test.local scripts/smoke-staff.mjs
+// Usage (recommended – no env setup needed; auto-provisions temp users):
+//   npm run smoke:staff
 //
-// Creates two test reports and temporarily assigns the responder to a team (restored at the end).
+// Or set credentials manually in .env.test.local and run the same command:
+//   TEST_ADMIN_EMAIL=...     TEST_ADMIN_PASSWORD=...
+//   TEST_RESPONDER_EMAIL=... TEST_RESPONDER_PASSWORD=...
+//
+// Other optional env vars:
+//   SMOKE_BASE_URL=http://localhost:3000   (default)
+//   SMOKE_KEEP_REPORTS=1                  (skip deleting created test reports)
+//
+// Creates two test reports. Cleanup happens in the finally block unless
+// SMOKE_KEEP_REPORTS=1 is set. Responder team membership is always restored.
 import { createClient } from "@supabase/supabase-js";
 
 const BASE = process.env.SMOKE_BASE_URL ?? "http://localhost:3000";
-const required = ["TEST_ADMIN_EMAIL", "TEST_ADMIN_PASSWORD", "TEST_RESPONDER_EMAIL", "TEST_RESPONDER_PASSWORD", "SUPABASE_SERVICE_ROLE_KEY"];
-const missing = required.filter((k) => !process.env[k]);
-if (missing.length) {
-  console.error(`Missing env: ${missing.join(", ")}`);
+
+// SUPABASE_SERVICE_ROLE_KEY is always required (needed for admin provisioning and cleanup).
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.error("Missing env: SUPABASE_SERVICE_ROLE_KEY");
   process.exit(1);
 }
-const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+
+const SUPABASE_BASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+if (!SUPABASE_BASE_URL) {
+  console.error("Missing env: NEXT_PUBLIC_SUPABASE_URL");
+  process.exit(1);
+}
+const db = createClient(SUPABASE_BASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
 const results = [];
 function check(name, ok, detail = "") {
@@ -59,7 +67,20 @@ function session() {
 const admin = session();
 const responder = session();
 const anon = session();
-const created = { reports: [], responderTeamBefore: undefined, responderId: undefined };
+
+/**
+ * Tracks state that must be cleaned up in the finally block.
+ *   tempUsers          – auth UIDs of users created by this run (empty if credentials were provided via env).
+ *   reports            – report IDs created by this run.
+ *   responderId        – the responder's auth UID (needed to restore team membership).
+ *   responderTeamBefore – the team_id the responder had before we changed it (undefined = not yet saved).
+ */
+const created = {
+  tempUsers: [],
+  reports: [],
+  responderTeamBefore: undefined,
+  responderId: undefined,
+};
 
 async function submitReport(description, lat, lng) {
   const fd = new FormData();
@@ -77,21 +98,111 @@ async function submitReport(description, lat, lng) {
   return { ...r.json, status: "received" };
 }
 
+// ---------------------------------------------------------------------------
+// Auto-provision fallback: create temp users if credentials not in env
+// ---------------------------------------------------------------------------
+async function provisionTestUsers() {
+  const haveAdmin =
+    process.env.TEST_ADMIN_EMAIL &&
+    process.env.TEST_ADMIN_PASSWORD &&
+    process.env.TEST_RESPONDER_EMAIL &&
+    process.env.TEST_RESPONDER_PASSWORD;
+
+  if (haveAdmin) {
+    // Use credentials supplied by the caller; nothing to create.
+    return {
+      adminEmail: process.env.TEST_ADMIN_EMAIL,
+      adminPassword: process.env.TEST_ADMIN_PASSWORD,
+      responderEmail: process.env.TEST_RESPONDER_EMAIL,
+      responderPassword: process.env.TEST_RESPONDER_PASSWORD,
+    };
+  }
+
+  console.log("\nAuto-provisioning temporary test users (no TEST_* env vars found)…");
+
+  const ts = Date.now();
+  const adminEmail = `smoke-admin-${ts}@sagip.test`;
+  const adminPassword = `Smoke@${ts}Admin!`;
+  const responderEmail = `smoke-responder-${ts}@sagip.test`;
+  const responderPassword = `Smoke@${ts}Resp!`;
+
+  // Create admin user
+  const { data: adminData, error: adminErr } = await db.auth.admin.createUser({
+    email: adminEmail,
+    password: adminPassword,
+    email_confirm: true,
+  });
+  if (adminErr) throw new Error(`Failed to create temp admin: ${adminErr.message}`);
+  created.tempUsers.push(adminData.user.id);
+  const { error: adminProfileErr } = await db.from("profiles").upsert({
+    id: adminData.user.id,
+    role: "admin",
+    full_name: "Smoke Admin (temp)",
+  });
+  if (adminProfileErr) throw new Error(`Failed to upsert admin profile: ${adminProfileErr.message}`);
+
+  // Create responder user
+  const { data: responderData, error: responderErr } = await db.auth.admin.createUser({
+    email: responderEmail,
+    password: responderPassword,
+    email_confirm: true,
+  });
+  if (responderErr) throw new Error(`Failed to create temp responder: ${responderErr.message}`);
+  created.tempUsers.push(responderData.user.id);
+  const { error: responderProfileErr } = await db.from("profiles").upsert({
+    id: responderData.user.id,
+    role: "responder",
+    full_name: "Smoke Responder (temp)",
+  });
+  if (responderProfileErr) throw new Error(`Failed to upsert responder profile: ${responderProfileErr.message}`);
+
+  console.log(`  admin:     ${adminEmail}`);
+  console.log(`  responder: ${responderEmail}`);
+
+  return { adminEmail, adminPassword, responderEmail, responderPassword };
+}
+
+// ---------------------------------------------------------------------------
+// Main test flow
+// ---------------------------------------------------------------------------
 async function main() {
+  const creds = await provisionTestUsers();
+
   // Auth
-  let r = await admin("POST", "/api/auth/login", { email: process.env.TEST_ADMIN_EMAIL, password: process.env.TEST_ADMIN_PASSWORD });
+  let r = await admin("POST", "/api/auth/login", { email: creds.adminEmail, password: creds.adminPassword });
   check("admin login -> 200 with role admin", r.status === 200 && r.json?.role === "admin", short({ status: r.status, role: r.json?.role, error: r.json?.error }));
-  r = await responder("POST", "/api/auth/login", { email: process.env.TEST_RESPONDER_EMAIL, password: process.env.TEST_RESPONDER_PASSWORD });
+  r = await responder("POST", "/api/auth/login", { email: creds.responderEmail, password: creds.responderPassword });
   check("responder login -> 200 with role responder", r.status === 200 && r.json?.role === "responder", short({ status: r.status, role: r.json?.role, error: r.json?.error }));
   created.responderId = r.json?.id;
-  r = await admin("POST", "/api/auth/login", { email: process.env.TEST_ADMIN_EMAIL, password: "definitely-wrong-password" });
+  r = await admin("POST", "/api/auth/login", { email: creds.adminEmail, password: "definitely-wrong-password" });
   check("wrong password -> 401", r.status === 401, String(r.status));
   r = await admin("POST", "/api/auth/login", {});
   check("login without body fields -> 400", r.status === 400, String(r.status));
-  r = await admin("POST", "/api/auth/login", { email: process.env.TEST_ADMIN_EMAIL, password: process.env.TEST_ADMIN_PASSWORD });
+  r = await admin("POST", "/api/auth/login", { email: creds.adminEmail, password: creds.adminPassword });
   r = await admin("GET", "/api/auth/me");
   check("admin /me -> 200", r.status === 200 && r.json?.role === "admin", short(r.json));
   if (results.some((x) => !x.ok && x.name.includes("login -> 200"))) throw new Error("Login failed; stopping");
+
+  // ── Unauthenticated (anon) 401 checks ─────────────────────────────────────
+  // We need a placeholder incident ID for action endpoints; use a nil UUID.
+  // The auth guard must reject before it ever touches the DB.
+  const nilId = "00000000-0000-0000-0000-000000000000";
+  const anonChecks = [
+    ["GET",  "/api/incidents"],
+    ["GET",  "/api/incidents/map"],
+    ["GET",  "/api/review-queue"],
+    ["GET",  "/api/teams"],
+    ["POST", `/api/reports/${nilId}/review`],
+    ["POST", `/api/incidents/${nilId}/assign`],
+    ["PATCH",`/api/incidents/${nilId}/status`],
+    ["PATCH",`/api/incidents/${nilId}/priority`],
+    ["POST", `/api/incidents/${nilId}/reclassify`],
+  ];
+  console.log("\nAnon 401 checks…");
+  for (const [method, path] of anonChecks) {
+    r = await anon(method, path, method !== "GET" ? {} : undefined);
+    check(`anon ${method} ${path} -> 401`, r.status === 401, String(r.status));
+  }
 
   // Reference data
   r = await responder("GET", "/api/teams");
@@ -233,13 +344,38 @@ try {
 } catch (err) {
   check("script completed", false, err instanceof Error ? err.message : String(err));
 } finally {
+  // ── Restore responder's team membership ───────────────────────────────────
   if (created.responderId && created.responderTeamBefore !== undefined) {
     await db.from("profiles").update({ team_id: created.responderTeamBefore }).eq("id", created.responderId);
   }
+
+  // ── Delete test reports (unless SMOKE_KEEP_REPORTS=1) ─────────────────────
+  if (created.reports.length && process.env.SMOKE_KEEP_REPORTS !== "1") {
+    // Cascade-delete any priority_scores, classifications, reviews, and audit_log rows first.
+    // The DB schema should handle this via ON DELETE CASCADE, but we belt-and-suspenders here.
+    await db.from("priority_scores").delete().in("report_id", created.reports);
+    await db.from("classifications").delete().in("report_id", created.reports);
+    await db.from("reviews").delete().in("report_id", created.reports);
+    await db.from("audit_log").delete().in("report_id", created.reports);
+    const { error: delErr } = await db.from("reports").delete().in("id", created.reports);
+    if (delErr) console.warn("  Warning: could not delete some test reports:", delErr.message);
+    else console.log(`\nCleaned up ${created.reports.length} test report(s).`);
+  } else if (created.reports.length) {
+    console.log("\nTest report ids (kept):", JSON.stringify(created.reports));
+  }
+
+  // ── Delete temporary auth users (and their profiles) ─────────────────────
+  for (const uid of created.tempUsers) {
+    await db.from("profiles").delete().eq("id", uid);
+    const { error } = await db.auth.admin.deleteUser(uid);
+    if (error) console.warn(`  Warning: could not delete temp user ${uid}:`, error.message);
+  }
+  if (created.tempUsers.length) console.log(`Deleted ${created.tempUsers.length} temporary auth user(s).`);
+
+  // ── Summary ───────────────────────────────────────────────────────────────
   const passed = results.filter((x) => x.ok).length;
   console.log(`\n${passed}/${results.length} passed`);
   const failed = results.filter((x) => !x.ok).map((x) => x.name);
   if (failed.length) console.log("FAILED:", JSON.stringify(failed));
-  console.log("Test report ids:", JSON.stringify(created.reports));
   process.exitCode = failed.length ? 1 : 0;
 }

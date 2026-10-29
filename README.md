@@ -13,7 +13,7 @@ CPEPE362 Software Development 2 · Team CCRVibe 2.0 · Instructor: Rex A. Seadi�
 ![Stack](https://img.shields.io/badge/stack-Next.js%2016%20%2B%20TypeScript-black?logo=next.js&logoColor=white)
 ![Maps](https://img.shields.io/badge/maps-custom%20SVG-0EA5E9)
 ![DB](https://img.shields.io/badge/db-Supabase%20%2B%20PostGIS-3FCF8E?logo=supabase&logoColor=white)
-![AI](https://img.shields.io/badge/AI-Gemini%20free%20tier%20%2B%20local%20ONNX-4285F4?logo=googlegemini&logoColor=white)
+![AI](https://img.shields.io/badge/AI-local%20ONNX%20%2B%20Gemini%20free%20tier-4285F4?logo=onnx&logoColor=white)
 ![Deploy](https://img.shields.io/badge/deploy-Vercel%20(not%20yet%20live)-000000?logo=vercel&logoColor=white)
 ![License](https://img.shields.io/badge/license-TBD-lightgrey)
 
@@ -63,7 +63,7 @@ SAGIP-AI gives citizens one simple way to report an emergency (photo, short desc
   POST /api/reports ──▶ Supabase  (Postgres + PostGIS, private photo bucket)
         |
         v
-  AI chain:  primary model ──▶ fallback Gemini ──▶ keyword matcher
+  AI chain:  own model ──▶ Gemini (fallback, second opinion if unsure) ──▶ keyword matcher
              (8 incident types · 4 severity levels · confidence · hoax flag)
         |
         v
@@ -100,15 +100,16 @@ SAGIP-AI gives citizens one simple way to report an emergency (photo, short desc
 **What we want you to notice:**
 
 - **Honest by design.** The AI suggests; people decide. Four review triggers (confidence below 0.70, high or critical severity, suspected hoax, keyword fallback) always send a report to a person. A suspected hoax is flagged, never auto-rejected.
-- **Explainable ranking.** The priority score is plain code, not an AI call: `100 × (0.45·severity + 0.25·population + 0.15·location risk + 0.15·type)`. These weights are **placeholders** until the weights design doc is written.
-- **Free tiers only.** Vercel Hobby, Supabase Free, the Gemini free tier and our own ONNX model running on the server. No billing account is linked.
+- **Explainable ranking.** The priority score is plain code, not an AI call: `100 × (0.45·severity + 0.25·population + 0.15·location risk + 0.15·type)`. The reason for each weight, with worked examples, is in [docs/priority-weights.md](docs/priority-weights.md).
+- **Free tiers only.** Vercel Hobby, Supabase Free, our own ONNX model running on the server and the Gemini free tier as fallback. No billing account is linked.
 - **Fails safe.** If the Gemini quota runs out or the model errors, the chain falls back to the keyword matcher and human review instead of failing the report.
-- **Our own model.** An EfficientNet-B0 image classifier trained in Colab scores **79.8% on its 1,005-photo test set** ([metrics](docs/training-runs/2026-09-23/metrics.json)).
+- **Our own model, measured honestly.** An EfficientNet-B2 image classifier trained in free Colab gets **88% of incident types right (44/50)** on a 50-photo benchmark the team labeled itself, against **79.6% for Gemini**, at about 70 ms per photo instead of 12 seconds. It went from 52% to 88% in one day of retraining with 15 public CC BY photo sets ([training/README.md](training/README.md#second-training-run-2026-10-25)). It is the primary provider; Gemini gives a second opinion when it is unsure.
 
 **Known limits, stated plainly:**
 
-- The local model covers only **6 of the 8 types** (no training photos for `road_accident` or `fallen_debris`), so those rely on Gemini. It is **not yet the primary provider**; Gemini still is.
-- AI accuracy on real Philippine phone photos is **not measured yet**. The 36-photo benchmark cannot run until its severity labels are filled in (ISS-009).
+- The local model predicts the **type only**. Severity comes from description keywords, and both our model and Gemini rated **7 of 31 urgent benchmark photos** as low or moderate with high confidence, so those would skip review (ISS-016, ISS-028).
+- The benchmark and training photos are public photos. Accuracy on **real Philippine phone photos is not measured yet**.
+- Whether the local model fits in a Vercel function is **not tested yet** (deploy test due 2026-10-31, R-017).
 - A report needs GPS and an internet connection. There is no offline queue.
 - The UI is still the testing wireframe. The analytics page is a placeholder and the definitions page is not started.
 
@@ -116,7 +117,7 @@ SAGIP-AI gives citizens one simple way to report an emergency (photo, short desc
 |---|---|
 | How good is the AI, really? | [docs/handoffs/ai-benchmarking.md](docs/handoffs/ai-benchmarking.md) · [docs/training-runs/2026-09-23/](docs/training-runs/2026-09-23/) · [DOCUMENTATION.md Appendix B](docs/DOCUMENTATION.md#appendix-b--ai-classification-benchmarking-plan) |
 | How is the human kept in the loop? | [DOCUMENTATION.md §6.4–6.5](docs/DOCUMENTATION.md#64-ai-estimated-vs-confirmed-severity) |
-| How is a report ranked? | [DOCUMENTATION.md §6.6–6.7](docs/DOCUMENTATION.md#66-priority-score-proposed--to-be-finalized-in-its-own-design-doc) · `src/lib/scoring/index.ts` |
+| How is a report ranked? | [DOCUMENTATION.md §6.6–6.7](docs/DOCUMENTATION.md#66-priority-score) · [priority-weights.md](docs/priority-weights.md) · `src/lib/scoring/index.ts` |
 | How is the data protected? | [DOCUMENTATION.md §9.3](docs/DOCUMENTATION.md#93-security-supabase-rls) (row-level security, private photo bucket) |
 | What are the known risks and gaps? | [DOCUMENTATION.md §16](docs/DOCUMENTATION.md#16-known-issues-caveats--open-questions) |
 | How was the model trained? | [training/README.md](training/README.md) |
@@ -134,8 +135,8 @@ SAGIP-AI gives citizens one simple way to report an emergency (photo, short desc
 | Maps | Custom SVG (`src/components/dashboard/IncidentMap.tsx`) | Incident pins on the dashboard, no map library; detail view links to OpenStreetMap |
 | Database | Supabase Postgres + PostGIS | Reports, classifications, scores, areas; spatial queries |
 | Auth & storage | Supabase Auth, Supabase Storage | Staff login (responder, admin); private `report-photos` bucket |
-| AI (cloud) | Gemini free tier via `@google/genai` | `gemini-3.1-flash-lite` primary, `gemini-3.5-flash` fallback |
-| AI (local) | Own EfficientNet-B0 model, `onnxruntime-node` + `sharp` | Free on-server classification of 6 types |
+| AI (local) | Own EfficientNet-B2 model, `onnxruntime-node` + `sharp` | **Primary.** Free on-server classification of all 8 types |
+| AI (cloud) | Gemini free tier via `@google/genai` | `gemini-3.1-flash-lite` fallback and second opinion for unsure local answers |
 | AI (last resort) | Keyword matcher (`src/lib/ai/keyword.ts`) | Always answers with confidence 0, so the report goes to review |
 | Ranking | Deterministic weighted formula | Explainable 0–100 priority score and P1–P4 bands |
 | Deployment | Vercel + Supabase | Free-tier hosting (**not deployed yet**) |
@@ -225,7 +226,7 @@ The team shares one Supabase project, already migrated and seeded, so there is n
 - Git
 - A Supabase project with the `postgis` extension enabled
 - *(optional)* Your own free Gemini key from [aistudio.google.com](https://aistudio.google.com), with no billing account linked
-- *(optional)* The trained model files `sagip-classifier.onnx` and `labels.json` in `models/` (from the team Drive) to use `AI_PROVIDER=local`
+- The trained model files `sagip-classifier.onnx`, `sagip-classifier.onnx.data` and `labels.json` in `models/` (from the team Drive) for `AI_PROVIDER=local`, the team default. Copy all three together
 
 ### Environment variables
 
@@ -235,8 +236,8 @@ Everything is read from one file. Copy `.env.example` and fill in real values on
 |---|---|---|
 | `.env.local` | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Browser and server Supabase clients |
 | `.env.local` | `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`, `DIRECT_URL` | Server-only admin client, seed and admin scripts (secret) |
-| `.env.local` | `AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL`, `AI_TIMEOUT_MS` | Primary classifier (`gemini`, `local` or `mock`) |
-| `.env.local` | `AI_FALLBACK_PROVIDER`, `AI_FALLBACK_API_KEY`, `AI_FALLBACK_MODEL` | Fallback classifier (`gemini`) |
+| `.env.local` | `AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL`, `AI_TIMEOUT_MS` | Primary classifier (`local` by default, or `gemini`, `mock`) |
+| `.env.local` | `AI_FALLBACK_PROVIDER`, `AI_FALLBACK_API_KEY`, `AI_FALLBACK_MODEL` | Fallback and second opinion (`gemini`, `gemini-3.1-flash-lite`) |
 | `.env.local` | `CONFIDENCE_THRESHOLD` (default `0.7`), `AI_DAILY_BUDGET_USD` | Review trigger and daily spend cap |
 | `.env.local` | `REPORT_RATE_LIMIT` (default `5`), `REPORT_RATE_WINDOW_MS` (default `600000`) | Per-IP limit on `POST /api/reports` |
 | `.env.test.local` | `TEST_ADMIN_EMAIL`, `TEST_ADMIN_PASSWORD`, `TEST_RESPONDER_EMAIL`, `TEST_RESPONDER_PASSWORD` | `scripts/smoke-staff.mjs` only |
@@ -293,7 +294,7 @@ There is no automated test runner in `package.json` yet. The one end-to-end chec
 node --env-file=.env.local --env-file=.env.test.local scripts/smoke-staff.mjs
 ```
 
-TODO: staff-side end-to-end test (ISS-010), load test (R-004), and low-end phone and weak-connection test.
+TODO: staff-side end-to-end test (ISS-010, due 2026-10-30), load test (R-004), and low-end phone and weak-connection test.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -305,11 +306,15 @@ TODO: staff-side end-to-end test (ISS-010), load test (R-004), and low-end phone
 - [x] Staff login, ranked list and map, incident detail, review queue
 - [x] AI chain with fallback, keyword matcher and 4 human-review triggers
 - [x] Deterministic priority score with per-factor breakdown
-- [x] Own image classifier trained (79.8% test accuracy, 6 types)
-- [ ] Fill severity labels and run the 36-photo benchmark (ISS-009)
-- [ ] Make the local model the primary provider
-- [ ] Write the priority weights design doc
-- [ ] Define "severity %" and add it to the database, API and UI
+- [x] Own image classifier trained (first run 79.8% test accuracy, 6 types)
+- [x] Label severities and run the 50-photo benchmark: Gemini 79.6%, first local model 52%
+- [x] Retrain the local model on all 8 types: 88% on the benchmark (2026-10-25)
+- [x] Select the primary model: local, with Gemini as fallback (2026-10-25)
+- [x] Write the priority weights design doc ([priority-weights.md](docs/priority-weights.md))
+- [x] Define "severity %" (DOCUMENTATION.md 6.4)
+- [ ] Vercel preview deploy with the local model (R-017, due 2026-10-31), then switch production to local
+- [ ] Send under-rated urgent reports to review (ISS-016, ISS-028)
+- [ ] Add severity % to the database, API and UI
 - [ ] Analytics page and endpoint, definitions page
 - [ ] Add Gemini 3.x prices to the cost tracker (ISS-007)
 - [ ] Staff end-to-end test (ISS-010), load test (R-004), low-end phone and weak-connection test
@@ -348,10 +353,11 @@ Work goes from a feature branch into `development`, then into `main` through pul
 |---|---|
 | [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md) | Full project documentation: scope, user flow, architecture, data model, API, setup, risks, schedule. |
 | [docs/ONBOARDING.md](docs/ONBOARDING.md) | Team access, setup, `.env.local`, staff accounts and how we work. |
-| [docs/handoffs/ai-benchmarking.md](docs/handoffs/ai-benchmarking.md) | AI status, live test log and open AI issues. |
-| [docs/training-runs/2026-09-23/](docs/training-runs/2026-09-23/) | Local model metrics, labels and confusion matrix. |
+| [docs/priority-weights.md](docs/priority-weights.md) | Why each priority weight is what it is, with worked examples and rejected alternatives. |
+| [docs/handoffs/ai-benchmarking.md](docs/handoffs/ai-benchmarking.md) | AI status, benchmark results, live test log and open AI issues. |
+| [docs/training-runs/2026-09-23/](docs/training-runs/2026-09-23/) | First local model run: metrics, labels and confusion matrix. |
 | [benchmark/README.md](benchmark/README.md) | How to build and run the labeled-photo benchmark. |
-| [training/README.md](training/README.md) | Photo sources and how to train the local model. |
+| [training/README.md](training/README.md) | Photo sources (with CC BY credits), the 2026-10-25 retraining rounds and how to train the local model. |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

@@ -51,6 +51,11 @@ next-env.d.ts
 /training/raw/
 /training/dataset/
 /training/*.zip
+/training/dataset-excluded/
+
+# local tool logs
+/receipts/
+/review-receipts/
 
 # trained model files (large; share via Drive) and local editor/agent settings
 /models/
