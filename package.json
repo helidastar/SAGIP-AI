@@ -13,7 +13,7 @@
     "make-admin": "node --env-file=.env.local scripts/make-admin.mjs",
     "export:training-data": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/export-training-data.ts",
     "smoke:staff": "node --env-file=.env.local --env-file-if-exists=.env.test.local scripts/smoke-staff.mjs",
-    "test": "node --conditions=react-server --import tsx --test tests/scoring.test.ts tests/ai.test.ts tests/api-inputs.test.ts"
+    "test": "node --conditions=react-server --import tsx --test tests/scoring.test.ts tests/ai.test.ts tests/api-inputs.test.ts tests/chain.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.22.0",
