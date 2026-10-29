@@ -15,7 +15,7 @@
  */
 import { describe, it, before } from "node:test";
 import assert from "node:assert/strict";
-import { createRateLimiter, clientIp } from "@/lib/rate-limit.ts";
+import { createRateLimiter, clientIp } from "@/lib/rate-limit";
 
 // ---------------------------------------------------------------------------
 // createRateLimiter – sliding window logic
@@ -124,7 +124,7 @@ process.env.REPORT_RATE_WINDOW_MS = "600000";
 // Loaded lazily so the env is set first.
 let POST: (req: Request) => Promise<Response>;
 before(async () => {
-  ({ POST } = await import("@/app/api/reports/route.ts"));
+  ({ POST } = await import("@/app/api/reports/route"));
 });
 
 /** Build a multipart/form-data Request that hits POST /api/reports. */

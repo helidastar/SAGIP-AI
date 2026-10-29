@@ -7,9 +7,9 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { needsReview } from "@/lib/ai/review.ts";
-import { keywordClassifier, severityFromText, hazardsFromText } from "@/lib/ai/keyword.ts";
-import { normalizeClassification } from "@/lib/ai/normalize.ts";
+import { needsReview } from "@/lib/ai/review";
+import { keywordClassifier, severityFromText, hazardsFromText } from "@/lib/ai/keyword";
+import { normalizeClassification } from "@/lib/ai/normalize";
 
 // ---------------------------------------------------------------------------
 // needsReview
@@ -81,7 +81,7 @@ describe("keywordClassifier.classify", () => {
   // needsReview is always true because confidence === 0
   it("confidence 0 means needsReview is always true", async () => {
     const r = await classify("walay sulod");
-    const { needsReview: nr } = await import("@/lib/ai/review.ts");
+    const { needsReview: nr } = await import("@/lib/ai/review");
     assert.equal(nr(r), true);
   });
 
