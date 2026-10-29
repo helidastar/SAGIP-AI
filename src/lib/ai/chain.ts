@@ -27,7 +27,15 @@ export interface ChainOutcome {
   skippedProviders?: "over_budget" | "not_configured";
 }
 
-function providersFromEnv() {
+export interface ChainProviders {
+  primary: Classifier | null;
+  fallback: Classifier | null;
+  escalateLowConfidence: boolean;
+  /** Types the local model over-predicts (ISS-015): always get a second opinion, even when confident. */
+  escalateTypes: string[];
+}
+
+function providersFromEnv(): ChainProviders {
   // The local model runs on our server, so it needs no API key.
   const make = (provider?: string, key?: string, model?: string) =>
     provider && provider !== "mock" && (key || provider === "local")
@@ -39,6 +47,7 @@ function providersFromEnv() {
     escalateLowConfidence: primaryProvider === "local",
     primary: make(primaryProvider, process.env.AI_API_KEY, process.env.AI_MODEL),
     fallback: make(process.env.AI_FALLBACK_PROVIDER, process.env.AI_FALLBACK_API_KEY, process.env.AI_FALLBACK_MODEL),
+    escalateTypes: (process.env.AI_LOCAL_ESCALATE_TYPES ?? "").split(",").map((t) => t.trim()).filter(Boolean),
   };
 }
 
@@ -85,13 +94,18 @@ async function attempt(classifier: Classifier, step: ChainStep, input: Classifie
 
 /**
  * primary (retry once on transient errors) → fallback provider → keyword matcher.
- * With the local model as primary, its low-confidence answers are also escalated
- * to the fallback, and it keeps running when over budget since it costs nothing.
+ * With the local model as primary, its low-confidence answers (and every answer of a type
+ * in AI_LOCAL_ESCALATE_TYPES) are also escalated to the fallback, and it keeps running
+ * when over budget since it costs nothing. `providers` is for tests; the app reads env.
  * Never throws: the keyword step always produces a (confidence 0) result.
  */
-export async function classifyWithFallback(db: SupabaseClient, input: ClassifierInput): Promise<ChainOutcome> {
+export async function classifyWithFallback(
+  db: SupabaseClient,
+  input: ClassifierInput,
+  providers: ChainProviders = providersFromEnv(),
+): Promise<ChainOutcome> {
   const attempts: ChainAttempt[] = [];
-  const { primary, fallback, escalateLowConfidence } = providersFromEnv();
+  const { primary, fallback, escalateLowConfidence, escalateTypes } = providers;
 
   let skippedProviders: ChainOutcome["skippedProviders"];
   if (!primary && !fallback) skippedProviders = "not_configured";
@@ -107,7 +121,7 @@ export async function classifyWithFallback(db: SupabaseClient, input: Classifier
     }
     if (!("failed" in res)) {
       const step = attempts.at(-1)!.step;
-      const confident = res.confidence >= CONFIDENCE_THRESHOLD;
+      const confident = res.confidence >= CONFIDENCE_THRESHOLD && !escalateTypes.includes(res.incidentType);
       if (!escalateLowConfidence || confident || !fallback || !canCallPaid) {
         return { result: res, step, label: `primary:${primary.model}`, attempts, skippedProviders };
       }

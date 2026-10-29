@@ -8,6 +8,7 @@ Given a citizen's photo and description, classify the incident.
   low = minor, no immediate danger; moderate = property damage or potential danger;
   high = active danger to people or major property; critical = life-threatening, mass-casualty potential
 - confidence: 0 to 1, how sure you are
+- severityConfidence: 0 to 1, how sure you are of the severity tier alone
 - hazards: short phrases for visible hazards (e.g. "rising water", "downed power lines")
 - hoaxSuspected: true only if there's a clear sign this isn't a genuine report — the photo
   is an unrelated meme/screenshot/stock image, the description is joking or nonsensical, or
@@ -24,8 +25,9 @@ export const CLASSIFY_SCHEMA = {
     incidentType: { type: "string", enum: [...INCIDENT_TYPES] },
     severity: { type: "string", enum: Object.keys(SEVERITY) },
     confidence: { type: "number", minimum: 0, maximum: 1 },
+    severityConfidence: { type: "number", minimum: 0, maximum: 1 },
     hazards: { type: "array", items: { type: "string" } },
     hoaxSuspected: { type: "boolean" },
   },
-  required: ["incidentType", "severity", "confidence", "hazards", "hoaxSuspected"],
+  required: ["incidentType", "severity", "confidence", "severityConfidence", "hazards", "hoaxSuspected"],
 } as const;
