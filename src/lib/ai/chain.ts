@@ -1,4 +1,4 @@
-import "server-only";
+﻿import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CONFIDENCE_THRESHOLD } from "@/lib/constants";
 import { describeError, isTransientError } from "./errors";
@@ -33,7 +33,7 @@ function providersFromEnv() {
     provider && provider !== "mock" && (key || provider === "local")
       ? createProvider(provider, key ?? "", model || undefined)
       : null;
-  const primaryProvider = process.env.AI_PROVIDER ?? "gemini";
+  const primaryProvider = process.env.AI_PROVIDER || "local";
   return {
     // Our own model is cheap but weaker, so its unsure answers get a second opinion from the fallback.
     escalateLowConfidence: primaryProvider === "local",
@@ -84,7 +84,7 @@ async function attempt(classifier: Classifier, step: ChainStep, input: Classifie
 }
 
 /**
- * primary (retry once on transient errors) → fallback provider → keyword matcher.
+ * primary (retry once on transient errors) â†’ fallback provider â†’ keyword matcher.
  * With the local model as primary, its low-confidence answers are also escalated
  * to the fallback, and it keeps running when over budget since it costs nothing.
  * Never throws: the keyword step always produces a (confidence 0) result.
