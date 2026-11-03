@@ -15,7 +15,7 @@ Add a new dated entry at the top for each session. Keep old entries — they sho
 | Fallback provider | Gemini, `gemini-3.1-flash-lite` (`thinkingBudget: 0`, 15 RPM free tier): fallback when the local model fails, and second opinion when it is below 0.70 confidence |
 | Real AI classifications so far | 1 through the app (`SGP-KBL2UX`), 3 direct Gemini calls. Our own model has additionally been run on 36 held-out photos at no cost |
 | Labeled benchmark dataset | 50 photos in `benchmark/dataset/` (all 8 types), severity labeled by 3 team members per photo. First local vs Gemini run on 2026-10-25 (see below) |
-| Cost tracking for Gemini 3.x | **Not working** — no price in `src/lib/ai/normalize.ts`, so `cost_usd` is null and the daily budget cap ignores Gemini spend. Matters less while on the free tier with no billing linked |
+| Cost tracking for Gemini 3.x | Prices added 2026-10-29 in `src/lib/ai/normalize.ts` (paid-tier list prices; the free tier bills $0). Unit-tested; not yet checked on a real `cost_usd` row |
 | Team constraint | **Free only.** No paid APIs, no billing accounts. Free tiers that reset daily, for development and the final demo (Nov 2026) |
 | Own model (`local` provider) | **Retrained 2026-10-25** (EfficientNet-B2, 8 types, 10,456 photos): **88% type accuracy (44/50)** on the benchmark vs 79.6% for Gemini, about 70 ms per photo, free. First run (2026-09-23) was 52%. Now the primary |
 
@@ -70,6 +70,30 @@ flowchart TD
     classDef plan fill:#E0F2FE,stroke:#0284C7,color:#0C4A6E
     class L,E,LQ plan
 ```
+
+---
+
+## 2026-10-29 — Gemini 3.x prices, Severity %, chain tests, medical escalation
+
+**Branch:** `feat/ai-open-tasks` · **Environment:** unit tests only (no app server, no API calls, no model files)
+
+### What changed
+| Item | File | Status |
+|---|---|---|
+| Gemini 3.x prices (ISS-007) | `src/lib/ai/normalize.ts` | Done in code. `gemini-3.1-flash-lite` $0.25 / $1.50, `gemini-3.6-flash` and `gemini-3.8-flash` $0.75 / $3.75 per 1M tokens in / out (until 2026-12-31, then $1.50 / $7.50), `gemini-3.5-flash-lite` $0.30 / $2.50, `gemini-3-flash-preview` $0.50 / $3.00. Source: ai.google.dev/gemini-api/docs/pricing, read 2026-10-29. Still to check: one real classification row has a non-null `cost_usd` |
+| Severity % from the classifier (AI 22) | `prompt.ts`, `normalize.ts`, `types.ts`, `local.ts`, `keyword.ts` | Gemini schema asks for `severityConfidence` (0 to 1); invalid or missing = null. Keyword matcher and today's local model give null. Not yet saved: needs the `classifications.severity_confidence` migration (Backend 19) |
+| Fallback chain tests (ISS-022) | `tests/chain.test.ts` | 20 tests, fake providers and database: retry on transient errors, fallback, keyword last, local escalation, budget cap on and off, local still runs over budget. Stuck-report recovery is **not** covered (needs a live database) |
+| Medical over-prediction (ISS-015) | `src/lib/ai/chain.ts`, `.env.example` | New `AI_LOCAL_ESCALATE_TYPES` (comma list, empty by default). A local answer of a listed type always gets a Gemini second opinion, even when confident. Off until measured |
+| Severity head support (ISS-016) | `src/lib/ai/local.ts`, [local-severity-design.md](../local-severity-design.md) | The provider reads an optional `severity` output. No model has one yet |
+| Test imports | `tests/*.ts` | `npm run build` failed on `development` because the test files import with a `.ts` extension (TS5097). Imports now have no extension; build, lint and the 132 tests pass |
+
+### ISS-015: how to measure before turning it on
+The 34% medical precision is from the first model (2026-09-23). The retrained model got medical 5 of 6 on the benchmark,
+but its precision is not measured. On the laptop with the current model files:
+
+1. `npm run benchmark -- --models local` and read the confusion table: how many non-medical photos were predicted medical.
+2. Then with `AI_LOCAL_ESCALATE_TYPES=medical_emergency` in `.env.local`, run the chain benchmark (`--models local,gemini:gemini-3.1-flash-lite`) and compare type accuracy and missed urgent.
+3. Pass mark: turn it on only if type accuracy does not drop and medical false positives go down. Cost: each medical guess spends one Gemini free-tier request (15 per minute).
 
 ---
 

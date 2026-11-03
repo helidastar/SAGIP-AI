@@ -238,6 +238,7 @@ Incident (one real-world event)
 - Limit: the number is the model's own estimate and is not calibrated. The benchmark measures whether the severity tier is right, not whether 80% really means right 8 times in 10.
 - Option rejected: a 0-100 severity score. It would be a second scale beside the 4 tiers, and the benchmark labels are tiers only, so its accuracy could not be measured.
 - Build order: migration (Backend 19), classifier field (AI 22), API field, UI next to the severity chip (Admin 12), then a test.
+- Status 2026-10-29: the classifier field is done (`severityConfidence` in the Gemini schema and `normalizeClassification`, tested in `tests/chain.test.ts`). It is not saved yet; that waits on the migration.
 
 ### 6.5 Human review triggers
 A report goes to `pending_review` if **any** of these is true (`needsReview()` in `src/lib/ai/review.ts`):
@@ -772,12 +773,13 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>   # server only, never expose
 DATABASE_URL=postgresql://...                  # pooled connection (SQL tools)
 DIRECT_URL=postgresql://...                    # direct connection for migrations
-AI_PROVIDER=gemini                             # gemini | local | mock
-AI_API_KEY=<provider-key>                      # not needed for local
-AI_MODEL=gemini-3.1-flash-lite                 # for local: path to the .onnx file
+AI_PROVIDER=local                              # gemini | local | mock (local = team default since 2026-10-25)
+AI_API_KEY=                                    # not needed for local
+AI_MODEL=                                      # for local: path to the .onnx file (default models/sagip-classifier.onnx)
 AI_FALLBACK_PROVIDER=gemini
 AI_FALLBACK_API_KEY=<provider-key>
-AI_FALLBACK_MODEL=gemini-3.5-flash
+AI_FALLBACK_MODEL=gemini-3.1-flash-lite
+AI_LOCAL_ESCALATE_TYPES=                       # optional, e.g. medical_emergency (ISS-015)
 CONFIDENCE_THRESHOLD=0.7
 ```
 See `.env.example` for the full list (timeouts, base URLs, daily budget, rate limit).
