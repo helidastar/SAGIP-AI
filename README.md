@@ -242,7 +242,7 @@ Everything is read from one file. Copy `.env.example` and fill in real values on
 | `.env.local` | `REPORT_RATE_LIMIT` (default `5`), `REPORT_RATE_WINDOW_MS` (default `600000`) | Per-IP limit on `POST /api/reports` |
 | `.env.test.local` | `TEST_ADMIN_EMAIL`, `TEST_ADMIN_PASSWORD`, `TEST_RESPONDER_EMAIL`, `TEST_RESPONDER_PASSWORD` | `scripts/smoke-staff.mjs` only |
 
-`AI_DAILY_BUDGET_USD` does not yet count Gemini 3.x spend, because their prices are missing from `src/lib/ai/normalize.ts` (ISS-007).
+`AI_DAILY_BUDGET_USD` counts Gemini spend at paid-tier list prices from `src/lib/ai/normalize.ts` (Gemini 3.x added 2026-10-29, ISS-007). On the free tier nothing is billed, so the cap is a safety limit for when billing is linked. `AI_LOCAL_ESCALATE_TYPES` (optional) sends every local answer of the listed types to Gemini for a second opinion (ISS-015).
 
 ### Database (Supabase)
 
