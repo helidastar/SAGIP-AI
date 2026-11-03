@@ -41,7 +41,7 @@ function providersFromEnv(): ChainProviders {
     provider && provider !== "mock" && (key || provider === "local")
       ? createProvider(provider, key ?? "", model || undefined)
       : null;
-  const primaryProvider = process.env.AI_PROVIDER ?? "gemini";
+  const primaryProvider = process.env.AI_PROVIDER || "local";
   return {
     // Our own model is cheap but weaker, so its unsure answers get a second opinion from the fallback.
     escalateLowConfidence: primaryProvider === "local",
