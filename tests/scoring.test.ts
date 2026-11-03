@@ -4,7 +4,7 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { computePriority, toBand, PRIORITY_BANDS } from "@/lib/scoring/index.ts";
+import { computePriority, toBand, PRIORITY_BANDS } from "@/lib/scoring/index";
 
 // ---------------------------------------------------------------------------
 // Weights as they are defined in src/lib/constants.ts (used to document intent)
