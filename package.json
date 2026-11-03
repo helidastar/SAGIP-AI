@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/fetch-models.mjs",
     "build": "next build",
+    "fetch-models": "node --env-file-if-exists=.env.local scripts/fetch-models.mjs",
     "start": "next start",
     "lint": "eslint",
     "seed": "node --env-file=.env.local scripts/seed.mjs",
