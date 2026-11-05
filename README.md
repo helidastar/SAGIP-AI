@@ -103,7 +103,7 @@ SAGIP-AI gives citizens one simple way to report an emergency (photo, short desc
 - **Explainable ranking.** The priority score is plain code, not an AI call: `100 × (0.45·severity + 0.25·population + 0.15·location risk + 0.15·type)`. The reason for each weight, with worked examples, is in [docs/priority-weights.md](docs/priority-weights.md).
 - **Free tiers only.** Vercel Hobby, Supabase Free, our own ONNX model running on the server and the Gemini free tier as fallback. No billing account is linked.
 - **Fails safe.** If the Gemini quota runs out or the model errors, the chain falls back to the keyword matcher and human review instead of failing the report.
-- **Our own model, measured honestly.** An EfficientNet-B2 image classifier trained in free Colab gets **88% of incident types right (44/50)** on a 50-photo benchmark the team labeled itself, against **79.6% for Gemini**, at about 70 ms per photo instead of 12 seconds. It went from 52% to 88% in one day of retraining with 15 public CC BY photo sets ([training/README.md](training/README.md#second-training-run-2026-10-25)). It is the primary provider; Gemini gives a second opinion when it is unsure.
+- **Our own model, measured honestly.** An EfficientNet-B2 image classifier trained in free Colab gets **88% of incident types right (44/50)** on a 50-photo benchmark the team labeled itself, against **79.6% for Gemini**, at about 70 ms per photo instead of 12 seconds. It went from 52% to 88% in one day of retraining with 15 public CC BY photo sets ([training/README.md](https://github.com/helidastar/SAGIP-AI/blob/dev/training/README.md#second-training-run-2026-10-25)). It is the primary provider; Gemini gives a second opinion when it is unsure.
 
 **Known limits, stated plainly:**
 
@@ -120,7 +120,7 @@ SAGIP-AI gives citizens one simple way to report an emergency (photo, short desc
 | How is a report ranked? | [DOCUMENTATION.md §6.6–6.7](docs/DOCUMENTATION.md#66-priority-score) · [priority-weights.md](docs/priority-weights.md) · `src/lib/scoring/index.ts` |
 | How is the data protected? | [DOCUMENTATION.md §9.3](docs/DOCUMENTATION.md#93-security-supabase-rls) (row-level security, private photo bucket) |
 | What are the known risks and gaps? | [DOCUMENTATION.md §16](docs/DOCUMENTATION.md#16-known-issues-caveats--open-questions) |
-| How was the model trained? | [training/README.md](training/README.md) |
+| How was the model trained? | [training/README.md](https://github.com/helidastar/SAGIP-AI/blob/dev/training/README.md) |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -242,7 +242,7 @@ Everything is read from one file. Copy `.env.example` and fill in real values on
 | `.env.local` | `REPORT_RATE_LIMIT` (default `5`), `REPORT_RATE_WINDOW_MS` (default `600000`) | Per-IP limit on `POST /api/reports` |
 | `.env.test.local` | `TEST_ADMIN_EMAIL`, `TEST_ADMIN_PASSWORD`, `TEST_RESPONDER_EMAIL`, `TEST_RESPONDER_PASSWORD` | `scripts/smoke-staff.mjs` only |
 
-`AI_DAILY_BUDGET_USD` counts Gemini spend at paid-tier list prices from `src/lib/ai/normalize.ts` (Gemini 3.x added 2026-10-29, ISS-007). On the free tier nothing is billed, so the cap is a safety limit for when billing is linked. `AI_LOCAL_ESCALATE_TYPES` (optional) sends every local answer of the listed types to Gemini for a second opinion (ISS-015).
+`AI_DAILY_BUDGET_USD` does not yet count Gemini 3.x spend, because their prices are missing from `src/lib/ai/normalize.ts` (ISS-007).
 
 ### Database (Supabase)
 
@@ -284,7 +284,7 @@ npm run dataset:prepare -- --dry-run        # check training photos before build
 npm run export:training-data -- --dry-run   # preview reviewed reports as new training data
 ```
 
-See [benchmark/README.md](benchmark/README.md) and [training/README.md](training/README.md).
+See [benchmark/README.md](https://github.com/helidastar/SAGIP-AI/blob/dev/benchmark/README.md) and [training/README.md](https://github.com/helidastar/SAGIP-AI/blob/dev/training/README.md).
 
 ### Tests
 
@@ -356,8 +356,8 @@ Work goes from a feature branch into `development`, then into `main` through pul
 | [docs/priority-weights.md](docs/priority-weights.md) | Why each priority weight is what it is, with worked examples and rejected alternatives. |
 | [docs/handoffs/ai-benchmarking.md](docs/handoffs/ai-benchmarking.md) | AI status, benchmark results, live test log and open AI issues. |
 | [docs/training-runs/2026-09-23/](docs/training-runs/2026-09-23/) | First local model run: metrics, labels and confusion matrix. |
-| [benchmark/README.md](benchmark/README.md) | How to build and run the labeled-photo benchmark. |
-| [training/README.md](training/README.md) | Photo sources (with CC BY credits), the 2026-10-25 retraining rounds and how to train the local model. |
+| [benchmark/README.md](https://github.com/helidastar/SAGIP-AI/blob/dev/benchmark/README.md) | How to build and run the labeled-photo benchmark. |
+| [training/README.md](https://github.com/helidastar/SAGIP-AI/blob/dev/training/README.md) | Photo sources (with CC BY credits), the 2026-10-25 retraining rounds and how to train the local model. |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -371,7 +371,7 @@ A report moves through 7 statuses: `received`, `pending_review`, `classified`, `
 
 ## Acknowledgments
 
-* Public disaster photo datasets used to train our classifier, listed with their licenses in [training/README.md](training/README.md)
+* Public disaster photo datasets used to train our classifier, listed with their licenses in [training/README.md](https://github.com/helidastar/SAGIP-AI/blob/dev/training/README.md)
 * [Google AI Studio](https://aistudio.google.com) for the Gemini free tier
 * [Supabase](https://supabase.com) and [Vercel](https://vercel.com) free tiers
 * [ONNX Runtime](https://onnxruntime.ai) and [sharp](https://sharp.pixelplumbing.com)
