@@ -47,7 +47,7 @@ Also note that many flood photos in these sets are aerial, while citizens submit
 The first model had no `road_accident` or `fallen_debris` photos (ISS-014) and scored 52% on the 50-photo benchmark.
 We added 15 public Roboflow Universe datasets, all **CC BY 4.0** (credit required, commercial use allowed). Every set was checked by eye on a contact sheet first; two were dropped as off-topic (apartment interiors, yoga and gym photos).
 
-The photo list is in [`extra-photos.tsv`](extra-photos.tsv) (type, source, id, url; 5,259 photos). Download it with:
+The photo list is in [`extra-photos.tsv`](extra-photos.tsv) (type, source, id, url; 5,715 photos as of 2026-11-05). Download it with:
 
 ```bash
 node scripts/fetch-training-photos.mjs   # into training/raw/<type>/roboflow-<source>/, safe to re-run
@@ -60,9 +60,11 @@ node scripts/fetch-training-photos.mjs   # into training/raw/<type>/roboflow-<so
 | `road_accident` | [dooropen / crash](https://universe.roboflow.com/dooropen/crash-km0ak) | 416 |
 | `road_accident` | [nyankosenseirokubackup / vehicle-accident](https://universe.roboflow.com/nyankosenseirokubackup/vehicle-accident-m2ryw) | 473 |
 | `road_accident` | [tammy / cctv-accident](https://universe.roboflow.com/tammy/cctv-accident) | 342 |
+| `road_accident` | [coco-json-to-yolov7 / iteration_1](https://universe.roboflow.com/coco-json-to-yolov7/iteration_1-b8yzl) (images tagged `Road_accident` only, out of a mixed-scene set) | 52 |
 | `fallen_debris` | [erykvtymons / fallen-trees-detection](https://universe.roboflow.com/erykvtymons/fallen-trees-detection-v1) | 192 |
 | `fallen_debris` | [rounak-shukla / tree-fall-detection](https://universe.roboflow.com/rounak-shukla-cefqh/tree-fall-detection-gh8z2) | 735 |
 | `fallen_debris` | [dangs-workspace / fallen-tree-detection](https://universe.roboflow.com/dangs-workspace-gac1u/fallen-tree-detection) | 18 |
+| `fallen_debris` | [steve-chun / fallen-tree-segmentation](https://universe.roboflow.com/steve-chun/fallen-tree-segmentation) | 200 (of 728 available) |
 | `flood` | [andrews-workspace / flooded-od](https://universe.roboflow.com/andrews-workspace-695dm/flooded-od) | 438 |
 | `flood` | [frank-oliveira / rualivreia](https://universe.roboflow.com/frank-oliveira/rualivreia) | 469 |
 | `flood` | [yolos / flooded-house](https://universe.roboflow.com/yolos-iw5ob/flooded-house) | 197 |
@@ -70,6 +72,10 @@ node scripts/fetch-training-photos.mjs   # into training/raw/<type>/roboflow-<so
 | `flood` | [final-year-project / flood-detection](https://universe.roboflow.com/final-year-project-f8l24/flood-detection-2i4xt) | 247 |
 | `structural_damage` | [muhammads-workspace / earthquake](https://universe.roboflow.com/muhammads-workspace-uooos/earthquake-5cvpq) | 615 |
 | `medical_emergency` | [fallen-people-data-set / fallen-person](https://universe.roboflow.com/fallen-people-data-set/fallen-person-uhif8) | 499 |
+| `medical_emergency` | [sangeevan-workspace / medical-emergency-detection](https://universe.roboflow.com/sangeevan-workspace/medical-emergency-detection) (chest-clutching / distress-face images only) | 110 |
+| `medical_emergency` | [tingting-rph02 / aid](https://universe.roboflow.com/tingting-rph02/aid-lvngz) (visible injuries: abrasions, bruises, burns, cuts) | 94 |
+
+**2026-11-05 addition** (AI 5): the four rows above (road_accident +52, fallen_debris +200, medical_emergency +204) were added to close most of the gap AI 5's "collect 180 own photos" plan was meant to fill, since staging real road accidents or medical emergencies ourselves is slow and some of it isn't safe to do for real. They don't fully replace own photos, though - none of these are Philippine street scenes (jeepneys, tricycles, barangay roads), and the medical_emergency ones come from a symptom-detection and a wound-classification dataset rather than disaster-response scenes, so they read a bit differently from what a citizen would actually submit. A smaller round of own photos (Philippine settings, staged carefully, no faces) is still worth doing if there's time before the retrain - see [`photo-collection.md`](photo-collection.md) for the updated, smaller target.
 
 After `dataset:prepare` (duplicates, cross-type conflicts and benchmark matches removed) the training set grew from 6,695 to **10,456 photos**:
 
