@@ -5,7 +5,7 @@
  *   - daily budget cap (AI_DAILY_BUDGET_USD) with a fake Supabase client
  *   - estimateCost prices for Gemini 3.x (ISS-007), severityConfidence normalization (AI 22)
  * ISS-022 – fake providers and database, no network calls.
- * Not covered here: stuck-report recovery, which needs a live database.
+ * Stuck-report recovery (processReceivedReport) is covered separately in tests/classify.test.ts.
  */
 import { afterEach, describe, it } from "node:test";
 import assert from "node:assert/strict";

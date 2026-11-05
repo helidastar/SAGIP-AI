@@ -46,6 +46,7 @@ export async function classifyReport(db: SupabaseClient, report: ClassifyReportI
     incident_type: result.incidentType,
     severity: result.severity,
     confidence: result.confidence,
+    severity_confidence: result.severityConfidence ?? null,
     hazards: result.hazards,
     hoax_suspected: result.hoaxSuspected,
     raw_response: {
