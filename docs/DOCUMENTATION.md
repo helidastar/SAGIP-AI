@@ -238,6 +238,7 @@ Incident (one real-world event)
 - Limit: the number is the model's own estimate and is not calibrated. The benchmark measures whether the severity tier is right, not whether 80% really means right 8 times in 10.
 - Option rejected: a 0-100 severity score. It would be a second scale beside the 4 tiers, and the benchmark labels are tiers only, so its accuracy could not be measured.
 - Build order: migration (Backend 19), classifier field (AI 22), API field, UI next to the severity chip (Admin 12), then a test.
+- Status 2026-10-29: the classifier field is done (`severityConfidence` in the Gemini schema and `normalizeClassification`, tested in `tests/chain.test.ts`). It is not saved yet; that waits on the migration.
 
 ### 6.5 Human review triggers
 A report goes to `pending_review` if **any** of these is true (`needsReview()` in `src/lib/ai/review.ts`):
