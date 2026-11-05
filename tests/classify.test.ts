@@ -30,7 +30,11 @@ interface FakeReport {
  * `downloadThrows` simulates the unexpected storage failure the recovery path exists for.
  */
 function fakeDb(report: FakeReport, opts: { downloadThrows?: boolean } = {}) {
-  const calls = { reportUpdates: [] as Record<string, unknown>[], auditLogs: [] as Record<string, unknown>[] };
+  const calls = {
+    reportUpdates: [] as Record<string, unknown>[],
+    auditLogs: [] as Record<string, unknown>[],
+    classificationInserts: [] as Record<string, unknown>[],
+  };
 
   const db = {
     from(table: string) {
@@ -48,7 +52,12 @@ function fakeDb(report: FakeReport, opts: { downloadThrows?: boolean } = {}) {
         };
       }
       if (table === "classifications") {
-        return { insert: async () => ({ error: null }) };
+        return {
+          insert: async (row: Record<string, unknown>) => {
+            calls.classificationInserts.push(row);
+            return { error: null };
+          },
+        };
       }
       if (table === "audit_logs") {
         return {
@@ -135,5 +144,22 @@ describe("processReceivedReport: stuck-report recovery (AI 26)", () => {
 
     assert.equal(calls.reportUpdates.length, 0);
     assert.equal(calls.auditLogs.length, 0);
+  });
+});
+
+describe("classifyReport: saves severity_confidence with every classification (AI 22)", () => {
+  it("includes the severity_confidence column on the classifications insert", async () => {
+    // Keyword fallback always reports severityConfidence: null (src/lib/ai/keyword.ts) - this
+    // isn't about getting a real number out of a model, just confirming the column that
+    // Backend 19's migration (0007_severity_confidence.sql) added is actually part of every
+    // insert, not silently dropped (the historical bug: computed everywhere, saved nowhere).
+    process.env.AI_PROVIDER = "mock";
+    const { db, calls } = fakeDb(baseReport());
+
+    await processReceivedReport(db, "r1");
+
+    assert.equal(calls.classificationInserts.length, 1);
+    assert.ok("severity_confidence" in calls.classificationInserts[0]);
+    assert.equal(calls.classificationInserts[0].severity_confidence, null);
   });
 });
