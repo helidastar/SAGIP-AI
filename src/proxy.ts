@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-/** Refreshes the Supabase session cookie and keeps logged-out users out of /dashboard. */
+/** Refreshes the Supabase session cookie and redirects logged-out protected routes. */
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -22,15 +22,20 @@ export async function proxy(request: NextRequest) {
 
   const { data } = await supabase.auth.getClaims();
 
-  if (!data?.claims && request.nextUrl.pathname.startsWith("/dashboard")) {
+  const pathname = request.nextUrl.pathname;
+  const protectedAdminPath = pathname === "/admin" || pathname.startsWith("/admin/");
+  const protectedDashboardPath = pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+  const publicAdminLogin = pathname === "/admin/login";
+
+  if (!data?.claims && ((protectedAdminPath && !publicAdminLogin) || protectedDashboardPath)) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("next", request.nextUrl.pathname);
+    url.pathname = protectedAdminPath ? "/admin/login" : "/login";
+    url.search = "";
     return NextResponse.redirect(url);
   }
   return response;
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/api/auth/:path*", "/api/incidents/:path*", "/api/review-queue", "/api/areas", "/api/teams", "/api/reports/:id/review"],
+  matcher: ["/admin/:path*", "/dashboard/:path*", "/api/auth/:path*", "/api/incidents/:path*", "/api/review-queue", "/api/areas", "/api/teams", "/api/reports/:id/review"],
 };

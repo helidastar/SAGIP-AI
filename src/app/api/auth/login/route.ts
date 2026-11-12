@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { signInStaff } from "@/lib/auth";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
@@ -8,25 +8,18 @@ export async function POST(request: Request) {
     return Response.json({ error: "Email and password are required" }, { status: 400 });
   }
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return Response.json({ error: "Invalid email or password" }, { status: 401 });
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, role, team_id")
-    .eq("id", data.user.id)
-    .maybeSingle();
-  if (!profile) {
-    await supabase.auth.signOut();
-    return Response.json({ error: "This account is not registered as staff" }, { status: 403 });
+  const result = await signInStaff(email, password);
+  if (result.error) {
+    const responses = {
+      invalid_credentials: { status: 401, error: "invalid_credentials" },
+      account_locked: { status: 423, error: "account_locked" },
+      permission_denied: { status: 403, error: "permission_denied" },
+      network_error: { status: 503, error: "network_error" },
+      verification_failed: { status: 503, error: "verification_failed" },
+    } as const;
+    const response = responses[result.error];
+    return Response.json({ error: response.error }, { status: response.status });
   }
 
-  return Response.json({
-    id: data.user.id,
-    email: data.user.email,
-    fullName: profile.full_name,
-    role: profile.role,
-    teamId: profile.team_id,
-  });
+  return Response.json(result.staff);
 }

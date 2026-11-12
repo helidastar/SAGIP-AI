@@ -64,6 +64,7 @@ export const POST = withStaff(async (_request, ctx: RouteContext<"/api/incidents
       incidentType: r.incidentType,
       severity: r.severity,
       confidence: r.confidence,
+      severityConfidence: r.severityConfidence ?? null,
       hazards: r.hazards,
       hoaxSuspected: r.hoaxSuspected,
       latencyMs: r.latencyMs,
