@@ -10,7 +10,7 @@ export function ReportForm() {
   const [description, setDescription] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  // Defaults sit inside "Sample Area A" from the seed data, so scoring has area data.
+  // Defaults sit inside Guadalupe, Cebu City, from the demo seed data, so scoring has area data.
   const [lat, setLat] = useState("10.32");
   const [lng, setLng] = useState("123.88");
   const [located, setLocated] = useState(false);

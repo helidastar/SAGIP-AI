@@ -3,7 +3,9 @@
 //
 // The GeoJSON must be a FeatureCollection of Polygon/MultiPolygon features with properties:
 //   name (string), population (number), riskIndex (0 to 1)
-// Defaults to scripts/data/areas.sample.geojson (PLACEHOLDER shapes and numbers, not real data).
+// Defaults to scripts/data/areas.cebu-city.geojson: SIMULATION data for the Cebu City demo (real barangay
+// names, rough rectangles, estimated populations, simulation risk indices; not official data).
+// Demo reports are loaded separately: npm run seed:demo
 import { readFile } from "node:fs/promises";
 import { createClient } from "@supabase/supabase-js";
 
@@ -17,7 +19,7 @@ if (!url || !key) {
 }
 const db = createClient(url, key, { auth: { persistSession: false } });
 
-const file = process.argv[2] ?? new URL("./data/areas.sample.geojson", import.meta.url);
+const file = process.argv[2] ?? new URL("./data/areas.cebu-city.geojson", import.meta.url);
 const geojson = JSON.parse(await readFile(file, "utf8"));
 
 const { data: existing, error: teamReadError } = await db.from("teams").select("name");
@@ -28,6 +30,20 @@ if (missing.length) {
   if (error) throw error;
 }
 console.log(`Teams: ${missing.length} added, ${TEAMS.length - missing.length} already present`);
+
+// The old placeholder areas overlapped the Cebu City ones, so remove them. Reports linked to them are
+// unlinked first, then re-linked to the Cebu City area they fall in by the backfill below.
+const OLD_PLACEHOLDER_AREAS = ["Sample Area A", "Sample Area B", "Sample Area C"];
+const { data: oldAreas, error: oldReadError } = await db.from("areas").select("id").in("name", OLD_PLACEHOLDER_AREAS);
+if (oldReadError) throw oldReadError;
+if (oldAreas.length) {
+  const ids = oldAreas.map((a) => a.id);
+  const { error: unlinkError } = await db.from("reports").update({ area_id: null }).in("area_id", ids);
+  if (unlinkError) throw unlinkError;
+  const { error: deleteError } = await db.from("areas").delete().in("id", ids);
+  if (deleteError) throw deleteError;
+  console.log(`Old placeholder areas removed: ${ids.length}`);
+}
 
 let ok = 0;
 for (const f of geojson.features) {
