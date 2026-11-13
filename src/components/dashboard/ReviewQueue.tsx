@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Button, CameraIcon, ErrorText, Field, inputClass, Panel, Tag } from "@/components/ui/basics";
+import { Button, CameraIcon, ErrorText, Field, inputClass, Tag } from "@/components/ui/basics";
 import { SeverityChip } from "@/components/ui/SeverityChip";
 import { api } from "@/lib/api-client";
 import { CONFIDENCE_THRESHOLD, INCIDENT_TYPES, SEVERITY } from "@/lib/constants";
@@ -22,6 +22,10 @@ interface QueueItem {
   classification: { model: string; incidentType: string; severity: Severity; confidence: number; hazards: string[]; hoaxSuspected?: boolean } | null;
 }
 
+type QueueLoadResult =
+  | { reload: number; state: "ready"; items: QueueItem[] }
+  | { reload: number; state: "error"; error: string };
+
 /** Why a report is in the queue, as the sketch's tags: CRITICAL, HIGH, LOW CONF, etc. */
 function flags(item: QueueItem) {
   const c = item.classification;
@@ -40,92 +44,111 @@ function flags(item: QueueItem) {
 
 /** Full review queue, or with `compact` a short preview that links to it (dashboard home). */
 export function ReviewQueue({ compact = false }: { compact?: boolean }) {
-  const [items, setItems] = useState<QueueItem[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [reload, setReload] = useState(0);
   const [open, setOpen] = useState<string | null>(null);
+  const [loadResult, setLoadResult] = useState<QueueLoadResult | null>(null);
+  const [removedIds, setRemovedIds] = useState<string[]>([]);
 
   useEffect(() => {
+    let cancelled = false;
     void api<{ items: QueueItem[] }>("/api/review-queue").then((res) => {
-      setLoading(false);
-      if (!res.ok) return setError(res.error);
-      setError(null);
-      setItems(res.data.items);
+      if (cancelled) return;
+      if (!res.ok) {
+        setLoadResult({
+          reload,
+          state: "error",
+          error: res.error ?? "Could not load review queue",
+        });
+        return;
+      }
+      setLoadResult({ reload, state: "ready", items: res.data.items });
     });
+    return () => {
+      cancelled = true;
+    };
   }, [reload]);
 
+  const currentResult = loadResult?.reload === reload ? loadResult : null;
+  const loading = currentResult === null;
+  const error = currentResult?.state === "error" ? currentResult.error : null;
+  const items = currentResult?.state === "ready"
+    ? currentResult.items.filter((item) => !removedIds.includes(item.id))
+    : [];
   const shown = compact ? items.slice(0, 5) : items;
 
   return (
-    <Panel
-      title="Review queue — flagged"
-      hint="low confidence / high severity, awaiting confirmation"
-      bodyClassName="px-3"
-      actions={
-        <>
-          <span className="font-mono text-[11px] text-muted">{items.length} waiting</span>
+    <section className="dashboard-review-panel" aria-labelledby="review-queue-title" aria-busy={loading}>
+      <header className="dashboard-review-heading">
+        <div>
+          <h2 id="review-queue-title">Review Queue</h2>
+          <p>Low confidence / high severity, awaiting confirmation</p>
+        </div>
+        <span className="dashboard-review-actions">
+          <span className="dashboard-review-count">
+            {loading ? "Loading" : error ? "Unavailable" : `${items.length} waiting`}
+          </span>
           {compact ? (
-            <Link href="/dashboard/review" className="font-mono text-[11px] uppercase underline">Open queue</Link>
+            <Link href="/dashboard/review" className="dashboard-text-link">Open queue</Link>
           ) : (
-            <button onClick={() => setReload((n) => n + 1)} className="font-mono text-[11px] uppercase underline">Refresh</button>
+            <button type="button" onClick={() => setReload((n) => n + 1)} className="dashboard-text-link">Refresh</button>
           )}
-        </>
-      }
-    >
-      <ErrorText>{error}</ErrorText>
-      {!loading && items.length === 0 && <p className="py-8 text-center font-mono text-[11px] text-muted">nothing to review</p>}
-      {loading && <p className="py-8 text-center font-mono text-[11px] text-muted">loading...</p>}
-      <ul>
-        {shown.map((item) => {
-          const isOpen = !compact && open === item.id;
-          const c = item.classification;
-          const row = (
-            <>
-              <span className={`h-5 w-5 shrink-0 border border-line ${isOpen ? "bg-foreground" : ""}`} aria-hidden />
-              <span className="min-w-0 flex-1">
-                <span className="flex flex-wrap items-center gap-2 text-sm font-medium">
-                  <span className="capitalize">{c?.incidentType.replace("_", " ") ?? "Unclassified"}</span>
-                  <span className="font-mono text-[11px] text-muted">{item.trackingCode}</span>
-                  {c && <span className="font-mono text-[11px] text-muted">conf {Math.round(c.confidence * 100)}%</span>}
+        </span>
+      </header>
+      <div className="dashboard-review-body">
+        {error && <p role="alert" className="dashboard-inline-error">{error}</p>}
+        {!loading && !error && items.length === 0 && <p className="dashboard-review-empty">Nothing to review</p>}
+        {loading && <p className="dashboard-review-loading" aria-busy="true">Loading review queue...</p>}
+        <ul className="dashboard-review-list">
+          {shown.map((item) => {
+            const isOpen = !compact && open === item.id;
+            const c = item.classification;
+            const row = (
+              <>
+                <span className={`h-5 w-5 shrink-0 border border-line ${isOpen ? "bg-foreground" : ""}`} aria-hidden />
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                    <span className="capitalize">{c?.incidentType.replace("_", " ") ?? "Unclassified"}</span>
+                    <span className="font-mono text-[11px] text-muted">{item.trackingCode}</span>
+                    {c && <span className="font-mono text-[11px] text-muted">conf {Math.round(c.confidence * 100)}%</span>}
+                  </span>
+                  <span className="block truncate text-xs text-muted">
+                    {item.area ?? "Unknown area"} · {item.description || "no description"} · {new Date(item.createdAt).toLocaleString()}
+                  </span>
                 </span>
-                <span className="block truncate text-xs text-muted">
-                  {item.area ?? "Unknown area"} · {item.description || "no description"} · {new Date(item.createdAt).toLocaleString()}
+                <span className="flex shrink-0 flex-wrap justify-end gap-1">
+                  {flags(item).map((f) => (
+                    <Tag key={f.label} className={f.strong ? "bg-foreground text-background" : ""}>{f.label}</Tag>
+                  ))}
                 </span>
-              </span>
-              <span className="flex shrink-0 flex-wrap justify-end gap-1">
-                {flags(item).map((f) => (
-                  <Tag key={f.label} className={f.strong ? "bg-foreground text-background" : ""}>{f.label}</Tag>
-                ))}
-              </span>
-            </>
-          );
-          return (
-            <li key={item.id} className="border-b border-faint last:border-b-0">
-              {compact ? (
-                <Link href="/dashboard/review" className="flex items-center gap-3 py-3 hover:bg-grid/60">{row}</Link>
-              ) : (
-                <button type="button" onClick={() => setOpen(isOpen ? null : item.id)} aria-expanded={isOpen} className="flex w-full items-center gap-3 py-3 text-left hover:bg-grid/60">
-                  {row}
-                </button>
-              )}
-              {isOpen && (
-                <ReviewForm
-                  item={item}
-                  onDone={() => {
-                    setOpen(null);
-                    setItems((all) => all.filter((i) => i.id !== item.id));
-                  }}
-                />
-              )}
-            </li>
-          );
-        })}
-      </ul>
-      {compact && items.length > shown.length && (
-        <p className="border-t border-faint py-2 text-center font-mono text-[11px] text-muted">+{items.length - shown.length} more in the queue</p>
-      )}
-    </Panel>
+              </>
+            );
+            return (
+              <li key={item.id} className="dashboard-review-row">
+                {compact ? (
+                  <Link href="/dashboard/review" className="dashboard-review-row-link">{row}</Link>
+                ) : (
+                  <button type="button" onClick={() => setOpen(isOpen ? null : item.id)} aria-expanded={isOpen} className="dashboard-review-row-link">
+                    {row}
+                  </button>
+                )}
+                {isOpen && (
+                  <ReviewForm
+                    item={item}
+                    onDone={() => {
+                      setOpen(null);
+                      setRemovedIds((ids) => [...ids, item.id]);
+                    }}
+                  />
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        {compact && items.length > shown.length && (
+          <p className="dashboard-review-more">+{items.length - shown.length} more in the queue</p>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -151,7 +174,7 @@ export function ReviewForm({ item, onDone, bare = false }: { item: ReviewTarget;
   }
 
   return (
-    <div className={bare ? "flex flex-col gap-3" : "mb-3 flex flex-col gap-3 border border-line p-3 md:flex-row"}>
+    <div className={`dashboard-review-form ${bare ? "flex flex-col gap-3" : "mb-3 flex flex-col gap-3 border border-line p-3 md:flex-row"}`}>
       {bare ? null : item.photoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL
         <img src={item.photoUrl} alt="Report photo" className="h-48 w-full border border-faint object-cover md:w-64" />

@@ -1,128 +1,205 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import { IncidentMap } from "@/components/dashboard/IncidentMap";
-import { WorkflowStrip } from "@/components/dashboard/WorkflowStrip";
-import { ErrorText, Panel, PriorityCircle, Tag } from "@/components/ui/basics";
-import { SeverityChip } from "@/components/ui/SeverityChip";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api-client";
-import { INCIDENT_TYPES } from "@/lib/constants";
-import { stepFor, WORKFLOW } from "@/lib/workflow";
-import type { Severity } from "@/types";
+import { FilterBar, type IncidentSort } from "@/components/dashboard/DashboardFilters";
+import {
+  DashboardSkeleton,
+  EmptyQueueState,
+  NoResultsState,
+} from "@/components/dashboard/DashboardStates";
+import { IncidentMap } from "@/components/dashboard/IncidentMap";
+import { IncidentRow, type DashboardIncident } from "@/components/dashboard/IncidentRow";
+import { WorkflowStrip } from "@/components/dashboard/WorkflowStrip";
+import {
+  getIncidentDashboardStatus,
+  type DashboardPreviewState,
+} from "@/lib/dashboard-state";
+import { WORKFLOW } from "@/lib/workflow";
 
-interface Incident {
-  id: string;
-  trackingCode: string;
-  description: string;
-  status: string;
-  incidentType: string | null;
-  severity: Severity | null;
-  location: { lat: number; lng: number; area: string | null };
-  priority: { score: number; band: string; overridden: boolean } | null;
-  createdAt: string;
-}
+type IncidentLoadResult =
+  | { key: string; state: "ready"; items: DashboardIncident[]; total: number }
+  | { key: string; state: "error"; error: string };
 
-const selectClass = "border border-line bg-background px-2 py-1 font-mono text-[11px] uppercase";
+const EMPTY_INCIDENTS: DashboardIncident[] = [];
 
-/** Priority-ranked incident list with the severity map beside it. */
+/** Priority-ranked incident list, filters, workflow counts, and map. */
 export function IncidentList() {
   const [status, setStatus] = useState("");
   const [band, setBand] = useState("");
   const [type, setType] = useState("");
-  const [items, setItems] = useState<Incident[]>([]);
-  const [total, setTotal] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<IncidentSort>("priority");
   const [reload, setReload] = useState(0);
+  const [previewState, setPreviewState] = useState<DashboardPreviewState | null>(null);
+  const [loadResult, setLoadResult] = useState<IncidentLoadResult | null>(null);
 
   useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return;
+    const requested = new URLSearchParams(window.location.search).get("state");
+    if (
+      requested === "loading" ||
+      requested === "empty" ||
+      requested === "map-error" ||
+      requested === "no-results"
+    ) {
+      const timer = window.setTimeout(() => setPreviewState(requested), 0);
+      return () => window.clearTimeout(timer);
+    }
+  }, []);
+
+  const requestParams = useMemo(() => {
     const params = new URLSearchParams();
     if (status) params.set("status", status);
     if (band) params.set("band", band);
     if (type) params.set("type", type);
+    return params;
+  }, [status, band, type]);
+  const requestKey = JSON.stringify([requestParams.toString(), reload]);
+
+  useEffect(() => {
     let cancelled = false;
-    void api<{ items: Incident[]; total: number }>(`/api/incidents?${params}`).then((res) => {
+    void api<{ items: DashboardIncident[]; total: number }>(`/api/incidents?${requestParams}`).then((res) => {
       if (cancelled) return;
-      setLoading(false);
-      if (!res.ok) return setError(res.error);
-      setError(null);
-      setItems(res.data.items);
-      setTotal(res.data.total);
-    });
-    return () => { cancelled = true; };
-  }, [status, band, type, reload]);
-
-  const filteredStep = WORKFLOW.find((w) => w.statuses.join(",") === status)?.label;
-
-  return (
-    <>
-    <WorkflowStrip active={status} onSelect={setStatus} reload={reload} />
-    <Panel
-      title="Dashboard — ranked incidents + map"
-      hint={filteredStep ? `showing: ${filteredStep}` : "all open incidents, highest priority first"}
-      bodyClassName="grid lg:grid-cols-2"
-      actions={
-        <>
-          {status && (
-            <button onClick={() => setStatus("")} className="font-mono text-[11px] uppercase underline">Show all open</button>
-          )}
-          <select value={band} onChange={(e) => setBand(e.target.value)} className={selectClass} aria-label="Band">
-            <option value="">All bands</option>
-            {["P1", "P2", "P3", "P4"].map((b) => <option key={b}>{b}</option>)}
-          </select>
-          <select value={type} onChange={(e) => setType(e.target.value)} className={selectClass} aria-label="Type">
-            <option value="">All types</option>
-            {INCIDENT_TYPES.map((t) => <option key={t} value={t}>{t.replace("_", " ")}</option>)}
-          </select>
-          <button onClick={() => setReload((n) => n + 1)} className="font-mono text-[11px] uppercase underline">Refresh</button>
-          <span className="font-mono text-[11px] text-muted">{total} total</span>
-        </>
+      if (!res.ok) {
+        setLoadResult({
+          key: requestKey,
+          state: "error",
+          error: res.error ?? "Could not load incidents",
+        });
+        return;
       }
-    >
-      <div className="border-b border-line lg:border-b-0 lg:border-r">
-        <ErrorText>{error}</ErrorText>
-        <ul className="max-h-[32rem] overflow-y-auto px-3">
-          {items.map((i) => (
-            <li key={i.id} className="border-b border-faint last:border-b-0">
-              <Link href={`/dashboard/incidents/${i.id}`} className="flex items-center gap-3 py-3 hover:bg-grid/60">
-                <PriorityCircle band={i.priority?.band} />
-                <span className="min-w-0 flex-1">
-                  <span className="flex flex-wrap items-center gap-2 text-sm font-medium">
-                    <span className="capitalize">{i.incidentType?.replace("_", " ") ?? "Unconfirmed"}</span>
-                    {i.severity && <SeverityChip severity={i.severity} />}
-                    <span className="font-mono text-[11px] text-muted">{i.trackingCode}</span>
-                  </span>
-                  <span className="block truncate text-xs text-muted">
-                    {i.location.area ?? "Unknown area"} · {i.description || "no description"} · {new Date(i.createdAt).toLocaleString()}
-                  </span>
-                </span>
-                <span className="flex shrink-0 flex-col items-end gap-1">
-                  <NextStep status={i.status} />
-                  {i.priority && <span className="font-mono text-[10px] text-muted">{i.priority.score}{i.priority.overridden ? " · override" : ""}</span>}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-        {!loading && items.length === 0 && <p className="py-10 text-center font-mono text-[11px] text-muted">no incidents match</p>}
-        {loading && <p className="py-10 text-center font-mono text-[11px] text-muted">loading...</p>}
-      </div>
-      <IncidentMap reload={reload} />
-    </Panel>
-    </>
-  );
-}
+      setLoadResult({
+        key: requestKey,
+        state: "ready",
+        items: res.data.items,
+        total: res.data.total,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [requestParams, requestKey]);
 
-/** Who acts next on this incident; steps waiting on staff are filled so they stand out. */
-function NextStep({ status }: { status: string }) {
-  const step = stepFor(status);
-  if (!step) return <Tag className="border-faint text-muted line-through">{status.replace("_", " ")}</Tag>;
-  const actionNeeded = step.key === "review" || step.key === "assign";
+  const currentResult = loadResult?.key === requestKey ? loadResult : null;
+  const loading = currentResult === null;
+  const items = currentResult?.state === "ready" ? currentResult.items : EMPTY_INCIDENTS;
+  const total = currentResult?.state === "ready" ? currentResult.total : 0;
+  const error = currentResult?.state === "error" ? currentResult.error : null;
+  const filteredStep = WORKFLOW.find((step) => step.statuses.join(",") === status)?.label;
+  const hasFilters = Boolean(status || band || type || search.trim());
+  const visibleItems = useMemo(() => {
+    const needle = search.trim().toLocaleLowerCase();
+    const matched = items.filter((item) => {
+      if (!needle) return true;
+      return [
+        item.trackingCode,
+        item.location.area,
+        item.description,
+        item.incidentType?.replaceAll("_", " "),
+        item.status.replaceAll("_", " "),
+      ].some((value) => value?.toLocaleLowerCase().includes(needle));
+    });
+    if (sort === "priority") return matched;
+    return [...matched].sort((a, b) => {
+      const difference = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return sort === "newest" ? -difference : difference;
+    });
+  }, [items, search, sort]);
+
+  const dashboardStatus = getIncidentDashboardStatus({
+    loading,
+    error,
+    preview: previewState,
+    total,
+    hasFilters,
+    visibleCount: visibleItems.length,
+  });
+
+  function clearFilters() {
+    setStatus("");
+    setBand("");
+    setType("");
+    setSearch("");
+    if (process.env.NODE_ENV === "development" && previewState === "no-results") {
+      setPreviewState(null);
+    }
+  }
+
+  function refresh() {
+    setReload((value) => value + 1);
+  }
+
   return (
-    <span className="flex flex-col items-end gap-0.5">
-      <Tag className={actionNeeded ? "bg-foreground text-background" : "border-faint text-muted"}>{step.next}</Tag>
-      <span className="font-mono text-[9px] text-muted">{status === "in_progress" ? "in progress" : `by ${step.actor.toLowerCase()}`}</span>
-    </span>
+    <div className="dashboard-page">
+      <WorkflowStrip
+        active={status}
+        onSelect={setStatus}
+        reload={reload}
+        loading={dashboardStatus === "loading"}
+      />
+      <FilterBar
+        band={band}
+        type={type}
+        search={search}
+        sort={sort}
+        hasWorkflow={Boolean(status)}
+        status={status}
+        dashboardStatus={dashboardStatus}
+        onBandChange={setBand}
+        onTypeChange={setType}
+        onSearchChange={setSearch}
+        onSortChange={setSort}
+        onClear={clearFilters}
+        onRefresh={refresh}
+      />
+      <div id="ranked-list" className="dashboard-results" aria-live="polite">
+        {dashboardStatus === "loading" ? (
+          <DashboardSkeleton />
+        ) : dashboardStatus === "error" ? (
+          <section className="dashboard-request-error" role="alert">
+            <h2>Unable to load incidents</h2>
+            <p>{error}</p>
+            <button type="button" className="dashboard-primary-button" onClick={refresh}>
+              Retry
+            </button>
+          </section>
+        ) : dashboardStatus === "empty" ? (
+          <EmptyQueueState />
+        ) : dashboardStatus === "no-results" ? (
+          <NoResultsState onClear={clearFilters} />
+        ) : (
+          <div className="dashboard-results-grid">
+            <section className="dashboard-incident-panel" aria-labelledby="incident-list-title">
+              <header className="dashboard-panel-heading">
+                <h2 id="incident-list-title">Ranked Priority Triage</h2>
+                <span className="dashboard-total-pill">{total} Total</span>
+                <span className="dashboard-panel-live" aria-label="Incident feed active" />
+              </header>
+              <ul className="dashboard-incident-list" aria-busy={loading}>
+                {visibleItems.map((incident, index) => (
+                  <IncidentRow key={incident.id} incident={incident} index={index} />
+                ))}
+                {visibleItems.length === 0 && (
+                  <li className="dashboard-list-empty">
+                    No incidents in this workflow step.
+                  </li>
+                )}
+              </ul>
+              {filteredStep && (
+                <p className="dashboard-filter-note">
+                  Showing workflow step: <strong>{filteredStep}</strong>
+                </p>
+              )}
+            </section>
+            <IncidentMap
+              reload={reload}
+              forceError={previewState === "map-error"}
+              forceLoading={previewState === "loading"}
+            />
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
