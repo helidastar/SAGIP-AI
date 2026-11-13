@@ -234,8 +234,8 @@ Incident (one real-world event)
 - It is **not** a second severity scale. The 4 tiers in [6.2](#62-severity-tiers) stay the only severity scale.
 - It does **not** change the priority score ([6.6](#66-priority-score)) or the 4 human review triggers ([6.5](#65-human-review-triggers)). Trigger 1 keeps using the overall `confidence`.
 - Source: a new `severityConfidence` field (0 to 1) in the Gemini response schema (`src/lib/ai/prompt.ts`), saved per classification in a new nullable column `classifications.severity_confidence`. The UI shows it as a whole-number percent.
-- Empty (shown as `–`) when the classifier gives no severity confidence: the local image model (it does not predict severity, ISS-016) and the keyword matcher. A severity a responder confirmed in review shows no %, because a person set it.
-- Limit: the number is the model's own estimate and is not calibrated. The benchmark measures whether the severity tier is right, not whether 80% really means right 8 times in 10.
+- Empty (shown as `–`) when the classifier gives no severity confidence: the keyword matcher, and a local model trained without the severity head (ISS-016). A severity a responder confirmed in review shows no %, because a person set it.
+- Limit: Gemini's number is its own estimate and is not calibrated. The local model's severity head is calibrated on the validation photos (`severity_temperature` in `labels.json`, [local-severity-design.md](local-severity-design.md)), but against checked Gemini labels, not ground truth. The benchmark measures whether the severity tier is right, not whether 80% really means right 8 times in 10.
 - Option rejected: a 0-100 severity score. It would be a second scale beside the 4 tiers, and the benchmark labels are tiers only, so its accuracy could not be measured.
 - Build order: migration (Backend 19), classifier field (AI 22), API field, UI next to the severity chip (Admin 12), then a test.
 - Status 2026-10-29: the classifier field is done (`severityConfidence` in the Gemini schema and `normalizeClassification`, tested in `tests/chain.test.ts`). It is not saved yet; that waits on the migration.
