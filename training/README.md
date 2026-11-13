@@ -179,10 +179,31 @@ exported photos are skipped, nothing is re-downloaded or duplicated.
 week someone runs the export above and re-runs `npm run dataset:prepare` to fold the new photos
 into the training set before the next Colab run.
 
-## 4. Train
-1. Zip the `training/dataset` folder itself, so the zip contains `dataset/<type>/...`. On Windows, right-click the folder, then **Compress to ZIP file**, or in cmd: `tar -a -c -f training\dataset.zip -C training dataset`.
-2. Upload it to Google Drive as `MyDrive/sagip/dataset.zip`.
-3. Open the notebook in [Colab](https://colab.research.google.com) (**File → Upload notebook**), set **Runtime → Change runtime type → T4 GPU**, then **Runtime → Run all**. The settings cell defaults to `MODEL_NAME = 'efficientnet_b2'` and `FULL_EPOCHS = 15`, the best run so far. Keep the model small: it has to fit in a Vercel function (R-017), so avoid large models such as `convnext_tiny`.
+## 4. Train (one notebook does it all)
+[`sagip_classifier_colab.ipynb`](sagip_classifier_colab.ipynb) builds the training set, trains, tests, runs the benchmark and exports the ONNX model in one **Run all**. No API key or secret is needed.
+
+1. Open it in Colab while signed in to Google: <https://colab.research.google.com/github/helidastar/SAGIP-AI/blob/dev/training/sagip_classifier_colab.ipynb>
+2. **Runtime → Change runtime type → T4 GPU → Save.**
+3. **Runtime → Run all.** Allow the Drive connection. If Colab says the notebook was not authored by Google, click **Run anyway**.
+4. About 10 to 20 minutes to build the set, then 40 to 70 minutes of training on a T4. Keep the tab open.
+5. Results land in `MyDrive/sagip/runs/<timestamp>/`, with everything summed up in `metrics.json`.
+
+What it reads from `MyDrive/sagip/`:
+
+| Path | Needed? | What it is |
+|---|---|---|
+| `dataset.zip` | yes | The last training set (`dataset/<type>/...`, made with `npm run dataset:prepare` and zipped as before). Already in Drive since 2026-10-25 |
+| `benchmark.zip` | optional | The `benchmark/dataset` folder zipped, with `labels.csv`. Gives the benchmark score and missed urgent in `metrics.json`, and keeps those photos out of training |
+| `own-photos/<type>/` | optional | Your own phone photos, one folder per incident type |
+
+What it does to the photos, using the same rules as `npm run dataset:prepare`:
+- downloads the photos in [`extra-photos.tsv`](extra-photos.tsv) that are not in `dataset.zip` yet (public CC BY 4.0 links, so no Roboflow key)
+- skips unreadable photos and photos under 128 px, removes duplicates (perceptual hash, 4 of 64 bits), drops a photo filed under two types, and removes any photo that matches a benchmark photo
+- trains a severity head only if `dataset/severity.csv` exists (ISS-016). The severity output is exported only in that case, because `src/lib/ai/local.ts` uses that output whenever it is there
+
+`metrics.json` has the dataset counts, the locked test set results (accuracy, per-type precision and recall, confusion matrix, Brier, auto-classified rate at 0.70), the benchmark results (score, type accuracy, severity within one tier, missed urgent, review rate) and the ONNX check. The benchmark in Colab follows `scripts/benchmark.ts` and `local.ts`; the official number is still `npm run benchmark -- --models local --yes` on the laptop.
+
+Settings (first code cell): `MODEL_NAME = 'efficientnet_b2'` and `FULL_EPOCHS = 15` are the best run so far. Keep the model small because it has to fit in a Vercel function (R-017), so avoid large models such as `convnext_tiny`. `QUICK_TEST = True` runs a few-minute check on a small sample; never use its numbers.
 
 ## 5. Use the model
 1. Download **all three files** from `MyDrive/sagip/runs/<date>/` into `models/`: `sagip-classifier.onnx`, `sagip-classifier.onnx.data` and `labels.json`. They belong together: an old `.onnx.data` next to a new `.onnx` gives nonsense (12% accuracy with confidence 1.00 on every photo).
