@@ -11,7 +11,7 @@ import { afterEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { classifyWithFallback, isOverDailyBudget, type ChainProviders } from "@/lib/ai/chain";
-import { estimateCost, normalizeClassification } from "@/lib/ai/normalize";
+import { estimateCost, hasPrice, normalizeClassification } from "@/lib/ai/normalize";
 import type { Classifier, ClassifierResult } from "@/lib/ai/types";
 
 const input = { description: "sunog sa bahay, may usok" };
@@ -184,6 +184,14 @@ describe("daily budget cap", () => {
 });
 
 describe("estimateCost (ISS-007)", () => {
+  it("has a price for every Gemini model the app is set up to use (.env.example and gemini.ts default)", () => {
+    for (const model of ["gemini-3.1-flash-lite", "gemini-3.6-flash"]) assert.ok(hasPrice(model), model);
+  });
+
+  it("has no price for gemini-3.1-flash (not flash-lite), so that model is not counted by the cap", () => {
+    assert.equal(hasPrice("gemini-3.1-flash"), false);
+  });
+
   it("prices gemini-3.1-flash-lite at $0.25 in / $1.50 out per 1M tokens", () => {
     assert.equal(estimateCost("gemini-3.1-flash-lite", 1_000_000, 1_000_000), 1.75);
   });
