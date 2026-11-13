@@ -34,6 +34,7 @@ function fakeDb(report: FakeReport, opts: { downloadThrows?: boolean } = {}) {
     reportUpdates: [] as Record<string, unknown>[],
     auditLogs: [] as Record<string, unknown>[],
     classificationInserts: [] as Record<string, unknown>[],
+    priorityUpserts: [] as Record<string, unknown>[],
   };
 
   const db = {
@@ -55,6 +56,14 @@ function fakeDb(report: FakeReport, opts: { downloadThrows?: boolean } = {}) {
         return {
           insert: async (row: Record<string, unknown>) => {
             calls.classificationInserts.push(row);
+            return { error: null };
+          },
+        };
+      }
+      if (table === "priority_scores") {
+        return {
+          upsert: async (row: Record<string, unknown>) => {
+            calls.priorityUpserts.push(row);
             return { error: null };
           },
         };
@@ -109,6 +118,20 @@ describe("processReceivedReport: stuck-report recovery (AI 26)", () => {
     assert.equal(calls.reportUpdates.length, 1);
     assert.notEqual(calls.reportUpdates[0].status, "received");
     assert.equal(calls.auditLogs.at(-1)?.action, "report_classified");
+  });
+
+  it("review-first: sends every report to pending_review with a draft score and no confirmed values", async () => {
+    process.env.AI_PROVIDER = "mock";
+    const { db, calls } = fakeDb(baseReport());
+
+    await processReceivedReport(db, "r1");
+
+    assert.deepEqual(calls.reportUpdates[0], { status: "pending_review" });
+    assert.equal(calls.priorityUpserts.length, 1, "draft priority score saved");
+    assert.equal(typeof calls.priorityUpserts[0].score, "number");
+    // Keyword fallback has confidence 0, so the report is flagged to check first.
+    const after = calls.auditLogs.at(-1)?.after as { checkFirst: string[] };
+    assert.ok(after.checkFirst.includes("low_confidence"));
   });
 
   it("recovers a report to pending_review when classification throws (storage failure)", async () => {

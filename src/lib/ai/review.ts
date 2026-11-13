@@ -1,11 +1,23 @@
 import { CONFIDENCE_THRESHOLD, REVIEW_SEVERITIES } from "@/lib/constants";
 import type { IncidentClassification } from "./types";
 
-/** A report needs human review if the AI is unsure, the incident is high/critical, or a hoax is suspected. */
-export function needsReview({ confidence, severity, hoaxSuspected }: IncidentClassification): boolean {
-  return (
-    confidence < CONFIDENCE_THRESHOLD ||
-    (REVIEW_SEVERITIES as readonly string[]).includes(severity) ||
-    hoaxSuspected
-  );
+/** Why a report should be checked first. Keyword fallback shows up as low_confidence (its confidence is always 0). */
+export type CheckFirstReason = "low_confidence" | "high_severity" | "possible_hoax";
+
+/**
+ * Every report goes to a person first (review-first, decided 2026-11-13): the AI's type and
+ * severity are only a pre-filled draft. These 4 triggers no longer decide WHETHER a report is
+ * reviewed; they flag it to be checked first, at the top of the review queue.
+ */
+export function checkFirstReasons({ confidence, severity, hoaxSuspected }: IncidentClassification): CheckFirstReason[] {
+  const reasons: CheckFirstReason[] = [];
+  if (confidence < CONFIDENCE_THRESHOLD) reasons.push("low_confidence");
+  if ((REVIEW_SEVERITIES as readonly string[]).includes(severity)) reasons.push("high_severity");
+  if (hoaxSuspected) reasons.push("possible_hoax");
+  return reasons;
+}
+
+/** True if any check-first trigger fires. The benchmark counts urgent photos without one as "missed urgent". */
+export function needsReview(result: IncidentClassification): boolean {
+  return checkFirstReasons(result).length > 0;
 }

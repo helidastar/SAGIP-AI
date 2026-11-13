@@ -47,7 +47,7 @@
 | **Maps** | Custom SVG map in `src/components/dashboard/IncidentMap.tsx` (no map library). Incident detail links out to OpenStreetMap |
 | **Hosting** | Vercel (app) + Supabase (DB, storage, auth) |
 | **Architecture style** | Modular monolith |
-| **Key flow** | Citizen reports → AI classifies → human review if flagged → priority score → ranked on responder dashboard |
+| **Key flow** | Citizen reports → AI drafts type, severity and a draft score → every report reviewed by a person (flagged ones first) → confirmed priority score → ranked on responder dashboard |
 
 ---
 
@@ -141,11 +141,13 @@ flowchart TD
     B --> C["Submits photo and/or short description + GPS location"]
     C --> D[Receives tracking ID]
     C --> E[AI classifies: type, severity, confidence, hazards, hoax flag]
-    E --> F{"Low confidence OR high/critical severity OR suspected hoax?"}
-    F -- yes --> G[Human review queue]
-    G --> H[Responder confirms or corrects]
-    H --> I[Priority scoring]
-    F -- no --> I
+    E --> P[Draft priority score from the AI answer]
+    P --> F{"Low confidence OR high/critical severity OR suspected hoax?"}
+    F -- yes --> G1[Review queue: check first, at the top]
+    F -- no --> G2[Review queue: ranked by draft score]
+    G1 --> H[Staff confirm or correct]
+    G2 --> H
+    H --> I[Confirmed priority score]
     I --> J[Ranked on responder dashboard + map]
     J --> K[Admin assigns responder/team]
     K --> L[Status updates: in progress → resolved]
@@ -157,9 +159,8 @@ flowchart TD
 ```mermaid
 stateDiagram-v2
     [*] --> received: citizen submits
-    received --> classified: AI confident, severity low/moderate
-    received --> pending_review: low confidence OR high/critical OR suspected hoax
-    pending_review --> classified: responder confirms / corrects
+    received --> pending_review: AI draft saved (every report; triggers only mark it check first)
+    pending_review --> classified: staff confirm / correct
     classified --> assigned: admin assigns team
     assigned --> in_progress: responder en route / on site
     in_progress --> resolved
@@ -241,11 +242,28 @@ Incident (one real-world event)
 - Status 2026-10-29: the classifier field is done (`severityConfidence` in the Gemini schema and `normalizeClassification`, tested in `tests/chain.test.ts`). It is not saved yet; that waits on the migration.
 
 ### 6.5 Human review triggers
-A report goes to `pending_review` if **any** of these is true (`needsReview()` in `src/lib/ai/review.ts`):
+**Review-first (decided 2026-11-13).** Every report goes to `pending_review`. The AI's type and severity are a
+pre-filled draft, and the report gets a **draft priority score** from that draft so the review queue and the
+dashboard stay ranked. Staff confirm or correct it (`POST /api/reports/{id}/review`), which saves the confirmed
+values and rescores the report. Nothing reaches `classified` without a person.
+
+The 4 triggers below no longer decide *whether* a report is reviewed. They mark it **check first**: it is sorted to
+the top of the review queue with a "Check first" tag (`checkFirstReasons()` in `src/lib/ai/review.ts`). Queue order:
+keyword-fallback high/critical, then other check-first, stuck or unclassified reports, then the rest; within each
+group highest draft score first, then oldest first. The count stays 4:
 
 1. `confidence < CONFIDENCE_THRESHOLD` (initial value `0.70`, tuned after benchmarking),
 2. AI severity is `high` or `critical`, or
 3. the AI sets `hoaxSuspected` (unrelated meme, screenshot or stock photo, joking description, or a photo and description that do not match). A suspected hoax is **never rejected automatically**; reviewers see a "Possible hoax" tag. Stored in `classifications.hoax_suspected` (migration `0006_hoax_flag.sql`). The keyword matcher and the local image model always return `false`.
+4. keyword fallback: the keyword matcher always answers with confidence 0, so it always fires trigger 1.
+
+**Why review-first:** the AI assists and never decides. On the 50-photo benchmark both our model and Gemini rated
+some high/critical photos as low or moderate with high confidence (ISS-028), so any rule that lets a report skip a
+person can miss an urgent one. With review-first, "missed urgent" in the benchmark means "an urgent report that is
+**not flagged check first**", so it is checked later in the queue, not skipped.
+**Option rejected:** auto-confirm confident low/moderate reports (the old design). Less work for staff, but a confident
+wrong severity would rank an urgent report low with no person looking at it.
+**Cost:** staff must confirm every report, so the review queue is the main workload (Others 16, staffing plan).
 
 ### 6.6 Priority score
 Deterministic, plain logic (not an LLM call), so every score is explainable. The reason for each weight, worked examples and rejected alternatives are in [priority-weights.md](priority-weights.md) (finalized 2026-10-25).
@@ -346,11 +364,8 @@ sequenceDiagram
     IN->>DB: Insert report (status: received)
     IN->>AI: Classify(photo, text)
     AI-->>IN: type, severity, confidence, hazards
-    alt confidence low OR severity high/critical
-        IN->>DB: status = pending_review
-    else confident
-        IN->>DB: status = classified
-    end
+    IN->>DB: draft priority score from the AI answer
+    IN->>DB: status = pending_review (every report, review-first)
     IN-->>API: report id + tracking code + status
     API-->>UI: 201 Created
     UI-->>Citizen: Show tracking ID and status
@@ -371,9 +386,9 @@ sequenceDiagram
     API->>AI: New report (photo + text)
     AI->>LLM: Classify incident (fixed prompt, JSON schema)
     LLM-->>AI: type, severity, confidence, hazards
-    AI->>AI: Check confidence threshold & severity
-    alt needs human review
-        AI->>DB: Add to review queue
+    AI->>AI: Check confidence threshold, severity & hoax (check-first flags)
+    alt every report (review-first)
+        AI->>DB: Add to review queue with draft score (flagged ones first)
         DB-->>RD: Show flagged report
         Responder->>RD: Confirm or correct classification
         RD->>API: POST /api/reports/{id}/review
@@ -571,7 +586,7 @@ Implemented as Next.js Route Handlers under `src/app/api`.
 | `GET` | `/api/incidents?status=&band=&type=` | Ranked incident list |
 | `GET` | `/api/incidents/{id}` | Detail incl. classifications, score breakdown, audit log |
 | `GET` | `/api/incidents/map?bbox=` | GeoJSON of open incidents within a bounding box |
-| `GET` | `/api/review-queue` | Reports in `pending_review` |
+| `GET` | `/api/review-queue` | Every report in `pending_review` with its AI draft, draft score and check-first reasons |
 | `POST` | `/api/reports/{id}/review` | Confirm / correct classification |
 | `PATCH` | `/api/incidents/{id}/status` | Update status |
 | `POST` | `/api/incidents/{id}/assign` | Assign to a team *(admin)* |
@@ -893,7 +908,7 @@ Matches the team's Risk Log spreadsheet (as of 2026-10-25). Rating = Likelihood 
 
 **Rules of thumb**
 
-1. Never let AI output skip human review for high/critical cases.
+1. Never let AI output skip human review: every report is confirmed by a person (review-first).
 2. Keep scoring deterministic — no LLM calls inside `scoring/`.
 3. Log every override and status change to `audit_logs`.
 4. Same severity colors everywhere.

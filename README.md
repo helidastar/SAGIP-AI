@@ -67,11 +67,13 @@ SAGIP-AI gives citizens one simple way to report an emergency (photo, short desc
              (8 incident types · 4 severity levels · confidence · hoax flag)
         |
         v
-  needs review?  confidence < 0.70 · high/critical · suspected hoax · keyword fallback
-        |  yes ──▶ review queue ──▶ staff confirm or correct
-        |  no
+  AI answer = draft + draft priority score (every report goes to review)
+        |
         v
-  priority score 0–100  ──▶  ranked list + map  ──▶  staff assign team, update status
+  review queue ──▶ staff confirm or correct   (check first: confidence < 0.70 ·
+        |                                      high/critical · suspected hoax · keyword fallback)
+        v
+  confirmed priority score 0–100  ──▶  ranked list + map  ──▶  staff assign team, update status
   (severity, population,                              citizen tracks by code
    location risk, type)
 ```
@@ -99,7 +101,7 @@ SAGIP-AI gives citizens one simple way to report an emergency (photo, short desc
 
 **What we want you to notice:**
 
-- **Honest by design.** The AI suggests; people decide. Four review triggers (confidence below 0.70, high or critical severity, suspected hoax, keyword fallback) always send a report to a person. A suspected hoax is flagged, never auto-rejected.
+- **Honest by design.** The AI drafts; people decide. Every report goes to a person first, with the AI's type, severity and a draft priority score pre-filled. Four triggers (confidence below 0.70, high or critical severity, suspected hoax, keyword fallback) put a report at the top of the queue as "check first". A suspected hoax is flagged, never auto-rejected.
 - **Explainable ranking.** The priority score is plain code, not an AI call: `100 × (0.45·severity + 0.25·population + 0.15·location risk + 0.15·type)`. The reason for each weight, with worked examples, is in [docs/priority-weights.md](docs/priority-weights.md).
 - **Free tiers only.** Vercel Hobby, Supabase Free, our own ONNX model running on the server and the Gemini free tier as fallback. No billing account is linked.
 - **Fails safe.** If the Gemini quota runs out or the model errors, the chain falls back to the keyword matcher and human review instead of failing the report.
@@ -107,7 +109,7 @@ SAGIP-AI gives citizens one simple way to report an emergency (photo, short desc
 
 **Known limits, stated plainly:**
 
-- The local model predicts the **type only**. Severity comes from description keywords, and both our model and Gemini rated **7 of 31 urgent benchmark photos** as low or moderate with high confidence, so those would skip review (ISS-016, ISS-028).
+- The local model predicts the **type only**. Severity comes from description keywords, and both our model and Gemini rated **7 of 31 urgent benchmark photos** as low or moderate with high confidence, so those would not be flagged check first (ISS-016, ISS-028). Every report is still reviewed by a person, but these would sit lower in the queue.
 - The benchmark and training photos are public photos. Accuracy on **real Philippine phone photos is not measured yet**.
 - Whether the local model fits in a Vercel function is **not tested yet** (deploy test due 2026-10-31, R-017).
 - A report needs GPS and an internet connection. There is no offline queue.

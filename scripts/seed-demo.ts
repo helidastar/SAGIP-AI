@@ -3,8 +3,9 @@
 //
 // Reads scripts/data/demo-reports.json. Re-running deletes the old demo reports (tracking codes
 // starting with SGP-DEM) and inserts them again with fresh timestamps, so the queue looks live.
-// No AI provider is called: each report carries a simulated classification, and reports the
-// review rules would flag stay in the review queue unless the file gives a simulated review.
+// No AI provider is called: each report carries a simulated classification. Review-first: a
+// pending_review report keeps the AI answer as a draft with a draft score; every report past
+// review gets a review row (the file's simulated review, or "staff confirmed the AI draft").
 import { readFile } from "node:fs/promises";
 import { createClient } from "@supabase/supabase-js";
 import { needsReview } from "@/lib/ai/review";
@@ -73,11 +74,13 @@ async function main() {
     const team = r.team ? teams.find((t) => t.name === r.team) : undefined;
     if (r.team && !team) throw new Error(`Team "${r.team}" not found. Run \`npm run seed\` first.`);
 
-    const final = r.review
-      ? { type: r.review.finalType, severity: r.review.finalSeverity }
-      : r.status === "pending_review"
-        ? null
-        : { type: r.ai.incidentType, severity: r.ai.severity };
+    const pending = r.status === "pending_review";
+    const review = pending
+      ? null
+      : r.review ?? { finalType: r.ai.incidentType, finalSeverity: r.ai.severity, notes: "Simulated: staff confirmed the AI draft" };
+    const final = review ? { type: review.finalType, severity: review.finalSeverity } : null;
+    // Draft score from the AI answer while pending; confirmed score after review.
+    const scored = final ?? { type: r.ai.incidentType, severity: r.ai.severity };
     const createdAt = new Date(Date.now() - r.minutesAgo * 60_000).toISOString();
 
     const { data: report, error } = await db
@@ -113,18 +116,16 @@ async function main() {
       }),
       db.from("audit_logs").insert({ report_id: report.id, action: "demo_seeded", after: { status: r.status } }),
     ];
-    if (r.review) {
-      rows.push(db.from("reviews").insert({ report_id: report.id, final_type: r.review.finalType, final_severity: r.review.finalSeverity, notes: r.review.notes }));
+    if (review) {
+      rows.push(db.from("reviews").insert({ report_id: report.id, final_type: review.finalType, final_severity: review.finalSeverity, notes: review.notes }));
     }
-    if (final) {
-      const priority = computePriority({
-        severity: final.severity,
-        incidentType: final.type,
-        populationNorm: maxPopulation > 0 ? Number(area.population) / maxPopulation : 0,
-        locationRiskNorm: Number(area.risk_index) || 0,
-      });
-      rows.push(db.from("priority_scores").insert({ report_id: report.id, score: priority.score, band: priority.band.band, breakdown: priority.breakdown }));
-    }
+    const priority = computePriority({
+      severity: scored.severity,
+      incidentType: scored.type,
+      populationNorm: maxPopulation > 0 ? Number(area.population) / maxPopulation : 0,
+      locationRiskNorm: Number(area.risk_index) || 0,
+    });
+    rows.push(db.from("priority_scores").insert({ report_id: report.id, score: priority.score, band: priority.band.band, breakdown: priority.breakdown }));
     if (team) rows.push(db.from("assignments").insert({ report_id: report.id, team_id: team.id, assigned_at: createdAt }));
 
     for (const { error: rowError } of await Promise.all(rows)) if (rowError) throw rowError;
@@ -132,8 +133,8 @@ async function main() {
   }
 
   const queued = reports.filter((r) => r.status === "pending_review").length;
-  const flagged = reports.filter((r) => needsReview(r.ai)).length;
-  console.log(`Demo reports: ${ok}/${reports.length} inserted (${queued} in the review queue, ${flagged} flagged by the review rules)`);
+  const flagged = reports.filter((r) => r.status === "pending_review" && needsReview(r.ai)).length;
+  console.log(`Demo reports: ${ok}/${reports.length} inserted (${queued} in the review queue, ${flagged} of them flagged check first)`);
 }
 
 main().catch((err) => {
