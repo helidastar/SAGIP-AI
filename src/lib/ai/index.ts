@@ -23,5 +23,5 @@ export async function classifyWithTimeout(classifier: Classifier, input: Classif
   }
 }
 
-export { needsReview } from "./review";
+export { checkFirstReasons, needsReview, type CheckFirstReason } from "./review";
 export type * from "./types";
