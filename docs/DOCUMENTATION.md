@@ -633,16 +633,22 @@ Implemented as Next.js Route Handlers under `src/app/api`.
 | Data | Source |
 |------|--------|
 | Incident types, severity tiers, weights | `src/lib/constants.ts` |
-| Areas (barangay boundaries, population) | PSA census population data + barangay boundary GeoJSON (from pilot LGU / open data) |
-| Location risk index | LGU / DRRMO hazard maps (flood, landslide), set per area |
+| Areas (barangay boundaries, population) | Demo: `scripts/data/areas.cebu-city.geojson`, 9 Cebu City barangays as rough rectangles with estimated populations (simulation data, not official). For a real deployment: PSA census population + official barangay boundary GeoJSON |
+| Location risk index | Demo: simulation values (0.4 to 0.8) set from each barangay's known hazard (flood, landslide, fire). For a real deployment: LGU / DRRMO hazard maps |
 | Demo teams & staff | Seed script (test accounts only) |
+| Demo reports | `scripts/data/demo-reports.json`, 17 simulated Cebu City reports covering all 8 types and 4 severity levels (`npm run seed:demo`) |
 | Benchmark images | 40–60 labeled Philippine incident photos (see [Appendix B](#appendix-b--ai-classification-benchmarking-plan)) |
 
 ### 11.2 Seed script
-`npm run seed` → `scripts/seed.mjs` loads teams and areas into Supabase. It reads `scripts/data/areas.sample.geojson` by default; pass another GeoJSON path as an argument to use real barangay boundaries.
+The demo and defense run in **simulation mode on a Cebu City map** (no pilot partner, R-002).
+
+- `npm run seed` → `scripts/seed.mjs` loads teams and areas into Supabase. It reads `scripts/data/areas.cebu-city.geojson` by default (9 barangays: Busay, Talamban, Lahug, Mabolo, Guadalupe, Tejero, Ermita, Labangon, Pardo); pass another GeoJSON path as an argument to use official boundaries. It also removes the old placeholder areas (`Sample Area A` to `C`) and re-links their reports.
+- `npm run seed:demo` → `scripts/seed-demo.ts` loads the simulated reports from `scripts/data/demo-reports.json`. No AI provider is called: each report carries a simulated classification (`classifications.model` is `demo:local`, `demo:gemini` or `keyword-fallback`), and reports that the review rules flag stay in the review queue unless the file gives a simulated review. Scores are computed with the real `computePriority()`.
+- `tests/demo-data.test.ts` checks the demo data: areas inside Cebu City and not overlapping, every report inside its barangay, all 8 types and 4 severities present, and the review rules followed.
 
 ### 11.3 Idempotent process
 - The seed uses `upsert` keyed on natural keys (area `name`, team `name`) so re-running it never duplicates rows.
+- `npm run seed:demo` deletes the reports whose tracking code starts with `SGP-DEM` and inserts them again with fresh timestamps, so it can be re-run before each demo.
 - Test reports are created through the app and can be deleted from the Supabase table editor; deleting a report cascades to its classifications and audit logs.
 
 ---
@@ -792,6 +798,7 @@ cd SAGIP-AI
 git checkout development
 npm install
 npm run seed
+npm run seed:demo   # simulated Cebu City reports for the demo
 ```
 In Supabase: enable `postgis`, run the SQL files in `supabase/migrations/` in order (SQL Editor or the Supabase CLI), and create a private `report-photos` bucket. Row-level security policies are part of those migrations.
 
@@ -828,16 +835,16 @@ Set `AI_PROVIDER` and `AI_API_KEY`. The `classifications.model` column records w
 To use our own model (team default since 2026-10-25): train it with `training/sagip_classifier_colab.ipynb`, put all three files (`sagip-classifier.onnx`, `sagip-classifier.onnx.data`, `labels.json`) in `models/`, then set `AI_PROVIDER=local` (no key). Keep Gemini as the fallback (`AI_FALLBACK_PROVIDER=gemini`, `AI_FALLBACK_MODEL=gemini-3.1-flash-lite`) so unsure answers (confidence below 0.70) get a second opinion.
 
 ### 15.6 Add a new area
-Add the polygon, population, and risk index to the GeoJSON passed to the seed script (`scripts/data/areas.sample.geojson` by default) and re-run `npm run seed` (idempotent).
+Add the polygon, population, and risk index to the GeoJSON passed to the seed script (`scripts/data/areas.cebu-city.geojson` by default) and re-run `npm run seed` (idempotent).
 
 ---
 
 ## 16. Known Issues, Caveats & Open Questions
 
 ### 16.1 Open questions
-- **No named pilot partner yet** (barangay, city DRRMO, or campus safety office). Without one, there are no real incidents to rank. Resolve early.
+- **No pilot partner** (decided 2026-11-12: the instructor said one is not needed). The demo and defense run in simulation mode on a Cebu City map with simulated reports (Section 11.2). Ranking has not been tried on real incidents.
 - **Who staffs the review queue in real time?** This is a process and staffing question, not only a software one.
-- **Priority weights** — finalized 2026-10-25 in [priority-weights.md](priority-weights.md). Revisit once real area data replaces the sample file (ISS-020).
+- **Priority weights** — finalized 2026-10-25 in [priority-weights.md](priority-weights.md). Revisit once official area data replaces the Cebu City simulation file (ISS-020).
 
 ### 16.2 Risk register
 Matches the team's Risk Log spreadsheet (as of 2026-10-25). Rating = Likelihood × Impact (Low = 1, Low–Medium = 1.5, Medium = 2, High = 3); 6 or more is High, 3 or more is Medium.
@@ -845,7 +852,7 @@ Matches the team's Risk Log spreadsheet (as of 2026-10-25). Rating = Likelihood 
 | ID | Risk | Likelihood | Impact | Rating | Mitigation | Status |
 |----|------|------------|--------|--------|------------|--------|
 | R-001 | AI misclassifies a high-severity incident as low priority | Medium | High | High | Human review for low-confidence, high/critical and suspected-hoax reports; dispatch is never automated | Monitoring |
-| R-002 | No institutional pilot partner / no real users | Medium | High | High | Secure an LGU, DRRMO or campus partner before heavy build investment | Open |
+| R-002 | No institutional pilot partner / no real users | Medium | High | High | Instructor said a pilot partner is not needed (2026-11-12). Demo runs in simulation mode on a Cebu City map with seeded reports (`npm run seed:demo`); pilot test with test users instead | Monitoring |
 | R-003 | Responders don't trust the AI ranking | Medium | Medium | Medium | Transparent formula, visible score breakdown, manual override | Open |
 | R-004 | System overload during a disaster spike | Low–Medium | High | Medium | Background classification, per-IP rate limit, managed hosting; load test pending | Open |
 | R-005 | Scope creep across 4 bundled sub-products | High | Medium | High | Hold to MVP scope in [3.5](#35-scope--prioritization) | Open |
@@ -857,7 +864,7 @@ Matches the team's Risk Log spreadsheet (as of 2026-10-25). Rating = Likelihood 
 | R-011 | Citizen data or admin functions exposed | Low | High | Medium | RLS, private bucket, staff auth, admin functions locked (migration 0005); 42/42 checks passed | Mitigated |
 | R-012 | Unexpected AI API charges | Low | Medium | Low | Free-only rule, no billing linked; add Gemini prices so the budget cap counts them | Mitigated |
 | R-013 | Local model files (3 files, about 35 MB, git-ignored) missing at deployment | Medium | Medium | Medium | Copies in shared Drive, label check at load time, deployment checklist step | Open |
-| R-014 | Ranking based on placeholder data (sample area population and risk) | Medium | Medium | Medium | Weights finalized with reasons in [priority-weights.md](priority-weights.md) (2026-10-25); load real barangay data (ISS-020) | Open |
+| R-014 | Ranking based on simulation data (estimated Cebu City barangay population, simulation risk index) | Medium | Medium | Medium | Weights finalized with reasons in [priority-weights.md](priority-weights.md) (2026-10-25); load real barangay data (ISS-020) | Open |
 | R-015 | Schedule slip before the demo | High | High | High | Must-haves first; weekly status per member; Gantt Chart tab with target and completion dates | Open |
 | R-016 | Work concentrated in one member | Medium | High | High | Each member owns their section's open tasks; onboarding guide; cross-review of PRs | Open |
 | R-017 | Local model does not run on Vercel (function size limit) | Medium | High | High | Vercel preview deploy with the model by 2026-10-31; exclude non-Linux `onnxruntime-node` binaries; fallback: WebAssembly runtime or Gemini primary | Open |

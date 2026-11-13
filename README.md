@@ -248,10 +248,11 @@ Everything is read from one file. Copy `.env.example` and fill in real values on
 
 1. Enable the `postgis` extension.
 2. Run the files in `supabase/migrations/` in order (`0001_init.sql` to `0006_hoax_flag.sql`) in the SQL Editor or with the Supabase CLI. They create the tables, row-level security policies and the private `report-photos` bucket.
-3. Load teams and areas, then give a staff user a role:
+3. Load teams and Cebu City areas, then give a staff user a role:
 
    ```bash
    npm run seed
+   npm run seed:demo   # simulated Cebu City reports (demo runs in simulation mode)
    npm run make-admin -- <email>
    ```
 

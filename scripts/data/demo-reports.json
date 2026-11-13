@@ -1,0 +1,110 @@
+{
+  "_note": "SIMULATED reports for the Cebu City demo (no pilot partner). Every report is made up. Locations sit inside the areas in areas.cebu-city.geojson. 'ai' is the simulated classifier output; 'review' is the simulated staff decision (null = still waiting in the review queue). Loaded by scripts/seed-demo.ts and checked by tests/demo-data.test.ts.",
+  "reports": [
+    {
+      "code": "SGP-DEMFR2", "area": "Ermita", "lat": 10.2935, "lng": 123.8990, "minutesAgo": 18,
+      "description": "Sunog sa mga balay duol sa Carbon Market, kusog kaayo ang aso. Fire spreading to the next houses, many people on the street.",
+      "ai": { "provider": "local", "incidentType": "fire", "severity": "critical", "confidence": 0.93, "severityConfidence": 0.81, "hazards": ["smoke", "spreading fire"], "hoaxSuspected": false },
+      "review": { "finalType": "fire", "finalSeverity": "critical", "notes": "Confirmed by photo. Simulated review." },
+      "status": "assigned", "team": "Fire Response"
+    },
+    {
+      "code": "SGP-DEMFR3", "area": "Tejero", "lat": 10.3040, "lng": 123.9100, "minutesAgo": 6,
+      "description": "Fire at a small store along M.J. Cuenco Avenue, flames coming out of the roof.",
+      "ai": { "provider": "local", "incidentType": "fire", "severity": "high", "confidence": 0.88, "severityConfidence": 0.66, "hazards": ["smoke"], "hoaxSuspected": false },
+      "review": null, "status": "pending_review"
+    },
+    {
+      "code": "SGP-DEMFL2", "area": "Mabolo", "lat": 10.3180, "lng": 123.9150, "minutesAgo": 11,
+      "description": "Baha abot hawak dinhi sa Mabolo, naay mga bata nga na-trap sa balay. Waist-deep flood, children trapped in a house.",
+      "ai": { "provider": "local", "incidentType": "flood", "severity": "high", "confidence": 0.86, "severityConfidence": 0.72, "hazards": ["deep water", "people trapped"], "hoaxSuspected": false },
+      "review": null, "status": "pending_review"
+    },
+    {
+      "code": "SGP-DEMFL3", "area": "Guadalupe", "lat": 10.3200, "lng": 123.8830, "minutesAgo": 34,
+      "description": "Knee-deep floodwater on the road beside the Guadalupe River. Cars slowing down, no one hurt.",
+      "ai": { "provider": "local", "incidentType": "flood", "severity": "moderate", "confidence": 0.85, "severityConfidence": 0.70, "hazards": ["standing water"], "hoaxSuspected": false },
+      "review": null, "status": "classified"
+    },
+    {
+      "code": "SGP-DEMFL4", "area": "Pardo", "lat": 10.2830, "lng": 123.8580, "minutesAgo": 240,
+      "description": "Ankle-deep water at the street corner after the rain, drain is clogged.",
+      "ai": { "provider": "local", "incidentType": "flood", "severity": "low", "confidence": 0.82, "severityConfidence": 0.77, "hazards": ["clogged drain"], "hoaxSuspected": false },
+      "review": null, "status": "resolved", "team": "Road Clearing"
+    },
+    {
+      "code": "SGP-DEMLS2", "area": "Busay", "lat": 10.3780, "lng": 123.8790, "minutesAgo": 52,
+      "description": "Landslide along the Transcentral Highway in Busay. Road fully blocked and a house was hit by the soil.",
+      "ai": { "provider": "local", "incidentType": "landslide", "severity": "critical", "confidence": 0.90, "severityConfidence": 0.74, "hazards": ["blocked road", "damaged house"], "hoaxSuspected": false },
+      "review": { "finalType": "landslide", "finalSeverity": "critical", "notes": "Barangay confirmed one house hit. Simulated review." },
+      "status": "in_progress", "team": "Search and Rescue"
+    },
+    {
+      "code": "SGP-DEMLS3", "area": "Busay", "lat": 10.3700, "lng": 123.8720, "minutesAgo": 27,
+      "description": "Gamay nga pagguho sa yuta sa daplin sa dalan paingon sa Tops. Small soil slide at the road edge.",
+      "ai": { "provider": "local", "incidentType": "landslide", "severity": "moderate", "confidence": 0.62, "severityConfidence": 0.55, "hazards": ["loose soil"], "hoaxSuspected": false },
+      "review": null, "status": "pending_review"
+    },
+    {
+      "code": "SGP-DEMRA2", "area": "Talamban", "lat": 10.3720, "lng": 123.9120, "minutesAgo": 9,
+      "description": "Nabangga ang motor ug jeep sa Gov. M. Cuenco Avenue, Talamban. Rider is injured and lying on the road.",
+      "ai": { "provider": "gemini", "incidentType": "road_accident", "severity": "high", "confidence": 0.89, "severityConfidence": 0.70, "hazards": ["injured person", "traffic"], "hoaxSuspected": false },
+      "review": null, "status": "pending_review"
+    },
+    {
+      "code": "SGP-DEMRA3", "area": "Lahug", "lat": 10.3300, "lng": 123.8980, "minutesAgo": 75,
+      "description": "Minor bump between two cars near JY Square. No injuries, one lane blocked.",
+      "ai": { "provider": "gemini", "incidentType": "road_accident", "severity": "low", "confidence": 0.84, "severityConfidence": 0.80, "hazards": ["lane blocked"], "hoaxSuspected": false },
+      "review": null, "status": "classified"
+    },
+    {
+      "code": "SGP-DEMSD2", "area": "Labangon", "lat": 10.3000, "lng": 123.8780, "minutesAgo": 63,
+      "description": "The wall of an old house collapsed onto the alley. One person may be under the rubble.",
+      "ai": { "provider": "local", "incidentType": "structural_damage", "severity": "high", "confidence": 0.83, "severityConfidence": 0.61, "hazards": ["rubble", "person possibly trapped"], "hoaxSuspected": false },
+      "review": { "finalType": "structural_damage", "finalSeverity": "critical", "notes": "Raised to critical: possible person under rubble. Simulated review." },
+      "status": "assigned", "team": "Search and Rescue"
+    },
+    {
+      "code": "SGP-DEMSD3", "area": "Lahug", "lat": 10.3380, "lng": 123.8950, "minutesAgo": 120,
+      "description": "Cracks on the railing of a footbridge. Still usable but looks weak.",
+      "ai": { "provider": "local", "incidentType": "structural_damage", "severity": "low", "confidence": 0.76, "severityConfidence": 0.68, "hazards": ["cracked railing"], "hoaxSuspected": false },
+      "review": null, "status": "classified"
+    },
+    {
+      "code": "SGP-DEMME2", "area": "Pardo", "lat": 10.2860, "lng": 123.8620, "minutesAgo": 4,
+      "description": "An elderly man collapsed at the Pardo public market and is not breathing. Please send help.",
+      "ai": { "provider": "local", "incidentType": "medical_emergency", "severity": "critical", "confidence": 0.87, "severityConfidence": 0.79, "hazards": ["unconscious person"], "hoaxSuspected": false },
+      "review": null, "status": "pending_review"
+    },
+    {
+      "code": "SGP-DEMME3", "area": "Guadalupe", "lat": 10.3150, "lng": 123.8800, "minutesAgo": 45,
+      "description": "Nakuyapan ang usa ka estudyante tungod sa kainit. Student fainted from the heat, now awake.",
+      "ai": { "provider": "local", "incidentType": "medical_emergency", "severity": "moderate", "confidence": 0.78, "severityConfidence": 0.64, "hazards": ["heat"], "hoaxSuspected": false },
+      "review": null, "status": "classified"
+    },
+    {
+      "code": "SGP-DEMFD2", "area": "Talamban", "lat": 10.3650, "lng": 123.9050, "minutesAgo": 38,
+      "description": "A big tree branch fell across the road after the rain. Motorcycles can pass slowly.",
+      "ai": { "provider": "gemini", "incidentType": "fallen_debris", "severity": "moderate", "confidence": 0.88, "severityConfidence": 0.73, "hazards": ["blocked lane"], "hoaxSuspected": false },
+      "review": null, "status": "classified"
+    },
+    {
+      "code": "SGP-DEMFD3", "area": "Mabolo", "lat": 10.3140, "lng": 123.9200, "minutesAgo": 15,
+      "description": "Poste natumba, naay wire nga nagbitay sa dalan. Leaning post with wires hanging over the street.",
+      "ai": { "provider": "keyword", "incidentType": "fallen_debris", "severity": "low", "confidence": 0, "severityConfidence": null, "hazards": [], "hoaxSuspected": false },
+      "review": null, "status": "pending_review"
+    },
+    {
+      "code": "SGP-DEMXT2", "area": "Lahug", "lat": 10.3420, "lng": 123.9020, "minutesAgo": 22,
+      "description": "test lang ni haha sunog kuno sa IT Park",
+      "ai": { "provider": "gemini", "incidentType": "other", "severity": "low", "confidence": 0.58, "severityConfidence": 0.50, "hazards": [], "hoaxSuspected": true },
+      "review": null, "status": "pending_review"
+    },
+    {
+      "code": "SGP-DEMXT3", "area": "Ermita", "lat": 10.2960, "lng": 123.9020, "minutesAgo": 57,
+      "description": "Strong gas smell near the market stalls. No fire seen yet.",
+      "ai": { "provider": "gemini", "incidentType": "other", "severity": "moderate", "confidence": 0.72, "severityConfidence": 0.60, "hazards": ["gas smell"], "hoaxSuspected": false },
+      "review": null, "status": "classified"
+    }
+  ]
+}

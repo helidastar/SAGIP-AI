@@ -10,13 +10,14 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "node --env-file=.env.local scripts/seed.mjs",
+    "seed:demo": "node --env-file=.env.local --conditions=react-server --import tsx scripts/seed-demo.ts",
     "benchmark": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/benchmark.ts",
     "dataset:prepare": "node --conditions=react-server --import tsx scripts/prepare-dataset.ts",
     "label-severity": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/label-severity.ts",
     "make-admin": "node --env-file=.env.local scripts/make-admin.mjs",
     "export:training-data": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/export-training-data.ts",
     "smoke:staff": "node --env-file=.env.local --env-file-if-exists=.env.test.local scripts/smoke-staff.mjs",
-    "test": "node --conditions=react-server --import tsx --test tests/scoring.test.ts tests/ai.test.ts tests/api-inputs.test.ts tests/chain.test.ts tests/classify.test.ts"
+    "test": "node --conditions=react-server --import tsx --test tests/scoring.test.ts tests/ai.test.ts tests/api-inputs.test.ts tests/chain.test.ts tests/classify.test.ts tests/demo-data.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.22.0",
