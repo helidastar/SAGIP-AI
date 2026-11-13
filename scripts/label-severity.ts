@@ -24,8 +24,15 @@
  *   --target-per-tier <n>    Stop once every tier has at least this many labels (default 150)
  *   --max-calls <n>          Hard cap on Gemini calls this run, safety net (default 2000)
  *   --model <name>           Gemini model (default gemini-3.1-flash-lite, the team's fallback)
+ *   --delay-ms <n>           Wait between calls (default 4500, about 13 per minute, under the
+ *                            free tier's 15 requests per minute). On a 429 the script waits 60 s
+ *                            and retries; after 5 failures in a row it stops (likely the daily quota).
  *   --dry-run                Print the sampling plan, make no API calls
  *   --yes                    Required to make real API calls
+ *
+ * Output columns: file, severity, confidence (Gemini's severityConfidence), gemini_type.
+ * The notebook only reads file and severity. Team check: sort by severity and check the high
+ * and critical rows first, fixing the severity cell where the team disagrees.
  *
  * Resumable: files already in the output CSV are skipped and counted toward the tally,
  * so a run that's interrupted (or rate-limited) can just be started again.
@@ -52,6 +59,7 @@ const { values: args } = parseArgs({
     "target-per-tier": { type: "string", default: "150" },
     "max-calls": { type: "string", default: "2000" },
     model: { type: "string", default: "gemini-3.1-flash-lite" },
+    "delay-ms": { type: "string", default: "4500" },
     "dry-run": { type: "boolean", default: false },
     yes: { type: "boolean", default: false },
   },
@@ -61,6 +69,8 @@ const datasetDir = path.resolve(args.dataset!);
 const outFile = path.resolve(args.out ?? path.join(datasetDir, "severity.csv"));
 const targetPerTier = Number(args["target-per-tier"]);
 const maxCalls = Number(args["max-calls"]);
+const delayMs = Number(args["delay-ms"]);
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function seededShuffle<T>(arr: T[], seed: number): T[] {
   const a = [...arr];
@@ -128,10 +138,11 @@ async function main() {
 
   await mkdir(path.dirname(outFile), { recursive: true });
   const isNew = !(await stat(outFile).catch(() => null));
-  if (isNew) await writeFile(outFile, "file,severity\n");
+  if (isNew) await writeFile(outFile, "file,severity,confidence,gemini_type\n");
 
   const classifier = createGeminiClassifier(apiKey, args.model!);
   let calls = 0;
+  let failuresInRow = 0;
 
   for (const rel of remaining) {
     if (TIERS.every((t) => tally[t] >= targetPerTier)) {
@@ -144,15 +155,30 @@ async function main() {
     }
     const full = path.join(datasetDir, rel);
     const ext = path.extname(rel).toLowerCase();
-    try {
-      const data = await readFile(full);
-      const res = await classifier.classify({ image: { data, mimeType: MIME[ext] }, description: "" });
-      await appendFile(outFile, `${rel},${res.severity}\n`);
-      tally[res.severity] = (tally[res.severity] ?? 0) + 1;
-      calls++;
-      if (calls % 25 === 0) console.log(`${calls} labeled this run. Tally:`, tally);
-    } catch (err) {
-      console.warn(`Skipped ${rel}: ${(err as Error).message}`);
+    const data = await readFile(full);
+    let done = false;
+    for (let attempt = 0; attempt < 2 && !done; attempt++) {
+      try {
+        await sleep(delayMs);
+        const res = await classifier.classify({ image: { data, mimeType: MIME[ext] }, description: "" });
+        const conf = res.severityConfidence == null ? "" : res.severityConfidence.toFixed(2);
+        await appendFile(outFile, `${rel},${res.severity},${conf},${res.incidentType}\n`);
+        tally[res.severity] = (tally[res.severity] ?? 0) + 1;
+        calls++;
+        failuresInRow = 0;
+        done = true;
+        if (calls % 25 === 0) console.log(`${calls} labeled this run. Tally:`, tally);
+      } catch (err) {
+        const msg = (err as Error).message;
+        const rateLimited = /429|RESOURCE_EXHAUSTED|quota/i.test(msg);
+        console.warn(`${rateLimited ? "Rate limited" : "Failed"} on ${rel}: ${msg.slice(0, 160)}`);
+        if (rateLimited && attempt === 0) await sleep(60_000);
+        else break;
+      }
+    }
+    if (!done && ++failuresInRow >= 5) {
+      console.log("5 failures in a row (probably the free-tier daily quota). Stopping: run again later to continue.");
+      break;
     }
   }
 

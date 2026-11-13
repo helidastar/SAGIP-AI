@@ -6,6 +6,7 @@ import sharp from "sharp";
 import { INCIDENT_TYPES, SEVERITY } from "@/lib/constants";
 import type { IncidentType, Severity } from "@/types";
 import { hazardsFromText, severityFromText } from "./keyword";
+import { pickSeverity } from "./severity";
 import type { Classifier } from "./types";
 
 /**
@@ -15,7 +16,8 @@ import type { Classifier } from "./types";
  * Today's model only predicts the incident type from the photo. Severity and hazards come
  * from the description keywords, so high/critical still depends on the citizen's words.
  * A model exported with a second "severity" output (ISS-016, docs/local-severity-design.md)
- * also gives the severity and its confidence; hazards still come from keywords.
+ * also gives the severity and its confidence (calibrated, leaning toward urgent, see ./severity.ts);
+ * hazards still come from keywords.
  */
 const DEFAULT_MODEL_PATH = "models/sagip-classifier.onnx";
 
@@ -26,6 +28,10 @@ interface Labels {
   std: number[];
   /** Order of the severity output, only in models trained with a severity head. */
   severity_classes?: string[];
+  /** Fitted on the validation photos by the notebook (calibration). 1 = no change. */
+  severity_temperature?: number;
+  /** If P(high) + P(critical) reaches this, the answer is high/critical (leans toward urgent). */
+  severity_urgent_cutoff?: number;
 }
 
 /** Matches the notebook's eval transform: resize shorter side to size*256/224, center-crop, normalize. */
@@ -102,10 +108,10 @@ export function createLocalClassifier(modelPath = DEFAULT_MODEL_PATH): Classifie
       let from: "model" | "keyword" | "type_default";
       const severityOutput = output.severity;
       if (severityOutput && labels.severity_classes?.length) {
-        const sevProbs = softmax(severityOutput.data as Float32Array);
-        const top = sevProbs.indexOf(Math.max(...sevProbs));
-        severity = labels.severity_classes[top] as Severity;
-        severityConfidence = sevProbs[top];
+        ({ severity, severityConfidence } = pickSeverity(severityOutput.data as Float32Array, labels.severity_classes, {
+          temperature: labels.severity_temperature,
+          urgentCutoff: labels.severity_urgent_cutoff,
+        }));
         from = "model";
       } else {
         ({ severity, from } = severityFromText(description, incidentType));
