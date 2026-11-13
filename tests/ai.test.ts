@@ -7,13 +7,28 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { needsReview } from "@/lib/ai/review";
+import { checkFirstReasons, needsReview } from "@/lib/ai/review";
 import { keywordClassifier, severityFromText, hazardsFromText } from "@/lib/ai/keyword";
 import { normalizeClassification } from "@/lib/ai/normalize";
 
 // ---------------------------------------------------------------------------
 // needsReview
 // ---------------------------------------------------------------------------
+describe("checkFirstReasons", () => {
+  const base = { incidentType: "flood" as const, hazards: [], hoaxSuspected: false };
+  it("lists every trigger that fired", () => {
+    assert.deepEqual(checkFirstReasons({ ...base, severity: "critical", confidence: 0.5, hoaxSuspected: true }), ["low_confidence", "high_severity", "possible_hoax"]);
+  });
+  it("is empty for a confident low/moderate report", () => {
+    assert.deepEqual(checkFirstReasons({ ...base, severity: "moderate", confidence: 0.9 }), []);
+    assert.deepEqual(checkFirstReasons({ ...base, severity: "moderate", confidence: 0.9, severityConfidence: 0.7 }), []);
+    assert.deepEqual(checkFirstReasons({ ...base, severity: "moderate", confidence: 0.9, severityConfidence: null }), []);
+  });
+  it("flags an unsure severity even when the type is confident (ISS-016)", () => {
+    assert.deepEqual(checkFirstReasons({ ...base, severity: "moderate", confidence: 0.95, severityConfidence: 0.55 }), ["low_confidence"]);
+  });
+});
+
 describe("needsReview", () => {
   const base = { incidentType: "flood" as const, hazards: [], hoaxSuspected: false };
 

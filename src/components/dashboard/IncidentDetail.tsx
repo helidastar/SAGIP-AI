@@ -249,7 +249,7 @@ export function IncidentDetail({ id }: { id: string }) {
 
         <div className="flex flex-col gap-2">
           <p className="font-mono text-[11px] text-muted">
-            Priority score {detail.priority ? `· total ${detail.priority.score} / 100` : "· not scored yet (scored after the type and severity are confirmed)"}
+            Priority score {detail.priority ? `· ${detail.status === "pending_review" ? "draft from the AI's answer, rescored when confirmed · " : ""}total ${detail.priority.score} / 100` : "· not scored yet"}
           </p>
           {BARS.map(({ key, label }) => {
             const value = detail.priority?.breakdown[key] ?? 0;

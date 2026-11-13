@@ -18,6 +18,8 @@ interface QueueItem {
   stuck: boolean;
   keywordOnly: boolean;
   urgentUnverified: boolean;
+  checkFirst: string[];
+  draftPriority: { score: number; band: string } | null;
   createdAt: string;
   classification: { model: string; incidentType: string; severity: Severity; confidence: number; hazards: string[]; hoaxSuspected?: boolean } | null;
 }
@@ -26,6 +28,8 @@ interface QueueItem {
 function flags(item: QueueItem) {
   const c = item.classification;
   const out: { label: string; strong?: boolean }[] = [];
+  // Review-first: every report is here; a fired review trigger means "check this one first".
+  if (item.checkFirst.length > 0 || item.urgentUnverified) out.push({ label: "Check first", strong: true });
   // A suspected hoax is the first thing a reviewer should see.
   if (c?.hoaxSuspected) out.push({ label: "Possible hoax", strong: true });
   if (item.urgentUnverified) out.push({ label: "Urgent · no AI", strong: true });
@@ -59,8 +63,8 @@ export function ReviewQueue({ compact = false }: { compact?: boolean }) {
 
   return (
     <Panel
-      title="Review queue — flagged"
-      hint="low confidence / high severity, awaiting confirmation"
+      title="Review queue — every report"
+      hint="AI drafts to confirm; check-first reports on top, then highest draft score"
       bodyClassName="px-3"
       actions={
         <>
@@ -88,6 +92,7 @@ export function ReviewQueue({ compact = false }: { compact?: boolean }) {
                   <span className="capitalize">{c?.incidentType.replace("_", " ") ?? "Unclassified"}</span>
                   <span className="font-mono text-[11px] text-muted">{item.trackingCode}</span>
                   {c && <span className="font-mono text-[11px] text-muted">conf {Math.round(c.confidence * 100)}%</span>}
+                  {item.draftPriority && <span className="font-mono text-[11px] text-muted">draft {item.draftPriority.band} · {item.draftPriority.score}</span>}
                 </span>
                 <span className="block truncate text-xs text-muted">
                   {item.area ?? "Unknown area"} · {item.description || "no description"} · {new Date(item.createdAt).toLocaleString()}
