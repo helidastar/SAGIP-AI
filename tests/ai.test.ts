@@ -59,15 +59,6 @@ describe("needsReview", () => {
   it("confidence just below threshold 0.699, severity low → true", () => {
     assert.equal(needsReview({ ...base, severity: "low", confidence: 0.699 }), true);
   });
-  it("severity confidence below 0.70 → true, even when type confidence is high (ISS-016)", () => {
-    assert.equal(needsReview({ ...base, severity: "moderate", confidence: 0.95, severityConfidence: 0.55 }), true);
-  });
-
-  it("severity confidence at 0.70 or above, or not given → no extra review", () => {
-    assert.equal(needsReview({ ...base, severity: "moderate", confidence: 0.95, severityConfidence: 0.7 }), false);
-    assert.equal(needsReview({ ...base, severity: "moderate", confidence: 0.95, severityConfidence: null }), false);
-    assert.equal(needsReview({ ...base, severity: "moderate", confidence: 0.95 }), false);
-  });
 });
 
 // ---------------------------------------------------------------------------

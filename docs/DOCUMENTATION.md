@@ -232,7 +232,7 @@ Incident (one real-world event)
 **Severity %** is the AI's confidence that its severity tier is correct, from 0 to 100%. The dashboard shows it next to the severity chip, for example `High · 82%`.
 
 - It is **not** a second severity scale. The 4 tiers in [6.2](#62-severity-tiers) stay the only severity scale.
-- It does **not** change the priority score ([6.6](#66-priority-score)) or the 4 human review triggers ([6.5](#65-human-review-triggers)). Trigger 1 checks it too (changed 2026-11-13, see 6.5).
+- It does **not** change the priority score ([6.6](#66-priority-score)) or the 4 human review triggers ([6.5](#65-human-review-triggers)). Trigger 1 keeps using the overall `confidence`.
 - Source: a new `severityConfidence` field (0 to 1) in the Gemini response schema (`src/lib/ai/prompt.ts`), saved per classification in a new nullable column `classifications.severity_confidence`. The UI shows it as a whole-number percent.
 - Empty (shown as `–`) when the classifier gives no severity confidence: the keyword matcher, and a local model trained without the severity head (ISS-016). A severity a responder confirmed in review shows no %, because a person set it.
 - Limit: Gemini's number is its own estimate and is not calibrated. The local model's severity head is calibrated on the validation photos (`severity_temperature` in `labels.json`, [local-severity-design.md](local-severity-design.md)), but against checked Gemini labels, not ground truth. The benchmark measures whether the severity tier is right, not whether 80% really means right 8 times in 10.
@@ -243,7 +243,7 @@ Incident (one real-world event)
 ### 6.5 Human review triggers
 A report goes to `pending_review` if **any** of these is true (`needsReview()` in `src/lib/ai/review.ts`):
 
-1. `confidence < CONFIDENCE_THRESHOLD` (initial value `0.70`, tuned after benchmarking), or `severityConfidence` below the same threshold when the classifier gives one (added 2026-11-13, ISS-016: an unsure severity goes to a person instead of a guess; the count stays 4),
+1. `confidence < CONFIDENCE_THRESHOLD` (initial value `0.70`, tuned after benchmarking),
 2. AI severity is `high` or `critical`, or
 3. the AI sets `hoaxSuspected` (unrelated meme, screenshot or stock photo, joking description, or a photo and description that do not match). A suspected hoax is **never rejected automatically**; reviewers see a "Possible hoax" tag. Stored in `classifications.hoax_suspected` (migration `0006_hoax_flag.sql`). The keyword matcher and the local image model always return `false`.
 
