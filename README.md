@@ -101,7 +101,7 @@ SAGIP-AI gives citizens one simple way to report an emergency (photo, short desc
 
 **What we want you to notice:**
 
-- **Honest by design.** The AI drafts; people decide. Every report goes to a person first, with the AI's type, severity and a draft priority score pre-filled. Four triggers (confidence below 0.70, high or critical severity, suspected hoax, keyword fallback) put a report at the top of the queue as "check first". A suspected hoax is flagged, never auto-rejected.
+- **Honest by design.** The AI drafts; people decide. Every report goes to a person first, with the AI's type, severity and a draft priority score pre-filled. Four triggers (type or severity confidence below 0.70, high or critical severity, suspected hoax, keyword fallback) put a report at the top of the queue as "check first". A suspected hoax is flagged, never auto-rejected.
 - **Explainable ranking.** The priority score is plain code, not an AI call: `100 × (0.45·severity + 0.25·population + 0.15·location risk + 0.15·type)`. The reason for each weight, with worked examples, is in [docs/priority-weights.md](docs/priority-weights.md).
 - **Free tiers only.** Vercel Hobby, Supabase Free, our own ONNX model running on the server and the Gemini free tier as fallback. No billing account is linked.
 - **Fails safe.** If the Gemini quota runs out or the model errors, the chain falls back to the keyword matcher and human review instead of failing the report.

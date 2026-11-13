@@ -233,7 +233,7 @@ Incident (one real-world event)
 **Severity %** is the AI's confidence that its severity tier is correct, from 0 to 100%. The dashboard shows it next to the severity chip, for example `High · 82%`.
 
 - It is **not** a second severity scale. The 4 tiers in [6.2](#62-severity-tiers) stay the only severity scale.
-- It does **not** change the priority score ([6.6](#66-priority-score)) or the 4 human review triggers ([6.5](#65-human-review-triggers)). Trigger 1 keeps using the overall `confidence`.
+- It does **not** change the priority score ([6.6](#66-priority-score)) or the 4 human review triggers ([6.5](#65-human-review-triggers)). Trigger 1 checks it too (2026-11-13, see 6.5).
 - Source: a new `severityConfidence` field (0 to 1) in the Gemini response schema (`src/lib/ai/prompt.ts`), saved per classification in a new nullable column `classifications.severity_confidence`. The UI shows it as a whole-number percent.
 - Empty (shown as `–`) when the classifier gives no severity confidence: the local image model (it does not predict severity, ISS-016) and the keyword matcher. A severity a responder confirmed in review shows no %, because a person set it.
 - Limit: the number is the model's own estimate and is not calibrated. The benchmark measures whether the severity tier is right, not whether 80% really means right 8 times in 10.
@@ -252,7 +252,7 @@ the top of the review queue with a "Check first" tag (`checkFirstReasons()` in `
 keyword-fallback high/critical, then other check-first, stuck or unclassified reports, then the rest; within each
 group highest draft score first, then oldest first. The count stays 4:
 
-1. `confidence < CONFIDENCE_THRESHOLD` (initial value `0.70`, tuned after benchmarking),
+1. `confidence < CONFIDENCE_THRESHOLD` (initial value `0.70`, tuned after benchmarking), or `severityConfidence` below the same threshold when the classifier gives one (2026-11-13, ISS-016: an unsure severity is checked first),
 2. AI severity is `high` or `critical`, or
 3. the AI sets `hoaxSuspected` (unrelated meme, screenshot or stock photo, joking description, or a photo and description that do not match). A suspected hoax is **never rejected automatically**; reviewers see a "Possible hoax" tag. Stored in `classifications.hoax_suspected` (migration `0006_hoax_flag.sql`). The keyword matcher and the local image model always return `false`.
 4. keyword fallback: the keyword matcher always answers with confidence 0, so it always fires trigger 1.
@@ -264,6 +264,10 @@ person can miss an urgent one. With review-first, "missed urgent" in the benchma
 **Option rejected:** auto-confirm confident low/moderate reports (the old design). Less work for staff, but a confident
 wrong severity would rank an urgent report low with no person looking at it.
 **Cost:** staff must confirm every report, so the review queue is the main workload (Others 16, staffing plan).
+The review form starts with the AI's answer, so confirming a correct draft is one click ("Confirm and rank").
+The pilot test (Others 1) measures it: time from opening a report to confirming it, per report, stated as reviews per minute.
+**Defense line:** "The AI drafts and ranks; a person confirms every report. The triggers decide what is checked first, not what is checked."
+**Stretch (not v1):** an alert when an urgent draft waits in the queue longer than N minutes.
 
 ### 6.6 Priority score
 Deterministic, plain logic (not an LLM call), so every score is explainable. The reason for each weight, worked examples and rejected alternatives are in [priority-weights.md](priority-weights.md) (finalized 2026-10-25).

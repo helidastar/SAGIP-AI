@@ -21,6 +21,11 @@ describe("checkFirstReasons", () => {
   });
   it("is empty for a confident low/moderate report", () => {
     assert.deepEqual(checkFirstReasons({ ...base, severity: "moderate", confidence: 0.9 }), []);
+    assert.deepEqual(checkFirstReasons({ ...base, severity: "moderate", confidence: 0.9, severityConfidence: 0.7 }), []);
+    assert.deepEqual(checkFirstReasons({ ...base, severity: "moderate", confidence: 0.9, severityConfidence: null }), []);
+  });
+  it("flags an unsure severity even when the type is confident (ISS-016)", () => {
+    assert.deepEqual(checkFirstReasons({ ...base, severity: "moderate", confidence: 0.95, severityConfidence: 0.55 }), ["low_confidence"]);
   });
 });
 
