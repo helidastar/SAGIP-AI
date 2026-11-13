@@ -7,6 +7,17 @@ import { api } from "@/lib/api-client";
 import type { StaffUser } from "@/components/dashboard/StaffProvider";
 import styles from "@/components/auth/operations-login.module.css";
 
+type FormState =
+  | { kind: "idle" }
+  | { kind: "submitting" }
+  | { kind: "invalid" }
+  | { kind: "empty"; email: string | null; password: string | null }
+  | { kind: "locked" }
+  | { kind: "failure"; message: string };
+
+type PreviewState = "idle" | "submitting" | "invalid" | "empty" | "locked";
+type LoginMode = "login" | "signup";
+
 function ShieldIcon({ className = "" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -62,17 +73,36 @@ function PortalFooter() {
         <span>ISO 22301 / DRRM Compliance Protocol V4.2 Certified</span>
       </div>
       <div className={styles.footerMeta}>
+        <span>Demo data environment</span>
         <span>© 2025 SAGIP-AI Operations Command Center. Restricted Access.</span>
       </div>
     </footer>
   );
 }
 
-export function FormError({ children }: { children: ReactNode }) {
+export function FormError({
+  children,
+  locked = false,
+  id = "form-error",
+}: {
+  children: ReactNode;
+  locked?: boolean;
+  id?: string;
+}) {
   if (!children) return null;
   return (
-    <div className={styles.formError} role="alert">
-      <span className={styles.errorMark} aria-hidden="true">!</span>
+    <div className={`${styles.formError} ${locked ? styles.lockedError : ""}`} id={id} role="alert">
+      {locked ? (
+        <svg className={styles.errorIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+          <rect x="5" y="10" width="14" height="11" rx="2" />
+          <path d="M8 10V7a4 4 0 1 1 8 0v3m-4 4v3" />
+        </svg>
+      ) : (
+        <svg className={styles.errorIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+          <path d="M12 3 22 21H2L12 3Z" />
+          <path d="M12 9v5m0 3h.01" />
+        </svg>
+      )}
       <p>{children}</p>
     </div>
   );
@@ -82,15 +112,21 @@ export function PasswordInput({
   value,
   onChange,
   error,
+  invalid = false,
+  disabled = false,
+  describedBy,
 }: {
   value: string;
   onChange: (value: string) => void;
   error?: string;
+  invalid?: boolean;
+  disabled?: boolean;
+  describedBy?: string;
 }) {
   const [visible, setVisible] = useState(false);
 
   return (
-    <div className={`${styles.inputWrap} ${error ? styles.inputInvalid : ""}`}>
+    <div className={`${styles.inputWrap} ${error || invalid ? styles.inputInvalid : ""}`}>
       <svg className={styles.leadingIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
         <circle cx="8" cy="15" r="4" />
         <path d="m11 12 8-8 2 2-2 2 2 2-3 3-2-2-2 2" />
@@ -102,14 +138,16 @@ export function PasswordInput({
         autoComplete="current-password"
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        disabled={disabled}
         required
-        aria-invalid={Boolean(error)}
-        aria-describedby={error ? "password-error" : undefined}
+        aria-invalid={Boolean(error) || invalid}
+        aria-describedby={error && !invalid ? "password-error" : describedBy}
       />
       <button
         type="button"
         className={styles.passwordToggle}
         onClick={() => setVisible((current) => !current)}
+        disabled={disabled}
         aria-label={visible ? "Hide password" : "Show password"}
         aria-pressed={visible}
       >
@@ -129,11 +167,22 @@ export function PasswordInput({
   );
 }
 
-export function SubmitButton({ loading }: { loading: boolean }) {
+export function SubmitButton({
+  loading,
+  locked,
+  disabled,
+  label,
+}: {
+  loading: boolean;
+  locked?: boolean;
+  disabled?: boolean;
+  label?: string;
+}) {
   return (
-    <button className={styles.submitButton} type="submit" disabled={loading} aria-busy={loading}>
-      <span>{loading ? "Verifying EOC credentials..." : "Log In to Operations Portal"}</span>
+    <button className={styles.submitButton} type="submit" disabled={loading || locked || disabled} aria-busy={loading}>
+      <span>{loading ? "Verifying EOC credentials..." : locked ? "Terminal Locked" : label ?? "Log In to Operations Portal"}</span>
       {loading && <span className={styles.spinner} aria-hidden="true" />}
+      {locked && <span className={styles.lockedMark} aria-hidden="true">⊘</span>}
     </button>
   );
 }
@@ -160,45 +209,99 @@ export function LoginCard({ children }: { children: ReactNode }) {
   );
 }
 
-export function OperationsLogin({ redirectTo = "/admin/dashboard" }: { redirectTo?: string } = {}) {
+export function OperationsLogin({
+  redirectTo = "/admin/dashboard",
+  previewState,
+  previewMode = "login",
+}: {
+  redirectTo?: string;
+  previewState?: PreviewState;
+  previewMode?: LoginMode;
+} = {}) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [emailError, setEmailError] = useState("");
-  const [passwordError, setPasswordError] = useState("");
-  const [formError, setFormError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<LoginMode>(previewMode);
+  const [formState, setFormState] = useState<FormState>(() => {
+    if (previewState === "submitting") return { kind: "submitting" };
+    if (previewState === "invalid") return { kind: "invalid" };
+    if (previewState === "empty") return { kind: "empty", email: "Email is required", password: "Password is required" };
+    if (previewState === "locked") return { kind: "locked" };
+    return { kind: "idle" };
+  });
+
+  const submitting = formState.kind === "submitting";
+  const locked = formState.kind === "locked";
+  const emailError = formState.kind === "empty" ? formState.email : null;
+  const passwordError = formState.kind === "empty" ? formState.password : null;
+  const formError = formState.kind === "invalid"
+    ? "Incorrect username or password"
+    : formState.kind === "locked"
+      ? "Access Denied: Terminal Lockout. Your account is temporarily locked. Contact the EOC Duty Desk."
+      : formState.kind === "failure"
+        ? formState.message
+        : "";
+
+  function clearRecoverableError(field: "email" | "password", hasValue: boolean) {
+    setFormState((current) => {
+      if (current.kind === "empty") {
+        const nextEmail = field === "email" && hasValue ? null : current.email;
+        const nextPassword = field === "password" && hasValue ? null : current.password;
+        return nextEmail || nextPassword
+          ? { kind: "empty", email: nextEmail, password: nextPassword }
+          : { kind: "idle" };
+      }
+      if (current.kind === "invalid" || current.kind === "failure") return { kind: "idle" };
+      return current;
+    });
+  }
+
+  function switchMode(nextMode: LoginMode) {
+    if (submitting) return;
+    setMode(nextMode);
+    setFormState({ kind: "idle" });
+    setPassword("");
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setFormError("");
+    if (mode === "signup" || locked || submitting) return;
 
-    const nextEmailError = email.trim() ? "" : "Email is required";
-    const nextPasswordError = password ? "" : "Password is required";
-    setEmailError(nextEmailError);
-    setPasswordError(nextPasswordError);
-    if (nextEmailError || nextPasswordError) return;
+    const nextEmailError = email.trim() ? null : "Email is required";
+    const nextPasswordError = password ? null : "Password is required";
+    if (nextEmailError || nextPasswordError) {
+      setFormState({ kind: "empty", email: nextEmailError, password: nextPasswordError });
+      return;
+    }
 
-    setLoading(true);
+    setFormState({ kind: "submitting" });
     const result = await api<StaffUser>("/api/auth/login", {
       method: "POST",
       json: { email: email.trim(), password },
     });
-    setLoading(false);
 
     if (!result.ok) {
-      const message = result.status === 401
-        ? "Incorrect username or password"
-        : result.status === 403
-          ? "Access denied. This account does not have permission to enter the Operations Portal."
-          : result.status === 423
-            ? "This account is locked. Contact your administrator."
-            : result.status === 0 || result.error === "network_error"
-              ? "Unable to connect to the authentication service. Check your connection and try again."
-              : result.error === "verification_failed"
-                ? "Unable to verify your access permissions. Please try again."
-              : "Unable to sign in right now. Please try again.";
-      setFormError(message);
+      setPassword("");
+      const errorCode = result.error?.toLowerCase() ?? "";
+      if (
+        result.status === 423
+        || result.status === 429
+        || errorCode === "account_locked"
+        || errorCode === "too_many_attempts"
+        || errorCode === "over_request_rate_limit"
+      ) {
+        setFormState({ kind: "locked" });
+      } else if (result.status === 401) {
+        setFormState({ kind: "invalid" });
+      } else if (result.status === 403) {
+        setFormState({ kind: "failure", message: "Access denied. This account does not have permission to enter the Operations Portal." });
+      } else if (result.status === 0 || result.status === 503 || errorCode === "network_error") {
+        setFormState({ kind: "failure", message: "Unable to connect to the authentication service. Check your connection and try again." });
+      } else if (errorCode === "verification_failed") {
+        setFormState({ kind: "failure", message: "Unable to verify your access permissions. Please try again." });
+      } else {
+        setFormState({ kind: "failure", message: "Unable to sign in right now. Please try again." });
+      }
       return;
     }
 
@@ -206,20 +309,44 @@ export function OperationsLogin({ redirectTo = "/admin/dashboard" }: { redirectT
     router.refresh();
   }
 
+  const alertDescription = formError ? "form-error" : undefined;
+
   return (
     <div className={styles.page}>
       <BackgroundPattern />
       <PortalHeader />
       <main className={styles.main}>
         <LoginCard>
-          <form className={styles.form} onSubmit={submit} noValidate>
-            <FormError>{formError}</FormError>
+          <div className={styles.modeSwitch} role="group" aria-label="Account access">
+            <button
+              type="button"
+              className={mode === "login" ? styles.modeActive : styles.modeButton}
+              onClick={() => switchMode("login")}
+              disabled={submitting || locked}
+              aria-pressed={mode === "login"}
+            >
+              Log In
+            </button>
+            <button
+              type="button"
+              className={mode === "signup" ? styles.modeActive : styles.modeButton}
+              onClick={() => switchMode("signup")}
+              disabled={submitting || locked}
+              aria-pressed={mode === "signup"}
+            >
+              Sign Up
+            </button>
+          </div>
+          <form className={styles.form} onSubmit={submit} noValidate aria-busy={submitting}>
+            {formState.kind === "invalid" && <FormError>{formError}</FormError>}
+            {formState.kind === "locked" && <FormError locked>{formError}</FormError>}
+            {formState.kind === "failure" && <FormError>{formError}</FormError>}
             <div className={styles.field}>
               <div className={styles.labelRow}>
                 <label className={styles.label} htmlFor="personnel-email">Email</label>
-                <span className={styles.terminal}>Terminal DRRM-04</span>
+                {mode === "login" && <span className={styles.terminal}>Terminal DRRM-04</span>}
               </div>
-              <div className={`${styles.inputWrap} ${emailError ? styles.inputInvalid : ""}`}>
+              <div className={`${styles.inputWrap} ${emailError || formState.kind === "invalid" ? styles.inputInvalid : ""}`}>
                 <svg className={styles.leadingIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                   <rect x="3" y="5" width="18" height="14" rx="2" />
                   <path d="m4 7 8 6 8-6" />
@@ -228,17 +355,18 @@ export function OperationsLogin({ redirectTo = "/admin/dashboard" }: { redirectT
                   id="personnel-email"
                   className={styles.input}
                   type="email"
-                  autoComplete="username"
+                  autoComplete={mode === "login" ? "username" : "email"}
                   autoCapitalize="none"
                   spellCheck={false}
                   value={email}
                   onChange={(event) => {
                     setEmail(event.target.value);
-                    if (event.target.value.trim()) setEmailError("");
+                    clearRecoverableError("email", Boolean(event.target.value.trim()));
                   }}
+                  disabled={submitting}
                   required
-                  aria-invalid={Boolean(emailError)}
-                  aria-describedby={emailError ? "email-error" : undefined}
+                  aria-invalid={Boolean(emailError) || formState.kind === "invalid"}
+                  aria-describedby={emailError ? "email-error" : alertDescription}
                 />
               </div>
               {emailError && <p className={styles.fieldError} id="email-error" role="alert">{emailError}</p>}
@@ -247,20 +375,33 @@ export function OperationsLogin({ redirectTo = "/admin/dashboard" }: { redirectT
             <div className={styles.field}>
               <div className={styles.labelRow}>
                 <label className={styles.label} htmlFor="personnel-password">Password</label>
-                <span className={styles.recoveryText}>Token recovery?</span>
+                {mode === "login" && <span className={styles.recoveryText}>Token recovery?</span>}
               </div>
               <PasswordInput
                 value={password}
                 onChange={(value) => {
                   setPassword(value);
-                  if (value) setPasswordError("");
+                  clearRecoverableError("password", Boolean(value));
                 }}
-                error={passwordError}
+                error={passwordError ?? (formState.kind === "invalid" ? "Incorrect username or password" : undefined)}
+                invalid={formState.kind === "invalid"}
+                disabled={submitting}
+                describedBy={alertDescription}
               />
               {passwordError && <p className={styles.fieldError} id="password-error" role="alert">{passwordError}</p>}
             </div>
 
-            <SubmitButton loading={loading} />
+            <SubmitButton
+              loading={submitting}
+              locked={locked}
+              disabled={mode === "signup"}
+              label={mode === "signup" ? "Sign Up" : undefined}
+            />
+            {mode === "signup" && (
+              <p className={styles.signupNotice} role="status">
+                Staff accounts are created by an administrator. Sign-up is not available here.
+              </p>
+            )}
           </form>
 
           <div className={styles.clearance}>

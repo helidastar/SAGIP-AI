@@ -6,6 +6,53 @@
   flex: 1;
   flex-direction: column;
   overflow: hidden;
+  --ops-navy: #101c2c;
+  --ops-teal: #0f766e;
+  --ops-off-white: #f7f8fa;
+  --ops-red: #dc2626;
+  --ops-amber: #d97706;
+  --ops-blue: #2563eb;
+  --ops-green: #15803d;
+  --ops-card: #ffffff;
+  --ops-field: #eef2ff;
+  --ops-ink: #1f2937;
+  --ops-muted: #596273;
+  --ops-icon-muted: #596273;
+  --ops-brand-muted: #626873;
+  --ops-terminal: #666b75;
+  --ops-brand-tag: #8dd6d0;
+  --ops-hotline-text: #c4cbd7;
+  --ops-footer: #a7b2c4;
+  --ops-footer-muted: #778398;
+  --ops-clearance-text: #c4cbd7;
+  --ops-error-soft: #fee2e2;
+  --ops-error-ink: #991b1b;
+  --ops-lock-background: #4b0000;
+  --ops-lock-foreground: #fecaca;
+  --ops-teal-hover: #0c655e;
+  --ops-tag-background: rgb(148 163 184 / 0.16);
+  --ops-focus-glow: rgb(15 118 110 / 0.2);
+  --ops-button-shadow-color: rgb(15 23 42 / 0.18);
+  --ops-spinner-muted: rgb(255 255 255 / 0.48);
+  --ops-card-shadow-color: rgb(0 0 0 / 0.14);
+  --ops-line: #d7dce5;
+  --ops-grid: #24364a;
+  --ops-field-height: 2.625rem;
+  --ops-card-shadow: 0 1.5rem 4rem var(--ops-card-shadow-color);
+  --ops-space-1: 0.25rem;
+  --ops-space-1-5: 0.375rem;
+  --ops-space-2: 0.5rem;
+  --ops-space-2-5: 0.625rem;
+  --ops-space-3: 0.75rem;
+  --ops-space-4: 1rem;
+  --ops-space-5: 1.25rem;
+  --ops-space-6: 1.5rem;
+  --ops-space-8: 2rem;
+  --ops-space-10: 2.5rem;
+  --ops-radius-sm: 0.25rem;
+  --ops-radius-md: 0.375rem;
+  --ops-radius-lg: 0.5rem;
+  --ops-card-width: 26.5rem;
   background: var(--ops-navy);
   color: var(--ops-ink);
   font-family: var(--font-inter), Arial, Helvetica, sans-serif;
@@ -177,6 +224,44 @@
   margin-top: var(--ops-space-5);
 }
 
+.modeSwitch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ops-space-1);
+  margin-top: var(--ops-space-5);
+  border-radius: var(--ops-radius-md);
+  background: var(--ops-field);
+  padding: var(--ops-space-1);
+}
+
+.modeButton,
+.modeActive {
+  min-height: 2.25rem;
+  border: 0;
+  border-radius: var(--ops-radius-sm);
+  background: transparent;
+  color: var(--ops-muted);
+  cursor: pointer;
+  font: 600 0.75rem/1 var(--font-inter), Arial, Helvetica, sans-serif;
+}
+
+.modeActive {
+  background: var(--ops-card);
+  box-shadow: 0 1px 3px var(--ops-button-shadow-color);
+  color: var(--ops-teal);
+}
+
+.modeButton:focus-visible,
+.modeActive:focus-visible {
+  outline: 3px solid var(--ops-blue);
+  outline-offset: 2px;
+}
+
+.modeButton:disabled,
+.modeActive:disabled {
+  cursor: not-allowed;
+}
+
 .field {
   display: flex;
   min-width: 0;
@@ -196,6 +281,10 @@
   color: var(--ops-ink);
   font-size: 0.8125rem;
   font-weight: 600;
+}
+
+.field:has(.inputWrap:focus-within) .label {
+  color: var(--ops-teal);
 }
 
 .terminal {
@@ -305,6 +394,17 @@
   margin: 0;
 }
 
+.lockedError {
+  background: var(--ops-lock-background);
+  color: var(--ops-lock-foreground);
+}
+
+.errorIcon {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+}
+
 .errorMark {
   display: inline-flex;
   width: 1rem;
@@ -343,6 +443,18 @@
 .submitButton:disabled {
   cursor: progress;
   opacity: 0.9;
+}
+
+.lockedMark {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.signupNotice {
+  margin: calc(-1 * var(--ops-space-2)) 0 0;
+  color: var(--ops-muted);
+  font-size: 0.6875rem;
+  line-height: 1.45;
 }
 
 .spinner {
