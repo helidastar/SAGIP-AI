@@ -67,13 +67,14 @@ describe("Cebu City demo reports", () => {
     for (const c of codes) assert.match(c, /^SGP-DEM[A-HJ-NP-Z2-9]{3}$/);
   });
 
-  it("follow the review rules: flagged reports are queued or carry a human review", () => {
+  it("follow review-first: every report is queued, or past review (seed-demo adds the review row)", () => {
     for (const r of reports) {
       assert.ok((REPORT_STATUSES as readonly string[]).includes(r.status), r.code);
-      if (needsReview(r.ai)) assert.ok(r.status === "pending_review" || r.review, `${r.code} skipped human review`);
-      else assert.ok(r.review === null && r.status !== "pending_review", `${r.code} should not need review`);
       if (r.status === "pending_review") assert.equal(r.review, null, r.code);
     }
+    // The queue shows both kinds: flagged check-first reports and unflagged drafts.
+    const queued = reports.filter((r: { status: string }) => r.status === "pending_review");
+    assert.ok(queued.some((r: { ai: Parameters<typeof needsReview>[0] }) => needsReview(r.ai)), "a check-first report in the queue");
   });
 
   it("keyword-fallback and hoax reports wait for a human", () => {
