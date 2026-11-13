@@ -17,8 +17,19 @@ const PRICES: Record<string, [number, number]> = {
   "gemini-3.8-flash": [0.75, 3.75],
 };
 
+const warnedUnpriced = new Set<string>();
+
+/** Models with no PRICES entry save cost_usd as null, so the daily cap can't count them. */
+export function hasPrice(model: string) {
+  return model in PRICES;
+}
+
 export function estimateCost(model: string, inputTokens?: number, outputTokens?: number) {
   const price = PRICES[model];
+  if (!price && !warnedUnpriced.has(model)) {
+    warnedUnpriced.add(model);
+    console.warn(`No price for "${model}" in src/lib/ai/normalize.ts: cost_usd is saved as null and AI_DAILY_BUDGET_USD will not count this model.`);
+  }
   if (!price || inputTokens === undefined || outputTokens === undefined) return null;
   return (inputTokens * price[0] + outputTokens * price[1]) / 1_000_000;
 }

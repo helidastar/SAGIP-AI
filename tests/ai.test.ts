@@ -10,6 +10,7 @@ import assert from "node:assert/strict";
 import { checkFirstReasons, needsReview } from "@/lib/ai/review";
 import { keywordClassifier, severityFromText, hazardsFromText } from "@/lib/ai/keyword";
 import { normalizeClassification } from "@/lib/ai/normalize";
+import { pickSeverity } from "@/lib/ai/severity";
 
 // ---------------------------------------------------------------------------
 // needsReview
@@ -72,6 +73,41 @@ describe("needsReview", () => {
 
   it("confidence just below threshold 0.699, severity low → true", () => {
     assert.equal(needsReview({ ...base, severity: "low", confidence: 0.699 }), true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// pickSeverity (local model severity head, ISS-016)
+// ---------------------------------------------------------------------------
+describe("pickSeverity", () => {
+  const tiers = ["low", "moderate", "high", "critical"];
+  const ln = (ps: number[]) => ps.map(Math.log);
+
+  it("takes the top tier and its probability with no calibration", () => {
+    const r = pickSeverity(ln([0.1, 0.6, 0.2, 0.1]), tiers);
+    assert.equal(r.severity, "moderate");
+    assert.ok(Math.abs(r.severityConfidence - 0.6) < 1e-9);
+  });
+
+  it("leans toward urgent: high + critical at the cutoff → the likelier of the two", () => {
+    const r = pickSeverity(ln([0.1, 0.5, 0.25, 0.15]), tiers, { urgentCutoff: 0.4 });
+    assert.equal(r.severity, "high");
+    assert.equal(pickSeverity(ln([0.1, 0.5, 0.15, 0.25]), tiers, { urgentCutoff: 0.4 }).severity, "critical");
+  });
+
+  it("keeps the top tier when high + critical is below the cutoff", () => {
+    assert.equal(pickSeverity(ln([0.1, 0.6, 0.2, 0.1]), tiers, { urgentCutoff: 0.4 }).severity, "moderate");
+  });
+
+  it("temperature above 1 softens the confidence without changing the top tier", () => {
+    const raw = pickSeverity([0, 2, 0, 0], tiers);
+    const soft = pickSeverity([0, 2, 0, 0], tiers, { temperature: 2 });
+    assert.equal(soft.severity, "moderate");
+    assert.ok(soft.severityConfidence < raw.severityConfidence);
+  });
+
+  it("ignores a temperature of 0 or below", () => {
+    assert.equal(pickSeverity([0, 2, 0, 0], tiers, { temperature: 0 }).severityConfidence, pickSeverity([0, 2, 0, 0], tiers).severityConfidence);
   });
 });
 
