@@ -15,7 +15,7 @@ Add a new dated entry at the top for each session. Keep old entries — they sho
 | Fallback provider | Gemini, `gemini-3.1-flash-lite` (`thinkingBudget: 0`, 15 RPM free tier): fallback when the local model fails, and second opinion when it is below 0.70 confidence |
 | Real AI classifications so far | 1 through the app (`SGP-KBL2UX`), 3 direct Gemini calls. Our own model has additionally been run on 36 held-out photos at no cost |
 | Labeled benchmark dataset | 50 photos in `benchmark/dataset/` (all 8 types), severity labeled by 3 team members per photo. First local vs Gemini run on 2026-10-25 (see below) |
-| Cost tracking for Gemini 3.x | Prices added 2026-10-29 in `src/lib/ai/normalize.ts` (paid-tier list prices; the free tier bills $0). Unit-tested. About $0.0004 per Gemini photo call at paid prices, $0 billed on the free tier (see 2026-11-13). Not yet checked on a real `cost_usd` row |
+| Cost tracking for Gemini 3.x | Prices added 2026-10-29 in `src/lib/ai/normalize.ts` (paid-tier list prices; the free tier bills $0). Unit-tested; not yet checked on a real `cost_usd` row |
 | Team constraint | **Free only.** No paid APIs, no billing accounts. Free tiers that reset daily, for development and the final demo (Nov 2026) |
 | Own model (`local` provider) | **Retrained 2026-10-25** (EfficientNet-B2, 8 types, 10,456 photos): **88% type accuracy (44/50)** on the benchmark vs 79.6% for Gemini, about 70 ms per photo, free. First run (2026-09-23) was 52%. Now the primary |
 
@@ -94,26 +94,6 @@ but its precision is not measured. On the laptop with the current model files:
 1. `npm run benchmark -- --models local` and read the confusion table: how many non-medical photos were predicted medical.
 2. Then with `AI_LOCAL_ESCALATE_TYPES=medical_emergency` in `.env.local`, run the chain benchmark (`--models local,gemini:gemini-3.1-flash-lite`) and compare type accuracy and missed urgent.
 3. Pass mark: turn it on only if type accuracy does not drop and medical false positives go down. Cost: each medical guess spends one Gemini free-tier request (15 per minute).
-
----
-
-## 2026-11-13 — Gemini cost per report (AI 6, ISS-007)
-
-**Method:** cost = input tokens × input price + output tokens × output price, the same formula as `estimateCost` in `src/lib/ai/normalize.ts`. Token counts are the measured ones from the live Gemini calls logged in this file (Sep 15 and the Oct hoax-flag test). Prices are the paid-tier list prices in `normalize.ts` (read 2026-10-29).
-
-| Call (measured tokens in / out) | gemini-3.1-flash-lite ($0.25 / $1.50 per 1M) | gemini-3.6-flash ($0.75 / $3.75 per 1M) |
-|---|---|---|
-| Photo + text, hoax test (1,374 / 44) | $0.00041 | $0.00119 |
-| Photo + text (1,270 / 36) | $0.00037 | $0.00109 |
-| Photo + text (1,265 / 30) | $0.00036 | $0.00106 |
-| Text only (211 / 54) | $0.00013 | $0.00036 |
-
-- **What we pay: $0.** The app uses the free tier with no billing account, so Google bills nothing. The numbers above are what the same call would cost on the paid tier, and that is what `cost_usd` stores and what the daily cap adds up.
-- **Per Gemini call (photo report, the app's fallback model):** about **$0.0004**. 1,000 photo reports that all reach Gemini would be about $0.40 at paid prices.
-- **Per report with the local model as primary:** Gemini is only called when the local model fails or is below 0.70 confidence. In the 2026-10-25 what-if, 26 of 50 photos would have gone to Gemini, so about **$0.0002 per report** on average. This is an estimate from the old model; the 2026-11-13 model's escalation rate is not measured yet.
-- **Free-tier limits that matter more than money:** 15 requests per minute on `gemini-3.1-flash-lite`, 5 on `gemini-3.6-flash` / `gemini-3.8-flash` (measured 2026-09-15, limits are per model and per key). Token use was under 1% of the 250K tokens-per-minute limit. The requests-per-day limit is not recorded in this repo; read it from Google AI Studio before the defense. When the quota runs out the chain moves on to the keyword matcher and human review.
-- **Daily budget cap counts Gemini:** `isOverDailyBudget` (`src/lib/ai/chain.ts`) sums `classifications.cost_usd` since midnight Manila time, and every Gemini model the app uses has a price, so Gemini calls are counted. Unit-tested in `tests/chain.test.ts` ("daily budget cap", "estimateCost prices for Gemini 3.x"); `npm test` 146/146 pass on 2026-11-13. A cap of `AI_DAILY_BUDGET_USD=0.10` would allow about 250 Gemini photo calls a day.
-- **Still to check (closes ISS-007):** one real Gemini-classified row has a non-null `cost_usd` in the database. Run `npm run check-live-classification` after a report is classified by Gemini; expected about 0.0004, pass mark: not null and between 0.0001 and 0.002.
 
 ---
 
