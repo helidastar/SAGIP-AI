@@ -99,7 +99,7 @@ export function IncidentList() {
                 </span>
                 <span className="flex shrink-0 flex-col items-end gap-1">
                   <NextStep status={i.status} />
-                  {i.priority && <span className="font-mono text-[10px] text-muted">{i.priority.score}{i.priority.overridden ? " · override" : ""}</span>}
+                  {i.priority && <span className="font-mono text-[10px] text-muted">{i.status === "pending_review" ? "draft " : ""}{i.priority.score}{i.priority.overridden ? " · override" : ""}</span>}
                 </span>
               </Link>
             </li>

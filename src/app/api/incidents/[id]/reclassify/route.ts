@@ -8,7 +8,7 @@ const RECLASSIFIABLE = ["received", "pending_review", "classified"];
 /**
  * Admin only. Re-run AI classification (e.g. after switching models).
  * A new classification row is always stored. Reviewed reports keep their human decision;
- * unreviewed ones are re-routed (to review or re-scored) based on the new result.
+ * unreviewed ones go back to review with the new AI draft and a new draft score.
  */
 export const POST = withStaff(async (_request, ctx: RouteContext<"/api/incidents/[id]/reclassify">, staff) => {
   const { id } = await ctx.params;
@@ -35,13 +35,7 @@ export const POST = withStaff(async (_request, ctx: RouteContext<"/api/incidents
   const outcome = humanConfirmed ? { ...run, status: row.status } : run;
 
   if (!humanConfirmed) {
-    const classified = outcome.status === "classified";
-    await db.from("reports").update({
-      status: outcome.status,
-      confirmed_type: classified ? outcome.result.incidentType : null,
-      confirmed_severity: classified ? outcome.result.severity : null,
-    }).eq("id", id);
-    if (!classified) await db.from("priority_scores").delete().eq("report_id", id);
+    await db.from("reports").update({ status: outcome.status, confirmed_type: null, confirmed_severity: null }).eq("id", id);
   }
 
   await db.from("audit_logs").insert({
@@ -57,6 +51,7 @@ export const POST = withStaff(async (_request, ctx: RouteContext<"/api/incidents
     id,
     status: outcome.status,
     keptHumanReview: humanConfirmed,
+    checkFirst: humanConfirmed ? [] : run.checkFirst,
     classification: {
       model: outcome.chain.label,
       step: outcome.chain.step,

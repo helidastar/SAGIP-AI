@@ -1,0 +1,51 @@
+{
+  "type": "FeatureCollection",
+  "_note": "SIMULATION data for the Cebu City demo (no pilot partner). Area names are real Cebu City barangays, but each shape is a rough rectangle around the barangay, NOT the official boundary. Populations are rounded estimates to be checked against the PSA 2020 census. Risk indices are simulation values chosen from the hazard note, not from a DRRMO hazard map. Replace all three with official data before any real deployment (ISS-020).",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"name": "Busay", "population": 13000, "riskIndex": 0.8, "hazardNote": "uplands, landslide-prone slopes"},
+      "geometry": { "type": "Polygon", "coordinates": [[[123.865, 10.36], [123.895, 10.36], [123.895, 10.395], [123.865, 10.395], [123.865, 10.36]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "Talamban", "population": 46000, "riskIndex": 0.5, "hazardNote": "Butuanon River side, mixed flood risk"},
+      "geometry": { "type": "Polygon", "coordinates": [[[123.9, 10.36], [123.925, 10.36], [123.925, 10.39], [123.9, 10.39], [123.9, 10.36]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "Lahug", "population": 43000, "riskIndex": 0.4, "hazardNote": "IT Park / JY Square area, lower hazard"},
+      "geometry": { "type": "Polygon", "coordinates": [[[123.89, 10.325], [123.905, 10.325], [123.905, 10.345], [123.89, 10.345], [123.89, 10.325]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "Mabolo", "population": 28000, "riskIndex": 0.6, "hazardNote": "low-lying, frequent street flooding"},
+      "geometry": { "type": "Polygon", "coordinates": [[[123.908, 10.31], [123.925, 10.31], [123.925, 10.328], [123.908, 10.328], [123.908, 10.31]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "Guadalupe", "population": 73000, "riskIndex": 0.6, "hazardNote": "Guadalupe River, flood-prone banks"},
+      "geometry": { "type": "Polygon", "coordinates": [[[123.875, 10.31], [123.89, 10.31], [123.89, 10.33], [123.875, 10.33], [123.875, 10.31]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "Tejero", "population": 18000, "riskIndex": 0.7, "hazardNote": "dense housing, fire-prone"},
+      "geometry": { "type": "Polygon", "coordinates": [[[123.905, 10.298], [123.915, 10.298], [123.915, 10.31], [123.905, 10.31], [123.905, 10.298]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "Ermita", "population": 8000, "riskIndex": 0.7, "hazardNote": "Carbon Market area, dense, fire-prone"},
+      "geometry": { "type": "Polygon", "coordinates": [[[123.893, 10.288], [123.905, 10.288], [123.905, 10.3], [123.893, 10.3], [123.893, 10.288]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "Labangon", "population": 34000, "riskIndex": 0.5, "hazardNote": "old houses, mixed hazard"},
+      "geometry": { "type": "Polygon", "coordinates": [[[123.87, 10.293], [123.885, 10.293], [123.885, 10.308], [123.87, 10.308], [123.87, 10.293]]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "Pardo", "population": 27000, "riskIndex": 0.5, "hazardNote": "near the coast, flood-prone"},
+      "geometry": { "type": "Polygon", "coordinates": [[[123.85, 10.275], [123.868, 10.275], [123.868, 10.292], [123.85, 10.292], [123.85, 10.275]]] }
+    }
+  ]
+}

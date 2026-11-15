@@ -2,7 +2,7 @@ import type { ReportStatus } from "@/types";
 
 /**
  * The incident workflow in plain words: who acts at each step and what they do next.
- * The AI only suggests (step 1); every decision after that is made by a person.
+ * The AI only drafts (step 1); a person confirms every report (review-first), and every decision after that is made by a person.
  */
 export interface WorkflowStep {
   key: string;
@@ -32,7 +32,7 @@ export const WORKFLOW: WorkflowStep[] = [
     statuses: ["pending_review"],
     next: "Needs review",
     explain:
-      "The AI was unsure, or rated this high/critical, so a person must confirm or correct its answer before the incident is ranked. Reject it if it is not a real incident.",
+      "Every report is checked by a person. The AI's type and severity are a draft, and the priority score is a draft until you confirm or correct them. Reports the AI was unsure about, rated high/critical, or flagged as a possible hoax are at the top of the queue. Reject it if it is not a real incident.",
   },
   {
     key: "assign",

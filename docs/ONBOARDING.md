@@ -93,6 +93,7 @@ npm run make-admin -- someone@example.com --role responder
 |---|---|
 | `npm run dev` | Start the app |
 | `npm run seed` | Load teams and areas into Supabase |
+| `npm run seed:demo` | Load the simulated Cebu City demo reports |
 | `npm run make-admin -- <email>` | Set a staff role |
 | `npm run benchmark -- --dry-run` | Check the labeled benchmark photos, free |
 | `npm run dataset:prepare -- --dry-run` | Check training photos before building the dataset |

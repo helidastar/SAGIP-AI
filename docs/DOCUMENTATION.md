@@ -47,7 +47,7 @@
 | **Maps** | Custom SVG map in `src/components/dashboard/IncidentMap.tsx` (no map library). Incident detail links out to OpenStreetMap |
 | **Hosting** | Vercel (app) + Supabase (DB, storage, auth) |
 | **Architecture style** | Modular monolith |
-| **Key flow** | Citizen reports → AI classifies → human review if flagged → priority score → ranked on responder dashboard |
+| **Key flow** | Citizen reports → AI drafts type, severity and a draft score → every report reviewed by a person (flagged ones first) → confirmed priority score → ranked on responder dashboard |
 
 ---
 
@@ -141,11 +141,13 @@ flowchart TD
     B --> C["Submits photo and/or short description + GPS location"]
     C --> D[Receives tracking ID]
     C --> E[AI classifies: type, severity, confidence, hazards, hoax flag]
-    E --> F{"Low confidence OR high/critical severity OR suspected hoax?"}
-    F -- yes --> G[Human review queue]
-    G --> H[Responder confirms or corrects]
-    H --> I[Priority scoring]
-    F -- no --> I
+    E --> P[Draft priority score from the AI answer]
+    P --> F{"Low confidence OR high/critical severity OR suspected hoax?"}
+    F -- yes --> G1[Review queue: check first, at the top]
+    F -- no --> G2[Review queue: ranked by draft score]
+    G1 --> H[Staff confirm or correct]
+    G2 --> H
+    H --> I[Confirmed priority score]
     I --> J[Ranked on responder dashboard + map]
     J --> K[Admin assigns responder/team]
     K --> L[Status updates: in progress → resolved]
@@ -232,20 +234,41 @@ Incident (one real-world event)
 **Severity %** is the AI's confidence that its severity tier is correct, from 0 to 100%. The dashboard shows it next to the severity chip, for example `High · 82%`.
 
 - It is **not** a second severity scale. The 4 tiers in [6.2](#62-severity-tiers) stay the only severity scale.
-- It does **not** change the priority score ([6.6](#66-priority-score)) or the 4 human review triggers ([6.5](#65-human-review-triggers)). Trigger 1 keeps using the overall `confidence`.
+- It does **not** change the priority score ([6.6](#66-priority-score)) or the 4 human review triggers ([6.5](#65-human-review-triggers)). Trigger 1 checks it too (2026-11-13, see 6.5).
 - Source: a new `severityConfidence` field (0 to 1) in the Gemini response schema (`src/lib/ai/prompt.ts`), saved per classification in a new nullable column `classifications.severity_confidence`. The UI shows it as a whole-number percent.
-- Empty (shown as `–`) when the classifier gives no severity confidence: the local image model (it does not predict severity, ISS-016) and the keyword matcher. A severity a responder confirmed in review shows no %, because a person set it.
-- Limit: the number is the model's own estimate and is not calibrated. The benchmark measures whether the severity tier is right, not whether 80% really means right 8 times in 10.
+- Empty (shown as `–`) when the classifier gives no severity confidence: the keyword matcher, and a local model trained without the severity head (ISS-016). A severity a responder confirmed in review shows no %, because a person set it.
+- Limit: Gemini's number is its own estimate and is not calibrated. The local model's severity head is calibrated on the validation photos (`severity_temperature` in `labels.json`, [local-severity-design.md](local-severity-design.md)), but against checked Gemini labels, not ground truth. The benchmark measures whether the severity tier is right, not whether 80% really means right 8 times in 10.
 - Option rejected: a 0-100 severity score. It would be a second scale beside the 4 tiers, and the benchmark labels are tiers only, so its accuracy could not be measured.
 - Build order: migration (Backend 19), classifier field (AI 22), API field, UI next to the severity chip (Admin 12), then a test.
 - Status 2026-10-29: the classifier field is done (`severityConfidence` in the Gemini schema and `normalizeClassification`, tested in `tests/chain.test.ts`). It is not saved yet; that waits on the migration.
 
 ### 6.5 Human review triggers
-A report goes to `pending_review` if **any** of these is true (`needsReview()` in `src/lib/ai/review.ts`):
+**Review-first (decided 2026-11-13).** Every report goes to `pending_review`. The AI's type and severity are a
+pre-filled draft, and the report gets a **draft priority score** from that draft so the review queue and the
+dashboard stay ranked. Staff confirm or correct it (`POST /api/reports/{id}/review`), which saves the confirmed
+values and rescores the report. Nothing reaches `classified` without a person.
 
-1. `confidence < CONFIDENCE_THRESHOLD` (initial value `0.70`, tuned after benchmarking),
+The 4 triggers below no longer decide *whether* a report is reviewed. They mark it **check first**: it is sorted to
+the top of the review queue with a "Check first" tag (`checkFirstReasons()` in `src/lib/ai/review.ts`). Queue order:
+keyword-fallback high/critical, then other check-first, stuck or unclassified reports, then the rest; within each
+group highest draft score first, then oldest first. The count stays 4:
+
+1. `confidence < CONFIDENCE_THRESHOLD` (initial value `0.70`, tuned after benchmarking), or `severityConfidence` below the same threshold when the classifier gives one (2026-11-13, ISS-016: an unsure severity is checked first),
 2. AI severity is `high` or `critical`, or
 3. the AI sets `hoaxSuspected` (unrelated meme, screenshot or stock photo, joking description, or a photo and description that do not match). A suspected hoax is **never rejected automatically**; reviewers see a "Possible hoax" tag. Stored in `classifications.hoax_suspected` (migration `0006_hoax_flag.sql`). The keyword matcher and the local image model always return `false`.
+4. keyword fallback: the keyword matcher always answers with confidence 0, so it always fires trigger 1.
+
+**Why review-first:** the AI assists and never decides. On the 50-photo benchmark both our model and Gemini rated
+some high/critical photos as low or moderate with high confidence (ISS-028), so any rule that lets a report skip a
+person can miss an urgent one. With review-first, "missed urgent" in the benchmark means "an urgent report that is
+**not flagged check first**", so it is checked later in the queue, not skipped.
+**Option rejected:** auto-confirm confident low/moderate reports (the old design). Less work for staff, but a confident
+wrong severity would rank an urgent report low with no person looking at it.
+**Cost:** staff must confirm every report, so the review queue is the main workload (Others 16, staffing plan).
+The review form starts with the AI's answer, so confirming a correct draft is one click ("Confirm and rank").
+The pilot test (Others 1) measures it: time from opening a report to confirming it, per report, stated as reviews per minute.
+**Defense line:** "The AI drafts and ranks; a person confirms every report. The triggers decide what is checked first, not what is checked."
+**Stretch (not v1):** an alert when an urgent draft waits in the queue longer than N minutes.
 
 ### 6.6 Priority score
 Deterministic, plain logic (not an LLM call), so every score is explainable. The reason for each weight, worked examples and rejected alternatives are in [priority-weights.md](priority-weights.md) (finalized 2026-10-25).
@@ -346,11 +369,8 @@ sequenceDiagram
     IN->>DB: Insert report (status: received)
     IN->>AI: Classify(photo, text)
     AI-->>IN: type, severity, confidence, hazards
-    alt confidence low OR severity high/critical
-        IN->>DB: status = pending_review
-    else confident
-        IN->>DB: status = classified
-    end
+    IN->>DB: draft priority score from the AI answer
+    IN->>DB: status = pending_review (every report, review-first)
     IN-->>API: report id + tracking code + status
     API-->>UI: 201 Created
     UI-->>Citizen: Show tracking ID and status
@@ -371,9 +391,9 @@ sequenceDiagram
     API->>AI: New report (photo + text)
     AI->>LLM: Classify incident (fixed prompt, JSON schema)
     LLM-->>AI: type, severity, confidence, hazards
-    AI->>AI: Check confidence threshold & severity
-    alt needs human review
-        AI->>DB: Add to review queue
+    AI->>AI: Check confidence threshold, severity & hoax (check-first flags)
+    alt every report (review-first)
+        AI->>DB: Add to review queue with draft score (flagged ones first)
         DB-->>RD: Show flagged report
         Responder->>RD: Confirm or correct classification
         RD->>API: POST /api/reports/{id}/review
@@ -571,7 +591,7 @@ Implemented as Next.js Route Handlers under `src/app/api`.
 | `GET` | `/api/incidents?status=&band=&type=` | Ranked incident list |
 | `GET` | `/api/incidents/{id}` | Detail incl. classifications, score breakdown, audit log |
 | `GET` | `/api/incidents/map?bbox=` | GeoJSON of open incidents within a bounding box |
-| `GET` | `/api/review-queue` | Reports in `pending_review` |
+| `GET` | `/api/review-queue` | Every report in `pending_review` with its AI draft, draft score and check-first reasons |
 | `POST` | `/api/reports/{id}/review` | Confirm / correct classification |
 | `PATCH` | `/api/incidents/{id}/status` | Update status |
 | `POST` | `/api/incidents/{id}/assign` | Assign to a team *(admin)* |
@@ -633,16 +653,22 @@ Implemented as Next.js Route Handlers under `src/app/api`.
 | Data | Source |
 |------|--------|
 | Incident types, severity tiers, weights | `src/lib/constants.ts` |
-| Areas (barangay boundaries, population) | PSA census population data + barangay boundary GeoJSON (from pilot LGU / open data) |
-| Location risk index | LGU / DRRMO hazard maps (flood, landslide), set per area |
+| Areas (barangay boundaries, population) | Demo: `scripts/data/areas.cebu-city.geojson`, 9 Cebu City barangays as rough rectangles with estimated populations (simulation data, not official). For a real deployment: PSA census population + official barangay boundary GeoJSON |
+| Location risk index | Demo: simulation values (0.4 to 0.8) set from each barangay's known hazard (flood, landslide, fire). For a real deployment: LGU / DRRMO hazard maps |
 | Demo teams & staff | Seed script (test accounts only) |
+| Demo reports | `scripts/data/demo-reports.json`, 17 simulated Cebu City reports covering all 8 types and 4 severity levels (`npm run seed:demo`) |
 | Benchmark images | 40–60 labeled Philippine incident photos (see [Appendix B](#appendix-b--ai-classification-benchmarking-plan)) |
 
 ### 11.2 Seed script
-`npm run seed` → `scripts/seed.mjs` loads teams and areas into Supabase. It reads `scripts/data/areas.sample.geojson` by default; pass another GeoJSON path as an argument to use real barangay boundaries.
+The demo and defense run in **simulation mode on a Cebu City map** (no pilot partner, R-002).
+
+- `npm run seed` → `scripts/seed.mjs` loads teams and areas into Supabase. It reads `scripts/data/areas.cebu-city.geojson` by default (9 barangays: Busay, Talamban, Lahug, Mabolo, Guadalupe, Tejero, Ermita, Labangon, Pardo); pass another GeoJSON path as an argument to use official boundaries. It also removes the old placeholder areas (`Sample Area A` to `C`) and re-links their reports.
+- `npm run seed:demo` → `scripts/seed-demo.ts` loads the simulated reports from `scripts/data/demo-reports.json`. No AI provider is called: each report carries a simulated classification (`classifications.model` is `demo:local`, `demo:gemini` or `keyword-fallback`), and reports that the review rules flag stay in the review queue unless the file gives a simulated review. Scores are computed with the real `computePriority()`.
+- `tests/demo-data.test.ts` checks the demo data: areas inside Cebu City and not overlapping, every report inside its barangay, all 8 types and 4 severities present, and the review rules followed.
 
 ### 11.3 Idempotent process
 - The seed uses `upsert` keyed on natural keys (area `name`, team `name`) so re-running it never duplicates rows.
+- `npm run seed:demo` deletes the reports whose tracking code starts with `SGP-DEM` and inserts them again with fresh timestamps, so it can be re-run before each demo.
 - Test reports are created through the app and can be deleted from the Supabase table editor; deleting a report cascades to its classifications and audit logs.
 
 ---
@@ -791,6 +817,7 @@ cd SAGIP-AI
 git checkout development
 npm install
 npm run seed
+npm run seed:demo   # simulated Cebu City reports for the demo
 ```
 In Supabase: enable `postgis`, run the SQL files in `supabase/migrations/` in order (SQL Editor or the Supabase CLI), and create a private `report-photos` bucket. Row-level security policies are part of those migrations.
 
@@ -827,16 +854,16 @@ Set `AI_PROVIDER` and `AI_API_KEY`. The `classifications.model` column records w
 To use our own model (team default since 2026-10-25): train it with `training/sagip_classifier_colab.ipynb`, put all three files (`sagip-classifier.onnx`, `sagip-classifier.onnx.data`, `labels.json`) in `models/`, then set `AI_PROVIDER=local` (no key). Keep Gemini as the fallback (`AI_FALLBACK_PROVIDER=gemini`, `AI_FALLBACK_MODEL=gemini-3.1-flash-lite`) so unsure answers (confidence below 0.70) get a second opinion.
 
 ### 15.6 Add a new area
-Add the polygon, population, and risk index to the GeoJSON passed to the seed script (`scripts/data/areas.sample.geojson` by default) and re-run `npm run seed` (idempotent).
+Add the polygon, population, and risk index to the GeoJSON passed to the seed script (`scripts/data/areas.cebu-city.geojson` by default) and re-run `npm run seed` (idempotent).
 
 ---
 
 ## 16. Known Issues, Caveats & Open Questions
 
 ### 16.1 Open questions
-- **No named pilot partner yet** (barangay, city DRRMO, or campus safety office). Without one, there are no real incidents to rank. Resolve early.
+- **No pilot partner** (decided 2026-11-12: the instructor said one is not needed). The demo and defense run in simulation mode on a Cebu City map with simulated reports (Section 11.2). Ranking has not been tried on real incidents.
 - **Who staffs the review queue in real time?** This is a process and staffing question, not only a software one.
-- **Priority weights** — finalized 2026-10-25 in [priority-weights.md](priority-weights.md). Revisit once real area data replaces the sample file (ISS-020).
+- **Priority weights** — finalized 2026-10-25 in [priority-weights.md](priority-weights.md). Revisit once official area data replaces the Cebu City simulation file (ISS-020).
 
 ### 16.2 Risk register
 Matches the team's Risk Log spreadsheet (as of 2026-10-25). Rating = Likelihood × Impact (Low = 1, Low–Medium = 1.5, Medium = 2, High = 3); 6 or more is High, 3 or more is Medium.
@@ -844,7 +871,7 @@ Matches the team's Risk Log spreadsheet (as of 2026-10-25). Rating = Likelihood 
 | ID | Risk | Likelihood | Impact | Rating | Mitigation | Status |
 |----|------|------------|--------|--------|------------|--------|
 | R-001 | AI misclassifies a high-severity incident as low priority | Medium | High | High | Human review for low-confidence, high/critical and suspected-hoax reports; dispatch is never automated | Monitoring |
-| R-002 | No institutional pilot partner / no real users | Medium | High | High | Secure an LGU, DRRMO or campus partner before heavy build investment | Open |
+| R-002 | No institutional pilot partner / no real users | Medium | High | High | Instructor said a pilot partner is not needed (2026-11-12). Demo runs in simulation mode on a Cebu City map with seeded reports (`npm run seed:demo`); pilot test with test users instead | Monitoring |
 | R-003 | Responders don't trust the AI ranking | Medium | Medium | Medium | Transparent formula, visible score breakdown, manual override | Open |
 | R-004 | System overload during a disaster spike | Low–Medium | High | Medium | Background classification, per-IP rate limit, managed hosting; load test pending | Open |
 | R-005 | Scope creep across 4 bundled sub-products | High | Medium | High | Hold to MVP scope in [3.5](#35-scope--prioritization) | Open |
@@ -856,7 +883,7 @@ Matches the team's Risk Log spreadsheet (as of 2026-10-25). Rating = Likelihood 
 | R-011 | Citizen data or admin functions exposed | Low | High | Medium | RLS, private bucket, staff auth, admin functions locked (migration 0005); 42/42 checks passed | Mitigated |
 | R-012 | Unexpected AI API charges | Low | Medium | Low | Free-only rule, no billing linked; add Gemini prices so the budget cap counts them | Mitigated |
 | R-013 | Local model files (3 files, about 35 MB, git-ignored) missing at deployment | Medium | Medium | Medium | Copies in shared Drive, label check at load time, deployment checklist step | Open |
-| R-014 | Ranking based on placeholder data (sample area population and risk) | Medium | Medium | Medium | Weights finalized with reasons in [priority-weights.md](priority-weights.md) (2026-10-25); load real barangay data (ISS-020) | Open |
+| R-014 | Ranking based on simulation data (estimated Cebu City barangay population, simulation risk index) | Medium | Medium | Medium | Weights finalized with reasons in [priority-weights.md](priority-weights.md) (2026-10-25); load real barangay data (ISS-020) | Open |
 | R-015 | Schedule slip before the demo | High | High | High | Must-haves first; weekly status per member; Gantt Chart tab with target and completion dates | Open |
 | R-016 | Work concentrated in one member | Medium | High | High | Each member owns their section's open tasks; onboarding guide; cross-review of PRs | Open |
 | R-017 | Local model does not run on Vercel (function size limit) | Medium | High | High | Vercel preview deploy with the model by 2026-10-31; exclude non-Linux `onnxruntime-node` binaries; fallback: WebAssembly runtime or Gemini primary | Open |
@@ -885,7 +912,7 @@ Matches the team's Risk Log spreadsheet (as of 2026-10-25). Rating = Likelihood 
 
 **Rules of thumb**
 
-1. Never let AI output skip human review for high/critical cases.
+1. Never let AI output skip human review: every report is confirmed by a person (review-first).
 2. Keep scoring deterministic — no LLM calls inside `scoring/`.
 3. Log every override and status change to `audit_logs`.
 4. Same severity colors everywhere.

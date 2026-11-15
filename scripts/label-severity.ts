@@ -22,21 +22,40 @@
  *   --dataset <dir>          ImageFolder-style root (default training/dataset)
  *   --out <file>             Output CSV (default <dataset>/severity.csv)
  *   --target-per-tier <n>    Stop once every tier has at least this many labels (default 150)
- *   --max-calls <n>          Hard cap on Gemini calls this run, safety net (default 2000)
+ *   --max-calls <n>          Hard cap on Gemini requests this run, retries included (default 2000)
  *   --model <name>           Gemini model (default gemini-3.1-flash-lite, the team's fallback)
+ *   --concurrency <n>        Photos labeled at the same time (default 4)
+ *   --rpm <n>                Most requests started per minute; free tier allows 15 (default 14)
  *   --dry-run                Print the sampling plan, make no API calls
  *   --yes                    Required to make real API calls
  *
+ * Output columns: file, severity, confidence (Gemini's severityConfidence), gemini_type.
+ * The notebook only reads file and severity. Team check: sort by severity and check the high
+ * and critical rows first, fixing the severity cell where the team disagrees.
+ * Rows from an older run that wrote only file and severity keep empty confidence and gemini_type.
+ *
  * Resumable: files already in the output CSV are skipped and counted toward the tally,
- * so a run that's interrupted (or rate-limited) can just be started again.
+ * so a run that's interrupted (or rate-limited) can just be started again. The run stops
+ * by itself when the quota looks used up or too many photos fail in a row.
+ *
+ * Paths in the CSV always use forward slashes, because training reads them on Linux (Colab).
+ * Rows written with Windows backslashes by an older run are rewritten on the next real run.
  *
  * API key: GEMINI_API_KEY (same as scripts/benchmark.ts).
  */
 import { mkdir, readdir, readFile, writeFile, appendFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
+import { isTransientError } from "@/lib/ai/errors";
 import { createGeminiClassifier } from "@/lib/ai/gemini";
 import { SEVERITY } from "@/lib/constants";
+
+const REQUEST_TIMEOUT_MS = 90_000; // the benchmark's slowest calls took about 45 s
+const RATE_LIMIT_COOLDOWN_MS = 60_000; // the free tier's request limit is per minute
+const MAX_RATE_LIMIT_ROUNDS = 3; // this many cooldowns with no success means the daily quota is gone
+const MAX_ATTEMPTS = 2; // per photo, for timeouts and server errors
+const MAX_CONSECUTIVE_FAILURES = 10;
+const CSV_HEADER = "file,severity,confidence,gemini_type";
 
 const TIERS = Object.keys(SEVERITY) as (keyof typeof SEVERITY)[]; // low, moderate, high, critical
 const EXPECTED_CLASSES = [
@@ -52,6 +71,8 @@ const { values: args } = parseArgs({
     "target-per-tier": { type: "string", default: "150" },
     "max-calls": { type: "string", default: "2000" },
     model: { type: "string", default: "gemini-3.1-flash-lite" },
+    concurrency: { type: "string", default: "4" },
+    rpm: { type: "string", default: "14" },
     "dry-run": { type: "boolean", default: false },
     yes: { type: "boolean", default: false },
   },
@@ -61,6 +82,10 @@ const datasetDir = path.resolve(args.dataset!);
 const outFile = path.resolve(args.out ?? path.join(datasetDir, "severity.csv"));
 const targetPerTier = Number(args["target-per-tier"]);
 const maxCalls = Number(args["max-calls"]);
+const concurrency = Number(args.concurrency);
+const requestSpacingMs = 60_000 / Number(args.rpm);
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function seededShuffle<T>(arr: T[], seed: number): T[] {
   const a = [...arr];
@@ -80,7 +105,7 @@ async function main() {
     const dir = path.join(datasetDir, cls);
     try {
       const files = (await readdir(dir)).filter((f) => MIME[path.extname(f).toLowerCase()]);
-      perClass.push(seededShuffle(files.map((f) => path.join(cls, f)), 42));
+      perClass.push(seededShuffle(files.map((f) => path.posix.join(cls, f)), 42));
     } catch {
       perClass.push([]);
     }
@@ -95,13 +120,20 @@ async function main() {
   // 2. Load existing labels (resume support) and tally.
   const tally: Record<string, number> = Object.fromEntries(TIERS.map((t) => [t, 0]));
   const already = new Set<string>();
+  const existingRows: string[] = [];
+  let hasBackslashPaths = false;
+  let hasOldHeader = false;
   try {
-    const existing = await readFile(outFile, "utf8");
-    for (const line of existing.trim().split("\n").slice(1)) {
-      const [file, severity] = line.split(",");
-      if (file && severity && TIERS.includes(severity as keyof typeof SEVERITY)) {
+    const lines = (await readFile(outFile, "utf8")).trim().split(/\r?\n/);
+    hasOldHeader = lines[0] !== CSV_HEADER;
+    for (const line of lines.slice(1)) {
+      const [rawFile, severity, confidence = "", geminiType = ""] = line.split(",");
+      const file = rawFile?.replaceAll("\\", "/");
+      if (file && severity && TIERS.includes(severity as keyof typeof SEVERITY) && !already.has(file)) {
+        if (file !== rawFile) hasBackslashPaths = true;
         already.add(file);
         tally[severity]++;
+        existingRows.push(`${file},${severity},${confidence},${geminiType}`);
       }
     }
   } catch {
@@ -128,35 +160,97 @@ async function main() {
 
   await mkdir(path.dirname(outFile), { recursive: true });
   const isNew = !(await stat(outFile).catch(() => null));
-  if (isNew) await writeFile(outFile, "file,severity\n");
+  if (isNew || hasBackslashPaths || hasOldHeader) {
+    await writeFile(outFile, [CSV_HEADER, ...existingRows, ""].join("\n"));
+  }
 
   const classifier = createGeminiClassifier(apiKey, args.model!);
+  const startedAt = Date.now();
+  let nextIndex = 0;
   let calls = 0;
+  let labeled = 0;
+  let consecutiveFailures = 0;
+  let rateLimitRounds = 0;
+  let cooldownUntil = 0;
+  let nextRequestAt = 0;
+  let stopReason: string | null = null;
 
-  for (const rel of remaining) {
-    if (TIERS.every((t) => tally[t] >= targetPerTier)) {
-      console.log("Every tier has reached the target. Stopping.");
-      break;
-    }
-    if (calls >= maxCalls) {
-      console.log(`Hit --max-calls (${maxCalls}). Stopping for now - re-run to continue.`);
-      break;
-    }
-    const full = path.join(datasetDir, rel);
+  // Workers share one schedule, so the --rpm limit holds across all of them.
+  async function waitForRequestSlot() {
+    const now = Date.now();
+    const slot = Math.max(now, nextRequestAt);
+    nextRequestAt = slot + requestSpacingMs;
+    if (slot > now) await sleep(slot - now);
+  }
+
+  async function labelPhoto(rel: string) {
     const ext = path.extname(rel).toLowerCase();
-    try {
-      const data = await readFile(full);
-      const res = await classifier.classify({ image: { data, mimeType: MIME[ext] }, description: "" });
-      await appendFile(outFile, `${rel},${res.severity}\n`);
-      tally[res.severity] = (tally[res.severity] ?? 0) + 1;
+    for (let attempt = 1; !stopReason; attempt++) {
+      if (calls >= maxCalls) {
+        stopReason = `Hit --max-calls (${maxCalls}). Stopping for now - re-run to continue.`;
+        return;
+      }
+      await waitForRequestSlot();
+      if (stopReason) return;
       calls++;
-      if (calls % 25 === 0) console.log(`${calls} labeled this run. Tally:`, tally);
-    } catch (err) {
-      console.warn(`Skipped ${rel}: ${(err as Error).message}`);
+      try {
+        const data = await readFile(path.join(datasetDir, rel));
+        const res = await classifier.classify(
+          { image: { data, mimeType: MIME[ext] }, description: "" },
+          { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) },
+        );
+        const conf = res.severityConfidence == null ? "" : res.severityConfidence.toFixed(2);
+        await appendFile(outFile, `${rel},${res.severity},${conf},${res.incidentType}\n`);
+        tally[res.severity] = (tally[res.severity] ?? 0) + 1;
+        labeled++;
+        consecutiveFailures = 0;
+        rateLimitRounds = 0;
+        if (labeled % 25 === 0) {
+          const perMinute = labeled / ((Date.now() - startedAt) / 60_000);
+          console.log(`${labeled} labeled this run (${perMinute.toFixed(1)} per minute). Tally:`, tally);
+        }
+        return;
+      } catch (err) {
+        if ((err as { status?: unknown }).status === 429) {
+          // Workers already in flight hit the same limit, so only the first one starts a cooldown.
+          if (Date.now() >= cooldownUntil) {
+            rateLimitRounds++;
+            if (rateLimitRounds >= MAX_RATE_LIMIT_ROUNDS) {
+              stopReason = "Gemini keeps answering 429, so the daily free quota is probably used up. Re-run after it resets.";
+              return;
+            }
+            cooldownUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
+            nextRequestAt = Math.max(nextRequestAt, cooldownUntil);
+            console.warn(`Rate limited (429). Waiting ${RATE_LIMIT_COOLDOWN_MS / 1000} s before continuing.`);
+          }
+          continue;
+        }
+        if (isTransientError(err) && attempt < MAX_ATTEMPTS) continue;
+        console.warn(`Skipped ${rel}: ${(err as Error).message}`);
+        consecutiveFailures++;
+        if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+          stopReason = `${MAX_CONSECUTIVE_FAILURES} photos failed in a row, so something is wrong (API key or network?). Stopping.`;
+        }
+        return;
+      }
     }
   }
 
+  async function worker() {
+    while (!stopReason && nextIndex < remaining.length) {
+      if (TIERS.every((t) => tally[t] >= targetPerTier)) {
+        stopReason = "Every tier has reached the target. Stopping.";
+        return;
+      }
+      await labelPhoto(remaining[nextIndex++]);
+    }
+  }
+
+  await Promise.all(Array.from({ length: concurrency }, () => worker()));
+  if (stopReason) console.log(stopReason);
+
   console.log("\nFinal tally:", tally);
+  console.log(`${labeled} labeled using ${calls} Gemini requests this run.`);
   console.log(`Wrote weak labels to ${outFile}`);
   console.log("Reminder: these are Gemini-generated, not human-verified. Spot-check a sample (critical tier especially) before fully trusting a training run on them.");
 }

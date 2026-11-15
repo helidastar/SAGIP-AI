@@ -47,7 +47,7 @@ Also note that many flood photos in these sets are aerial, while citizens submit
 The first model had no `road_accident` or `fallen_debris` photos (ISS-014) and scored 52% on the 50-photo benchmark.
 We added 15 public Roboflow Universe datasets, all **CC BY 4.0** (credit required, commercial use allowed). Every set was checked by eye on a contact sheet first; two were dropped as off-topic (apartment interiors, yoga and gym photos).
 
-The photo list is in [`extra-photos.tsv`](extra-photos.tsv) (type, source, id, url; 5,259 photos). Download it with:
+The photo list is in [`extra-photos.tsv`](extra-photos.tsv) (type, source, id, url; 5,715 photos as of 2026-11-05). Download it with:
 
 ```bash
 node scripts/fetch-training-photos.mjs   # into training/raw/<type>/roboflow-<source>/, safe to re-run
@@ -60,9 +60,11 @@ node scripts/fetch-training-photos.mjs   # into training/raw/<type>/roboflow-<so
 | `road_accident` | [dooropen / crash](https://universe.roboflow.com/dooropen/crash-km0ak) | 416 |
 | `road_accident` | [nyankosenseirokubackup / vehicle-accident](https://universe.roboflow.com/nyankosenseirokubackup/vehicle-accident-m2ryw) | 473 |
 | `road_accident` | [tammy / cctv-accident](https://universe.roboflow.com/tammy/cctv-accident) | 342 |
+| `road_accident` | [coco-json-to-yolov7 / iteration_1](https://universe.roboflow.com/coco-json-to-yolov7/iteration_1-b8yzl) (images tagged `Road_accident` only, out of a mixed-scene set) | 52 |
 | `fallen_debris` | [erykvtymons / fallen-trees-detection](https://universe.roboflow.com/erykvtymons/fallen-trees-detection-v1) | 192 |
 | `fallen_debris` | [rounak-shukla / tree-fall-detection](https://universe.roboflow.com/rounak-shukla-cefqh/tree-fall-detection-gh8z2) | 735 |
 | `fallen_debris` | [dangs-workspace / fallen-tree-detection](https://universe.roboflow.com/dangs-workspace-gac1u/fallen-tree-detection) | 18 |
+| `fallen_debris` | [steve-chun / fallen-tree-segmentation](https://universe.roboflow.com/steve-chun/fallen-tree-segmentation) | 200 (of 728 available) |
 | `flood` | [andrews-workspace / flooded-od](https://universe.roboflow.com/andrews-workspace-695dm/flooded-od) | 438 |
 | `flood` | [frank-oliveira / rualivreia](https://universe.roboflow.com/frank-oliveira/rualivreia) | 469 |
 | `flood` | [yolos / flooded-house](https://universe.roboflow.com/yolos-iw5ob/flooded-house) | 197 |
@@ -70,6 +72,10 @@ node scripts/fetch-training-photos.mjs   # into training/raw/<type>/roboflow-<so
 | `flood` | [final-year-project / flood-detection](https://universe.roboflow.com/final-year-project-f8l24/flood-detection-2i4xt) | 247 |
 | `structural_damage` | [muhammads-workspace / earthquake](https://universe.roboflow.com/muhammads-workspace-uooos/earthquake-5cvpq) | 615 |
 | `medical_emergency` | [fallen-people-data-set / fallen-person](https://universe.roboflow.com/fallen-people-data-set/fallen-person-uhif8) | 499 |
+| `medical_emergency` | [sangeevan-workspace / medical-emergency-detection](https://universe.roboflow.com/sangeevan-workspace/medical-emergency-detection) (chest-clutching / distress-face images only) | 110 |
+| `medical_emergency` | [tingting-rph02 / aid](https://universe.roboflow.com/tingting-rph02/aid-lvngz) (visible injuries: abrasions, bruises, burns, cuts) | 94 |
+
+**2026-11-05 addition** (AI 5): the four rows above (road_accident +52, fallen_debris +200, medical_emergency +204) were added to close most of the gap AI 5's "collect 180 own photos" plan was meant to fill, since staging real road accidents or medical emergencies ourselves is slow and some of it isn't safe to do for real. They don't fully replace own photos, though - none of these are Philippine street scenes (jeepneys, tricycles, barangay roads), and the medical_emergency ones come from a symptom-detection and a wound-classification dataset rather than disaster-response scenes, so they read a bit differently from what a citizen would actually submit. A smaller round of own photos (Philippine settings, staged carefully, no faces) is still worth doing if there's time before the retrain - see [`photo-collection.md`](photo-collection.md) for the updated, smaller target.
 
 After `dataset:prepare` (duplicates, cross-type conflicts and benchmark matches removed) the training set grew from 6,695 to **10,456 photos**:
 
@@ -173,10 +179,31 @@ exported photos are skipped, nothing is re-downloaded or duplicated.
 week someone runs the export above and re-runs `npm run dataset:prepare` to fold the new photos
 into the training set before the next Colab run.
 
-## 4. Train
-1. Zip the `training/dataset` folder itself, so the zip contains `dataset/<type>/...`. On Windows, right-click the folder, then **Compress to ZIP file**, or in cmd: `tar -a -c -f training\dataset.zip -C training dataset`.
-2. Upload it to Google Drive as `MyDrive/sagip/dataset.zip`.
-3. Open the notebook in [Colab](https://colab.research.google.com) (**File → Upload notebook**), set **Runtime → Change runtime type → T4 GPU**, then **Runtime → Run all**. The settings cell defaults to `MODEL_NAME = 'efficientnet_b2'` and `FULL_EPOCHS = 15`, the best run so far. Keep the model small: it has to fit in a Vercel function (R-017), so avoid large models such as `convnext_tiny`.
+## 4. Train (one notebook does it all)
+[`sagip_classifier_colab.ipynb`](sagip_classifier_colab.ipynb) builds the training set, trains, tests, runs the benchmark and exports the ONNX model in one **Run all**. No API key or secret is needed.
+
+1. Open it in Colab while signed in to Google: <https://colab.research.google.com/github/helidastar/SAGIP-AI/blob/dev/training/sagip_classifier_colab.ipynb>
+2. **Runtime → Change runtime type → T4 GPU → Save.**
+3. **Runtime → Run all.** Allow the Drive connection. If Colab says the notebook was not authored by Google, click **Run anyway**.
+4. About 10 to 20 minutes to build the set, then 40 to 70 minutes of training on a T4. Keep the tab open.
+5. Results land in `MyDrive/sagip/runs/<timestamp>/`, with everything summed up in `metrics.json`.
+
+What it reads from `MyDrive/sagip/`:
+
+| Path | Needed? | What it is |
+|---|---|---|
+| `dataset.zip` | yes | The last training set (`dataset/<type>/...`, made with `npm run dataset:prepare` and zipped as before). Already in Drive since 2026-10-25 |
+| `benchmark.zip` | optional | The `benchmark/dataset` folder zipped, with `labels.csv`. Gives the benchmark score and missed urgent in `metrics.json`, and keeps those photos out of training |
+| `own-photos/<type>/` | optional | Your own phone photos, one folder per incident type |
+
+What it does to the photos, using the same rules as `npm run dataset:prepare`:
+- downloads the photos in [`extra-photos.tsv`](extra-photos.tsv) that are not in `dataset.zip` yet (public CC BY 4.0 links, so no Roboflow key)
+- skips unreadable photos and photos under 128 px, removes duplicates (perceptual hash, 4 of 64 bits), drops a photo filed under two types, and removes any photo that matches a benchmark photo
+- trains a severity head only if `dataset/severity.csv` exists (ISS-016). The severity output is exported only in that case, because `src/lib/ai/local.ts` uses that output whenever it is there
+
+`metrics.json` has the dataset counts, the locked test set results (accuracy, per-type precision and recall, confusion matrix, Brier, auto-classified rate at 0.70), the benchmark results (score, type accuracy, severity within one tier, missed urgent, review rate) and the ONNX check. The benchmark in Colab follows `scripts/benchmark.ts` and `local.ts`; the official number is still `npm run benchmark -- --models local --yes` on the laptop.
+
+Settings (first code cell): `MODEL_NAME = 'efficientnet_b2'` and `FULL_EPOCHS = 15` are the best run so far. Keep the model small because it has to fit in a Vercel function (R-017), so avoid large models such as `convnext_tiny`. `QUICK_TEST = True` runs a few-minute check on a small sample; never use its numbers.
 
 ## 5. Use the model
 1. Download **all three files** from `MyDrive/sagip/runs/<date>/` into `models/`: `sagip-classifier.onnx`, `sagip-classifier.onnx.data` and `labels.json`. They belong together: an old `.onnx.data` next to a new `.onnx` gives nonsense (12% accuracy with confidence 1.00 on every photo).
