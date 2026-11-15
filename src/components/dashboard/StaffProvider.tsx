@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { SectionTitle, Tag } from "@/components/ui/basics";
 import { api } from "@/lib/api-client";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import type { Role } from "@/types/auth";
 
 export interface StaffUser {
@@ -46,8 +47,6 @@ export function StaffProvider({
       else if (!res.ok) setError(res.error);
       else setStaff(res.data);
     });
-    // Only load the current staff member on first mount; the proxy also redirects logged-out visitors.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialStaff]);
 
   async function logout() {
@@ -102,6 +101,10 @@ export function StaffProvider({
             {staff ? children : <p className="font-mono text-xs text-muted">Loading...</p>}
           </main>
         </div>
+      ) : pathname === "/dashboard" ? (
+        <DashboardShell staff={staff} error={error} onLogout={logout}>
+          {children}
+        </DashboardShell>
       ) : (
         <>
           <header className="border-b border-line">
