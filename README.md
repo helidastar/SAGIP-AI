@@ -122,7 +122,7 @@ SAGIP-AI gives citizens one simple way to report an emergency (photo, short desc
 | How is a report ranked? | [DOCUMENTATION.md §6.6–6.7](docs/DOCUMENTATION.md#66-priority-score) · [priority-weights.md](docs/priority-weights.md) · `src/lib/scoring/index.ts` |
 | How is the data protected? | [DOCUMENTATION.md §9.3](docs/DOCUMENTATION.md#93-security-supabase-rls) (row-level security, private photo bucket) |
 | What are the known risks and gaps? | [DOCUMENTATION.md §16](docs/DOCUMENTATION.md#16-known-issues-caveats--open-questions) |
-| How was the model trained? | [training/README.md](training/README.md) |
+| How was the model trained? | [training/README.md](https://github.com/helidastar/SAGIP-AI/blob/dev/training/README.md) |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -359,8 +359,8 @@ Work goes from a feature branch into `development`, then into `main` through pul
 | [docs/priority-weights.md](docs/priority-weights.md) | Why each priority weight is what it is, with worked examples and rejected alternatives. |
 | [docs/handoffs/ai-benchmarking.md](docs/handoffs/ai-benchmarking.md) | AI status, benchmark results, live test log and open AI issues. |
 | [docs/training-runs/2026-09-23/](docs/training-runs/2026-09-23/) | First local model run: metrics, labels and confusion matrix. |
-| [benchmark/README.md](benchmark/README.md) | How to build and run the labeled-photo benchmark. |
-| [training/README.md](training/README.md) | Photo sources (with CC BY credits), the 2026-10-25 retraining rounds and how to train the local model. |
+| [benchmark/README.md](https://github.com/helidastar/SAGIP-AI/blob/dev/benchmark/README.md) | How to build and run the labeled-photo benchmark. |
+| [training/README.md](https://github.com/helidastar/SAGIP-AI/blob/dev/training/README.md) | Photo sources (with CC BY credits), the 2026-10-25 retraining rounds and how to train the local model. |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

@@ -159,8 +159,9 @@ flowchart TD
 ```mermaid
 stateDiagram-v2
     [*] --> received: citizen submits
-    received --> pending_review: AI draft saved (every report; triggers only mark it check first)
-    pending_review --> classified: staff confirm / correct
+    received --> classified: AI confident, severity low/moderate
+    received --> pending_review: low confidence OR high/critical OR suspected hoax
+    pending_review --> classified: responder confirms / corrects
     classified --> assigned: admin assigns team
     assigned --> in_progress: responder en route / on site
     in_progress --> resolved
@@ -798,13 +799,12 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>   # server only, never expose
 DATABASE_URL=postgresql://...                  # pooled connection (SQL tools)
 DIRECT_URL=postgresql://...                    # direct connection for migrations
-AI_PROVIDER=local                              # gemini | local | mock (local = team default since 2026-10-25)
-AI_API_KEY=                                    # not needed for local
-AI_MODEL=                                      # for local: path to the .onnx file (default models/sagip-classifier.onnx)
+AI_PROVIDER=gemini                             # gemini | local | mock
+AI_API_KEY=<provider-key>                      # not needed for local
+AI_MODEL=gemini-3.1-flash-lite                 # for local: path to the .onnx file
 AI_FALLBACK_PROVIDER=gemini
 AI_FALLBACK_API_KEY=<provider-key>
-AI_FALLBACK_MODEL=gemini-3.1-flash-lite
-AI_LOCAL_ESCALATE_TYPES=                       # optional, e.g. medical_emergency (ISS-015)
+AI_FALLBACK_MODEL=gemini-3.5-flash
 CONFIDENCE_THRESHOLD=0.7
 ```
 See `.env.example` for the full list (timeouts, base URLs, daily budget, rate limit).
