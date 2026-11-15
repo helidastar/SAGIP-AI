@@ -17,13 +17,19 @@ type PreviewState = (typeof PREVIEW_STATES)[number];
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { next, state, mode } = await searchParams;
-  const redirectTo = typeof next === "string" ? next : "/dashboard";
-  const previewState = process.env.NODE_ENV === "development"
-    && typeof state === "string"
-    && PREVIEW_STATES.includes(state as PreviewState)
-    ? state as PreviewState
-    : undefined;
-  const previewMode = process.env.NODE_ENV === "development" && mode === "signup" ? "signup" : undefined;
+  const redirectTo =
+    typeof next === "string" && (next === "/dashboard" || next.startsWith("/dashboard/"))
+      ? next
+      : "/dashboard";
+
+  const previewState =
+    process.env.NODE_ENV === "development" &&
+    typeof state === "string" &&
+    PREVIEW_STATES.includes(state as PreviewState)
+      ? (state as PreviewState)
+      : undefined;
+  const previewMode =
+    process.env.NODE_ENV === "development" && mode === "signup" ? "signup" : undefined;
 
   return (
     <StaffAuthPage
