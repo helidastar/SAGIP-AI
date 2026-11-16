@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { CopyIcon } from "./icons";
 
-/** Tracking code in a dashed box; tap to copy. */
+/** Tracking code; tap to copy. */
 export function CopyCode({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
 
@@ -12,14 +13,17 @@ export function CopyCode({ code }: { code: string }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // Clipboard blocked (e.g. non-HTTPS); the code is still visible to write down.
+      // Clipboard blocked (e.g. non-HTTPS); the code stays visible to write down.
     }
   }
 
   return (
-    <button type="button" onClick={copy} className="flex flex-col items-center gap-1" title="Copy tracking code">
-      <span className="border border-dashed border-line px-5 py-2.5 font-mono text-xl font-bold tracking-wider">{code}</span>
-      <span className="font-mono text-[10px] text-muted">{copied ? "copied" : "tap to copy"}</span>
+    <button type="button" onClick={copy} title="Copy tracking code" className="inline-flex items-center gap-2 rounded border border-dashed border-cz-border-strong bg-cz-surface-2 px-3 py-1.5">
+      <span className="font-code text-base font-semibold tracking-wider">{code}</span>
+      <span className="inline-flex items-center gap-1 text-xs font-semibold text-cz-link">
+        <CopyIcon className="h-3.5 w-3.5" />
+        {copied ? "Copied" : "Copy"}
+      </span>
     </button>
   );
 }

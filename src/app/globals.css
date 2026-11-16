@@ -89,3 +89,100 @@ body {
   color: var(--foreground);
   font-family: var(--font-inter), Arial, Helvetica, sans-serif;
 }
+
+/* ------------------------------------------------------------------
+ * Citizen portal design tokens (from the Figma design system).
+ * Light by default, dark follows the device setting.
+ * ------------------------------------------------------------------ */
+:root {
+  --cz-bg: #f8fafc;
+  --cz-surface: #ffffff;
+  --cz-surface-2: #f1f5f9;
+  --cz-border: #e2e8f0;
+  --cz-border-strong: #cbd5e1;
+  --cz-text: #0f172a;
+  --cz-text-2: #475569;
+  --cz-text-3: #64748b;
+  --cz-primary: #173f7d;
+  --cz-primary-hover: #12326a;
+  --cz-link: #173f7d;
+  --cz-nav: #0d2548;
+  --cz-danger: #dc2626;
+  --cz-danger-soft: #fee2e2;
+  --cz-success: #15803d;
+  --cz-success-soft: #dcfce7;
+  --cz-info-soft: #e8eefb;
+  --cz-sev-critical: #b91c1c;
+  --cz-sev-critical-soft: #fee2e2;
+  --cz-sev-high: #c2410c;
+  --cz-sev-high-soft: #ffedd5;
+  --cz-sev-medium: #a16207;
+  --cz-sev-medium-soft: #fef9c3;
+  --cz-sev-low: #15803d;
+  --cz-sev-low-soft: #dcfce7;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --cz-bg: #0b1220;
+    --cz-surface: #111a2e;
+    --cz-surface-2: #172238;
+    --cz-border: #1e2a44;
+    --cz-border-strong: #2b3a5c;
+    --cz-text: #f1f5f9;
+    --cz-text-2: #cbd5e1;
+    --cz-text-3: #94a3b8;
+    --cz-primary: #2f63b5;
+    --cz-primary-hover: #3a71c8;
+    --cz-link: #8db4f2;
+    --cz-nav: #08152b;
+    --cz-danger: #f87171;
+    --cz-danger-soft: #3b1219;
+    --cz-success: #4ade80;
+    --cz-success-soft: #0f2a1a;
+    --cz-info-soft: #172a4d;
+    --cz-sev-critical: #fca5a5;
+    --cz-sev-critical-soft: #3b1219;
+    --cz-sev-high: #fdba74;
+    --cz-sev-high-soft: #3a1c0b;
+    --cz-sev-medium: #fde047;
+    --cz-sev-medium-soft: #33290a;
+    --cz-sev-low: #86efac;
+    --cz-sev-low-soft: #0f2a1a;
+  }
+}
+
+@theme inline {
+  --color-cz-bg: var(--cz-bg);
+  --color-cz-surface: var(--cz-surface);
+  --color-cz-surface-2: var(--cz-surface-2);
+  --color-cz-border: var(--cz-border);
+  --color-cz-border-strong: var(--cz-border-strong);
+  --color-cz-text: var(--cz-text);
+  --color-cz-text-2: var(--cz-text-2);
+  --color-cz-text-3: var(--cz-text-3);
+  --color-cz-primary: var(--cz-primary);
+  --color-cz-primary-hover: var(--cz-primary-hover);
+  --color-cz-link: var(--cz-link);
+  --color-cz-nav: var(--cz-nav);
+  --color-cz-danger: var(--cz-danger);
+  --color-cz-danger-soft: var(--cz-danger-soft);
+  --color-cz-success: var(--cz-success);
+  --color-cz-success-soft: var(--cz-success-soft);
+  --color-cz-info-soft: var(--cz-info-soft);
+  --color-cz-sev-critical: var(--cz-sev-critical);
+  --color-cz-sev-critical-soft: var(--cz-sev-critical-soft);
+  --color-cz-sev-high: var(--cz-sev-high);
+  --color-cz-sev-high-soft: var(--cz-sev-high-soft);
+  --color-cz-sev-medium: var(--cz-sev-medium);
+  --color-cz-sev-medium-soft: var(--cz-sev-medium-soft);
+  --color-cz-sev-low: var(--cz-sev-low);
+  --color-cz-sev-low-soft: var(--cz-sev-low-soft);
+  --font-display: var(--font-archivo), Arial, sans-serif;
+  --font-body: var(--font-public-sans), Arial, sans-serif;
+  --font-code: var(--font-plex-mono), ui-monospace, monospace;
+}
+
+@keyframes cz-pulse {
+  50% { opacity: 0.5; }
+}
