@@ -88,6 +88,7 @@ export async function signInStaff(email: string, password: string): Promise<Sign
 export async function getStaff(): Promise<Staff | null> {
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError?.name === "AuthSessionMissingError") return null;
   if (authError) throw authError;
   if (!user) return null;
 

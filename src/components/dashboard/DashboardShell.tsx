@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { createContext, useState, type ReactNode } from "react";
 import { Inter, JetBrains_Mono } from "next/font/google";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import type { StaffUser } from "@/components/dashboard/StaffProvider";
-import styles from "@/components/dashboard/Dashboard.module.css";
+import styles from "@/components/dashboard/DashboardShell.module.css";
 
 export const DashboardQueueCountContext = createContext<(count: number | null) => void>(() => {});
 
@@ -35,16 +34,20 @@ export function DashboardShell({
 
   return (
     <DashboardQueueCountContext.Provider value={setReviewCount}>
-      <div className={`${styles.dashboard} ${dashboardUiFont.variable} ${dashboardMonoFont.variable}`}>
+      <div
+        className={`${styles.dashboard} ${dashboardUiFont.variable} ${dashboardMonoFont.variable}`}
+        data-dashboard-shell
+      >
         <div className={styles.shell}>
           <aside className={styles.sidebar} aria-label="Dashboard sidebar">
-            <Link href="/dashboard" className={styles.brand} aria-label="SAGIP-AI dashboard home">
+            <Link href="/dashboard" className={styles.brand} aria-label="SAGIP-AI home">
               <span className={styles.brandMark} aria-hidden="true"><ShieldIcon /></span>
               <span className={styles.brandName}>
                 <strong>SAGIP-AI</strong>
                 <span>Ops portal</span>
               </span>
             </Link>
+
             <p className={styles.navHeading}>EOC Navigation</p>
             <nav aria-label="Primary">
               <ul className={styles.navList}>
@@ -73,11 +76,12 @@ export function DashboardShell({
                 </li>
               </ul>
             </nav>
+
             <div className={styles.account}>
               <span className={styles.avatar} aria-hidden="true"><UserIcon /></span>
               <span className={styles.accountName}>
-                <strong>{staff?.fullName ?? staff?.email ?? "Staff account"}</strong>
-                <span>{staff ? `${staff.role} account` : "Authentication"}</span>
+                <strong>{staff?.fullName ?? staff?.email ?? ""}</strong>
+                {staff && <span>{staff.role}</span>}
               </span>
               <button
                 type="button"
@@ -90,11 +94,8 @@ export function DashboardShell({
               </button>
             </div>
           </aside>
+
           <div className={styles.mainColumn}>
-            <DashboardHeader
-              name={staff?.fullName ?? staff?.email ?? "Staff"}
-              role={staff?.role ?? null}
-            />
             <main className={styles.content}>
               {error ? (
                 <p className={styles.authError} role="alert">{error}</p>

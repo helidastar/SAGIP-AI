@@ -1,12 +1,5 @@
-import { IncidentList } from "@/components/dashboard/IncidentList";
-import { DashboardReviewQueuePanel } from "@/components/dashboard/DashboardReviewQueuePanel";
-import styles from "@/components/dashboard/Dashboard.module.css";
+import { RankedDashboard } from "@/components/dashboard/RankedDashboard";
 
 export default function DashboardPage() {
-  return (
-    <div className={styles.pageStack}>
-      <IncidentList />
-      <DashboardReviewQueuePanel />
-    </div>
-  );
+  return <RankedDashboard />;
 }
