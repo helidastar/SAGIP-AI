@@ -7,6 +7,7 @@ import { SectionTitle, Tag } from "@/components/ui/basics";
 import { api } from "@/lib/api-client";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import type { Role } from "@/types/auth";
+import { IncidentDossierShell } from "@/components/dashboard/incident-dossier/IncidentDossier";
 
 export interface StaffUser {
   id: string;
@@ -63,7 +64,11 @@ export function StaffProvider({
 
   return (
     <StaffContext.Provider value={staff}>
-      {portal === "admin" ? (
+      {portal === "dashboard" && pathname.startsWith("/dashboard/incidents") ? (
+        <IncidentDossierShell staff={staff} error={error} onLogout={logout}>
+          {staff ? children : <p className="font-mono text-xs text-muted">Loading...</p>}
+        </IncidentDossierShell>
+      ) : portal === "admin" ? (
         <div className="flex min-h-screen flex-1 flex-col md:flex-row">
           <aside className="flex w-full shrink-0 flex-col border-b border-line bg-background p-4 md:min-h-screen md:w-60 md:border-b-0 md:border-r">
             <Link href="/admin/dashboard" className="mb-5 font-mono text-sm font-bold uppercase tracking-wider">SAGIP-AI</Link>
