@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { createContext, useState, type ReactNode } from "react";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import type { StaffUser } from "@/components/dashboard/StaffProvider";
@@ -31,6 +32,10 @@ export function DashboardShell({
   children: ReactNode;
 }) {
   const [reviewCount, setReviewCount] = useState<number | null>(null);
+  const pathname = usePathname();
+  const isReviewQueue = pathname.startsWith("/dashboard/review");
+  const isRankedList = pathname === "/dashboard" || pathname.startsWith("/dashboard/incidents");
+  const isAnalytics = pathname.startsWith("/dashboard/analytics");
 
   return (
     <DashboardQueueCountContext.Provider value={setReviewCount}>
@@ -52,13 +57,21 @@ export function DashboardShell({
             <nav aria-label="Primary">
               <ul className={styles.navList}>
                 <li>
-                  <Link href="/dashboard" className={`${styles.navLink} ${styles.navLinkActive}`} aria-current="page">
+                  <Link
+                    href="/dashboard"
+                    className={`${styles.navLink} ${isRankedList ? styles.navLinkActive : ""}`}
+                    aria-current={isRankedList ? "page" : undefined}
+                  >
                     <GridIcon />
                     <span>Ranked List</span>
                   </Link>
                 </li>
                 <li>
-                  <Link href="/dashboard/review" className={styles.navLink}>
+                  <Link
+                    href="/dashboard/review"
+                    className={`${styles.navLink} ${isReviewQueue ? styles.navLinkActive : ""}`}
+                    aria-current={isReviewQueue ? "page" : undefined}
+                  >
                     <ReviewIcon />
                     <span>Review Queue</span>
                     {reviewCount !== null && (
@@ -69,7 +82,11 @@ export function DashboardShell({
                   </Link>
                 </li>
                 <li>
-                  <Link href="/dashboard/analytics" className={styles.navLink}>
+                  <Link
+                    href="/dashboard/analytics"
+                    className={`${styles.navLink} ${isAnalytics ? styles.navLinkActive : ""}`}
+                    aria-current={isAnalytics ? "page" : undefined}
+                  >
                     <AnalyticsIcon />
                     <span>Analytics</span>
                   </Link>
