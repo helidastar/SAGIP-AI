@@ -106,8 +106,8 @@ on that run's per-photo answers, with and without `medical_emergency` in the lis
 
 | | Type accuracy | Severity within 1 level | Missed urgent | Medical correct | Non-medical called medical | Gemini calls |
 |---|---|---|---|---|---|---|
-| Local model alone | 92.0% | 68.0% | 13 | 6 / 6 | 0 | 0 |
-| Gemini flash-lite alone | 79.2% | 93.8% | 7 | | | 48 |
+| Local model alone | 92.0% | 68.0% | 13 | 5 / 6 | 0 | 0 |
+| Gemini flash-lite alone | 79.2% | 93.8% | 7 | 3 / 6 | 0 | 48 |
 | Chain, escalation off | 94.0% | 82.0% | 15 | 6 / 6 | 0 | 10 |
 | Chain, escalation on | 88.0% | 82.0% | 15 | 3 / 6 | 0 | 15 |
 
