@@ -687,6 +687,7 @@ function ReviewBanner({
     low_confidence: `Low confidence (${formatPercent(latest?.confidence ?? 0)}; review threshold ${formatPercent(CONFIDENCE_THRESHOLD)})`,
     high_severity: "High severity",
     possible_hoax: "Possible hoax flag",
+    risky_type_severity: "Severity may be under-rated for this incident type",
   })[reason]);
 
   return (
