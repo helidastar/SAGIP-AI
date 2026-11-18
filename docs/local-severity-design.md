@@ -1,6 +1,6 @@
 # Severity from the local model (ISS-016): design
 
-**Status:** design done and app side ready (2026-10-29). Calibration and the urgent cutoff added 2026-11-13 (route chosen by rye). Training waits on the severity labels.
+**Status:** Done (2026-11-18). Design done and app side ready (2026-10-29). Calibration and the urgent cutoff added 2026-11-13 (route chosen by rye). Retrained on 704 severity labels; all three pass marks met on the 50-photo laptop benchmark (see docs/handoffs/ai-benchmarking.md).
 **Owner:** Ricabo · **Checklist:** AI Integration 25 · **Related:** ISS-016, ISS-028, [DOCUMENTATION.md 6.4](DOCUMENTATION.md#64-ai-estimated-vs-confirmed-severity)
 
 ## The problem

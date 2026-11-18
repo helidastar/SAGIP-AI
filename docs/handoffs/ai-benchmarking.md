@@ -119,7 +119,7 @@ so `AI_LOCAL_ESCALATE_TYPES` stays empty. The retrained model already fixed the 
 **New finding (before the defense):** the chain misses 15 urgent photos against 13 for the local model alone. Two
 structural damage photos went to Gemini for a second opinion, and Gemini rated them low or moderate with high confidence.
 Since every report goes to a person first (review-first, PR #39), these are not lost, but they are not flagged "check first".
-The severity head retrain (ISS-016, AI 25) is the planned fix.
+The severity head retrain (ISS-016, AI 25) is done and passes all three marks (2026-11-18). Official laptop run 15-49-07-081Z (dev with the urgent cutoff, Colab model 20261118-145441): type 88% (pass ≥86%), missed urgent 2 (pass ≤3), severity exact 54%, review-first flag rate 72% (trade-off). Keyword baseline (old Nov 13 model) run 2026-11-18T17-13-16-076Z: severity exact 16%, missed urgent 13, so the severity head beats keywords. Still missed: structural_damage/05_01_0093.jpg and fallen_debris/rf_MBOF5PiYbpJflWoHGBjw.jpg, both labelled high and rated moderate. Limits: 50 photos (one photo = 2 points); severity labels are Gemini drafts, not yet fully team-checked.
 
 ---
 
