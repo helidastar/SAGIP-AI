@@ -634,6 +634,22 @@ Method: `npm run benchmark -- --models local --dataset benchmark/dataset/own --y
 |---|---|---|---|---|
 | 50.6% (39 of 77) | 86% | not measured (placeholder labels) | not measured | 74 / 74 |
 
-Result: type accuracy is 50.6%, below the 86% mark. This is much lower than the 88% on the 50-photo benchmark. Severity numbers from this run are placeholders and are not a result. The 100% review rate and 0 missed urgent are not meaningful for the same reason.
+Result: type accuracy is 50.6%, below the 86% mark. This is much lower than the 88% on the 50-photo benchmark. Severity exact, within one level and missed urgent compare against placeholder labels, so they are not a result.
+
+| Type | Correct | Most common wrong answer |
+|---|---|---|
+| structural_damage | 14 of 18 | landslide (2) |
+| fallen_debris | 4 of 5 | structural_damage (1) |
+| road_accident | 7 of 14 | structural_damage (5) |
+| other | 4 of 8 | medical_emergency (2), structural_damage (2) |
+| flood | 5 of 15 | medical_emergency (6), structural_damage (3) |
+| medical_emergency | 5 of 17 | road_accident (5), other (3), fire (2) |
+
+What this means for the app (these numbers come from the model's own answers, not from the labels, so they are valid):
+- Confidence is weak on these photos: 0.60 on average when right and 0.58 when wrong. Only 22 of 77 answers reached 0.70; 12 of those were right and 10 were wrong (for example 5 flood photos called medical_emergency at 0.76 to 0.97, likely rescue scenes with people).
+- 55 of 77 answers are below 0.70, so in the app they would get a Gemini second opinion (`src/lib/ai/chain.ts`). That chain was not run here; a chain run would spend 55 free-tier Gemini calls.
+- The model rated 61 of 77 photos high or critical, so every photo (review rate 100%) would be flagged check first. Every report still goes to a person (review-first), so a wrong type is corrected by staff, never dispatched.
+
+Defense wording: "On 50 held-out benchmark photos the model gets 88% of types right; on 77 real Philippine Facebook and news photos it gets 51%. Real phone photos are harder, which is why the AI only drafts the type and a responder confirms every report."
 
 Limits: 77 photos from mixed online sources. Some types have only 5 to 8 photos, so their per-type numbers are rough. Labels come from folder names, which may be wrong for some photos. This test does not change the 50-photo benchmark result, and it does not count as AI 5 (own photos), which stays open.
