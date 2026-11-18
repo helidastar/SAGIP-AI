@@ -48,7 +48,7 @@ export function StaffProvider({
       else if (!res.ok) setError(res.error);
       else setStaff(res.data);
     });
-  }, [initialStaff]);
+  }, [initialStaff, pathname, router]);
 
   async function logout() {
     const result = await api("/api/auth/logout", { method: "POST" });
@@ -106,7 +106,10 @@ export function StaffProvider({
             {staff ? children : <p className="font-mono text-xs text-muted">Loading...</p>}
           </main>
         </div>
-      ) : pathname === "/dashboard" ? (
+      ) : pathname === "/dashboard" ||
+        pathname.startsWith("/dashboard/review") ||
+        pathname.startsWith("/dashboard/analytics") ||
+        pathname.startsWith("/dashboard/overview") ? (
         <DashboardShell staff={staff} error={error} onLogout={logout}>
           {children}
         </DashboardShell>
