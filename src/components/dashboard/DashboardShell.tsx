@@ -16,7 +16,6 @@ const dashboardUiFont = Inter({
 
 const dashboardMonoFont = JetBrains_Mono({
   subsets: ["latin"],
-  weight: ["400", "700"],
   variable: "--font-dashboard-mono",
 });
 
