@@ -1,5 +1,10 @@
-import { ReviewQueue } from "@/components/dashboard/ReviewQueue";
+import { Suspense } from "react";
+import { ReviewQueuePage as ReviewQueueFeature } from "@/components/dashboard/review-queue/ReviewQueuePage";
 
 export default function ReviewQueuePage() {
-  return <ReviewQueue />;
+  return (
+    <Suspense>
+      <ReviewQueueFeature />
+    </Suspense>
+  );
 }

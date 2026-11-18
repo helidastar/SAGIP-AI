@@ -11,7 +11,7 @@ import {
 import { api } from "@/lib/api-client";
 import { WORKFLOW } from "@/lib/workflow";
 import { DashboardQueueCountContext } from "@/components/dashboard/DashboardShell";
-import { useStaff } from "@/components/dashboard/StaffProvider";
+import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar";
 import type { Severity } from "@/types";
 import styles from "@/components/dashboard/RankedDashboard.module.css";
 
@@ -84,7 +84,6 @@ const EMPTY_ITEMS: DashboardIncident[] = [];
 const EMPTY_FEATURES: MapFeature[] = [];
 
 export function RankedDashboard() {
-  const staff = useStaff();
   const setReviewCount = useContext(DashboardQueueCountContext);
   const [reload, setReload] = useState(0);
   const [mapRetry, setMapRetry] = useState(0);
@@ -92,7 +91,7 @@ export function RankedDashboard() {
   const [mapLoadState, setMapLoadState] = useState<MapLoadState>({ key: "0:0", status: "loading" });
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [previewState, setPreviewState] = useState<PreviewState | null>(null);
-  const [lastUpdated, setLastUpdated] = useState("");
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [now, setNow] = useState<number | null>(null);
   const [isDossierOpen, setIsDossierOpen] = useState(true);
 
@@ -176,7 +175,7 @@ export function RankedDashboard() {
       setLoadState({ key: reload, status: "ready", data });
       setReviewCount(data.reviewCount);
       setReviewError(reviewResult.ok ? null : reviewResult.error ?? "Could not load the review count.");
-      setLastUpdated(formatDate(new Date().toISOString()));
+      setLastUpdated(new Date().toISOString());
     }
 
     void load();
@@ -258,29 +257,10 @@ export function RankedDashboard() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.topBar}>
-        <div className={styles.updatedAt}>
-          <ClockIcon />
-          <span>
-            Last updated:{" "}
-            <time suppressHydrationWarning>{lastUpdated || "Synchronizing"}</time>
-          </span>
-        </div>
-        <div className={styles.topActions}>
-          <button
-            type="button"
-            className={styles.refreshButton}
-            onClick={() => window.dispatchEvent(new Event("sagip-dashboard-refresh"))}
-            aria-label="Refresh dashboard"
-            title="Refresh dashboard"
-          >
-            <RefreshIcon />
-          </button>
-          <span className={styles.headerAvatar} role="img" aria-label={staff?.fullName ?? staff?.email ?? "Staff"}>
-            <UserIcon />
-          </span>
-        </div>
-      </header>
+      <DashboardTopBar
+        lastUpdated={lastUpdated}
+        onRefresh={() => window.dispatchEvent(new Event("sagip-dashboard-refresh"))}
+      />
 
       <div className={styles.pageHeader}>
         <div>
@@ -1144,31 +1124,6 @@ function ResetIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
       <path d="M4.5 7.5A8 8 0 1 1 4 14m.5-6.5V3m0 4.5H9" />
-    </svg>
-  );
-}
-
-function ClockIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3 2" />
-    </svg>
-  );
-}
-
-function RefreshIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-      <path d="M20 11a8 8 0 0 0-14.5-4L4 9m0-4v4h4m-4 4a8 8 0 0 0 14.5 4L20 15m0 4v-4h-4" />
-    </svg>
-  );
-}
-
-function UserIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-      <circle cx="12" cy="8" r="3.2" /><path d="M5.5 19c.8-3.1 3-4.7 6.5-4.7s5.7 1.6 6.5 4.7" />
     </svg>
   );
 }
