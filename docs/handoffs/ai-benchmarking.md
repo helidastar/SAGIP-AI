@@ -623,3 +623,17 @@ flowchart LR
 
 ### Open issues
 ```
+
+## 2026-11-18 result: 77 Facebook and news photos (test only, not training)
+
+This is a separate test from the 50-photo benchmark. The photos were collected by one team member from Facebook and news, not taken by the team on their own phones. They are used for testing only, never for training, and are not to be posted anywhere.
+
+Method: `npm run benchmark -- --models local --dataset benchmark/dataset/own --yes` on the laptop, frozen model (Colab run 20261118-145441, dev with the urgent cutoff). Run folder `benchmark\results\2026-11-18T18-28-34-056Z`. Photos per type: medical_emergency 17, structural_damage 18, flood 15, road_accident 14, other 8, fallen_debris 5. Left out: 9 HEIC files (the benchmark cannot read them), and 9 photos that sat in two type folders. None of the 77 photos is in the training set (checked on the laptop by file match and visual fingerprint).
+
+| Type accuracy | Pass mark | Severity | Missed urgent | Mean / p95 ms |
+|---|---|---|---|---|
+| 50.6% (39 of 77) | 86% | not measured (placeholder labels) | not measured | 74 / 74 |
+
+Result: type accuracy is 50.6%, below the 86% mark. This is much lower than the 88% on the 50-photo benchmark. Severity numbers from this run are placeholders and are not a result. The 100% review rate and 0 missed urgent are not meaningful for the same reason.
+
+Limits: 77 photos from mixed online sources. Some types have only 5 to 8 photos, so their per-type numbers are rough. Labels come from folder names, which may be wrong for some photos. This test does not change the 50-photo benchmark result, and it does not count as AI 5 (own photos), which stays open.
