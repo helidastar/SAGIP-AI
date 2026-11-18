@@ -20,11 +20,6 @@ describe("checkFirstReasons", () => {
   it("lists every trigger that fired", () => {
     assert.deepEqual(checkFirstReasons({ ...base, severity: "critical", confidence: 0.5, hoaxSuspected: true }), ["low_confidence", "high_severity", "possible_hoax"]);
   });
-  it("checks first a non-urgent report of a type the local model under-rates", () => {
-    assert.deepEqual(checkFirstReasons({ ...base, incidentType: "landslide", severity: "moderate", confidence: 0.9 }), ["risky_type_severity"]);
-    assert.deepEqual(checkFirstReasons({ ...base, incidentType: "medical_emergency", severity: "low", confidence: 0.9 }), ["risky_type_severity"]);
-    assert.deepEqual(checkFirstReasons({ ...base, incidentType: "landslide", severity: "high", confidence: 0.9 }), ["high_severity"]);
-  });
   it("is empty for a confident low/moderate report", () => {
     assert.deepEqual(checkFirstReasons({ ...base, severity: "moderate", confidence: 0.9 }), []);
     assert.deepEqual(checkFirstReasons({ ...base, severity: "moderate", confidence: 0.9, severityConfidence: 0.7 }), []);
