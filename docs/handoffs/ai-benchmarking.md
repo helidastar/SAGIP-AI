@@ -95,6 +95,32 @@ but its precision is not measured. On the laptop with the current model files:
 2. Then with `AI_LOCAL_ESCALATE_TYPES=medical_emergency` in `.env.local`, run the chain benchmark (`--models local,gemini:gemini-3.1-flash-lite`) and compare type accuracy and missed urgent.
 3. Pass mark: turn it on only if type accuracy does not drop and medical false positives go down. Cost: each medical guess spends one Gemini free-tier request (15 per minute).
 
+### 2026-11-18 result: medical escalation stays off (AI 24, ISS-015)
+
+**Method:** one baseline run on Ricabo's laptop, `npm run benchmark -- --models local,gemini:gemini-3.1-flash-lite --concurrency 1 --yes`
+(run `benchmark/results/2026-11-18T13-33-30-705Z`, 50 held-out photos, Nov 13 model, 50 Gemini calls of which 2 failed).
+`scripts/benchmark.ts` scores each model on its own and has no chain mode, so a second run with
+`AI_LOCAL_ESCALATE_TYPES` set would give the same numbers. Instead, the decision rule in `src/lib/ai/chain.ts`
+(local first; Gemini second opinion below 0.70 confidence or, when escalation is on, for a listed type) was replayed
+on that run's per-photo answers, with and without `medical_emergency` in the list.
+
+| | Type accuracy | Severity within 1 level | Missed urgent | Medical correct | Non-medical called medical | Gemini calls |
+|---|---|---|---|---|---|---|
+| Local model alone | 92.0% | 68.0% | 13 | 6 / 6 | 0 | 0 |
+| Gemini flash-lite alone | 79.2% | 93.8% | 7 | | | 48 |
+| Chain, escalation off | 94.0% | 82.0% | 15 | 6 / 6 | 0 | 10 |
+| Chain, escalation on | 88.0% | 82.0% | 15 | 3 / 6 | 0 | 15 |
+
+(Local alone score 88.4, Gemini alone score 60.8.)
+
+**Decision:** fails the pass mark. Type accuracy drops 6 points and there are no medical false positives left to remove,
+so `AI_LOCAL_ESCALATE_TYPES` stays empty. The retrained model already fixed the over-prediction: ISS-015 is resolved by the retrain.
+
+**New finding (before the defense):** the chain misses 15 urgent photos against 13 for the local model alone. Two
+structural damage photos went to Gemini for a second opinion, and Gemini rated them low or moderate with high confidence.
+Since every report goes to a person first (review-first, PR #39), these are not lost, but they are not flagged "check first".
+The severity head retrain (ISS-016, AI 25) is the planned fix.
+
 ---
 
 ## 2026-11-13 — Gemini cost per report (AI 6, ISS-007)
@@ -113,7 +139,8 @@ but its precision is not measured. On the laptop with the current model files:
 - **Per report with the local model as primary:** Gemini is only called when the local model fails or is below 0.70 confidence. In the 2026-10-25 what-if, 26 of 50 photos would have gone to Gemini, so about **$0.0002 per report** on average. This is an estimate from the old model; the 2026-11-13 model's escalation rate is not measured yet.
 - **Free-tier limits that matter more than money:** 15 requests per minute on `gemini-3.1-flash-lite`, 5 on `gemini-3.6-flash` / `gemini-3.8-flash` (measured 2026-09-15, limits are per model and per key). Token use was under 1% of the 250K tokens-per-minute limit. The requests-per-day limit is not recorded in this repo; read it from Google AI Studio before the defense. When the quota runs out the chain moves on to the keyword matcher and human review.
 - **Daily budget cap counts Gemini only for priced models:** `isOverDailyBudget` (`src/lib/ai/chain.ts`) sums `classifications.cost_usd` since midnight Manila time. `estimateCost` returns null for a model with no entry in `PRICES`, and a null row is not counted. So the cap counts `gemini-3.1-flash-lite` and `gemini-3.6-flash`, but **not** `gemini-3.1-flash` (no "-lite"), which is what Ricabo's `.env.local` had as `AI_FALLBACK_MODEL` on 2026-11-13. With that setting every fallback call saved `cost_usd = null` and the cap ignored it. Fix: set `AI_FALLBACK_MODEL=gemini-3.1-flash-lite` (the benchmarked model, as in `.env.example`) in `.env.local` and in Vercel. Since 2026-11-13 `estimateCost` logs a warning once per unpriced model, and `tests/chain.test.ts` checks that the configured models have a price. `npm test` 153/153 pass. A cap of `AI_DAILY_BUDGET_USD=0.10` would allow about 250 Gemini photo calls a day.
-- **Still to check (closes ISS-007):** one real Gemini-classified row has a non-null `cost_usd` in the database. After fixing `AI_FALLBACK_MODEL`, run `npm run check-live-classification` after a report is classified by Gemini; expected about 0.0004, pass mark: not null and between 0.0001 and 0.002.
+- **Live check, 2026-11-18 (closes ISS-007):** passed. `AI_FALLBACK_MODEL` on Ricabo's laptop changed from `gemini-3.1-flash` (unpriced) to `gemini-3.1-flash-lite`. The first `npm run check-live-classification` failed with "column classifications.severity_confidence does not exist": migration `0007_severity_confidence.sql` had never been applied to the live database, so every classification insert had failed since 2026-10-26 (the error is only logged, so reports were saved without an AI row). Ricabo applied 0007 in the Supabase SQL editor on 2026-11-18. One Cebu City test report (tracking `SGP-VBDT2T`, description "AI 6 test report, please ignore") was then classified with Gemini as primary (set in the shell only). Result: model `primary:gemini-3.1-flash-lite`, `cost_usd` **0.0004265**, `severity_confidence` **0.8**. Both pass marks met (cost non-null and about $0.0004; severity confidence non-null).
+- **Still to do:** set `AI_FALLBACK_MODEL=gemini-3.1-flash-lite` in Vercel too (current Vercel value unknown), and delete test report `SGP-VBDT2T` before the demo.
 
 ---
 
