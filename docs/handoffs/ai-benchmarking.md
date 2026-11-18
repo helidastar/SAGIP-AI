@@ -95,6 +95,32 @@ but its precision is not measured. On the laptop with the current model files:
 2. Then with `AI_LOCAL_ESCALATE_TYPES=medical_emergency` in `.env.local`, run the chain benchmark (`--models local,gemini:gemini-3.1-flash-lite`) and compare type accuracy and missed urgent.
 3. Pass mark: turn it on only if type accuracy does not drop and medical false positives go down. Cost: each medical guess spends one Gemini free-tier request (15 per minute).
 
+### 2026-11-18 result: medical escalation stays off (AI 24, ISS-015)
+
+**Method:** one baseline run on Ricabo's laptop, `npm run benchmark -- --models local,gemini:gemini-3.1-flash-lite --concurrency 1 --yes`
+(run `benchmark/results/2026-11-18T13-33-30-705Z`, 50 held-out photos, Nov 13 model, 50 Gemini calls of which 2 failed).
+`scripts/benchmark.ts` scores each model on its own and has no chain mode, so a second run with
+`AI_LOCAL_ESCALATE_TYPES` set would give the same numbers. Instead, the decision rule in `src/lib/ai/chain.ts`
+(local first; Gemini second opinion below 0.70 confidence or, when escalation is on, for a listed type) was replayed
+on that run's per-photo answers, with and without `medical_emergency` in the list.
+
+| | Type accuracy | Severity within 1 level | Missed urgent | Medical correct | Non-medical called medical | Gemini calls |
+|---|---|---|---|---|---|---|
+| Local model alone | 92.0% | 68.0% | 13 | 6 / 6 | 0 | 0 |
+| Gemini flash-lite alone | 79.2% | 93.8% | 7 | | | 48 |
+| Chain, escalation off | 94.0% | 82.0% | 15 | 6 / 6 | 0 | 10 |
+| Chain, escalation on | 88.0% | 82.0% | 15 | 3 / 6 | 0 | 15 |
+
+(Local alone score 88.4, Gemini alone score 60.8.)
+
+**Decision:** fails the pass mark. Type accuracy drops 6 points and there are no medical false positives left to remove,
+so `AI_LOCAL_ESCALATE_TYPES` stays empty. The retrained model already fixed the over-prediction: ISS-015 is resolved by the retrain.
+
+**New finding (before the defense):** the chain misses 15 urgent photos against 13 for the local model alone. Two
+structural damage photos went to Gemini for a second opinion, and Gemini rated them low or moderate with high confidence.
+Since every report goes to a person first (review-first, PR #39), these are not lost, but they are not flagged "check first".
+The severity head retrain (ISS-016, AI 25) is the planned fix.
+
 ---
 
 ## 2026-11-13 — Gemini cost per report (AI 6, ISS-007)
