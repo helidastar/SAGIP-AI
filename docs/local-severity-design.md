@@ -60,8 +60,21 @@ It cannot see the photo, so it cannot fix the ISS-028 misses where the words are
    calibrates on the validation photos, and exports both outputs.
 3. **Train and benchmark.** Pass marks, measured with `npm run benchmark` on the 50 photos:
    - severity exact match better than keyword severity on the same run, and
-   - missed urgent ≤ 3 (now 7), with type accuracy staying ≥ 86%.
+   - missed urgent ≤ 3 (7 on 2026-10-25, 13 with keyword severity on 2026-11-18), with type accuracy staying ≥ 86%.
    If either mark fails, keep keyword severity and say so in the defense.
+
+   **Result (2026-11-18): all three marks pass.** Same 50 photos, same laptop, dev `c689c98`, `npm run benchmark -- --models local --yes`:
+
+   | | Keyword severity (Nov 13 model) | Severity head (Nov 18 model) | Pass mark |
+   |---|---|---|---|
+   | Severity exact | 16.0% | 54.0% | must be higher: pass |
+   | Missed urgent | 13 | 2 | ≤ 3: pass |
+   | Type accuracy | 92.0% | 88.0% | ≥ 86%: pass |
+   | Severity within 1 level | 68.0% | 90.0% | |
+   | Flagged "check first" | 42% | 72% | |
+
+   Runs (git-ignored): `benchmark/results/2026-11-18T17-13-16-076Z` (keyword) and `benchmark/results/2026-11-18T15-49-07-081Z` (head).
+   Trade-off to state: type accuracy drops 4 points (2 photos) and more reports are flagged check first, in exchange for 11 fewer missed urgent photos.
 
 ## Limits to state in the defense
 - Severity from a photo alone is a judgment call: on the benchmark, our 3 labelers gave 3 different answers on 7 of 50 photos.

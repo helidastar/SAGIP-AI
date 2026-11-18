@@ -17,7 +17,7 @@ Add a new dated entry at the top for each session. Keep old entries — they sho
 | Labeled benchmark dataset | 50 photos in `benchmark/dataset/` (all 8 types), severity labeled by 3 team members per photo. First local vs Gemini run on 2026-10-25 (see below) |
 | Cost tracking for Gemini 3.x | Prices added 2026-10-29 in `src/lib/ai/normalize.ts` (paid-tier list prices; the free tier bills $0). Unit-tested. About $0.0004 per Gemini photo call at paid prices, $0 billed on the free tier (see 2026-11-13). Not yet checked on a real `cost_usd` row |
 | Team constraint | **Free only.** No paid APIs, no billing accounts. Free tiers that reset daily, for development and the final demo (Nov 2026) |
-| Own model (`local` provider) | **Retrained 2026-10-25** (EfficientNet-B2, 8 types, 10,456 photos): **88% type accuracy (44/50)** on the benchmark vs 79.6% for Gemini, about 70 ms per photo, free. First run (2026-09-23) was 52%. Now the primary |
+| Own model (`local` provider) | **Retrained 2026-11-18** (EfficientNet-B2, 8 types plus a severity head, 10,954 photos, 704 severity labels, Colab run `20261118-145441`): on the 50-photo benchmark **88% type accuracy, 54% severity exact, 2 missed urgent** (keyword severity: 16% and 13), 137 ms mean per photo on Ricabo's laptop, free. Earlier: 52% (2026-09-23), 88% type only (2026-10-25). Now the primary |
 
 ### How a report was classified until 2026-10-25 (Gemini primary)
 
