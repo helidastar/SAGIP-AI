@@ -5,7 +5,7 @@
 ## Plan for 2026-11-18: test only, no retrain
 
 - The model is frozen: today's result (laptop run 15-49-07-081Z, type 88%, missed urgent 2, severity exact 54%) is not changed. The photos are used to test it, not to train it. They never go into `training/raw/` or any training zip.
-- Target: 5 photos for each of 6 types (medical_emergency, fallen_debris, road_accident, flood, structural_damage, other), 30 in total, about 8 per member: Ricabo 8, Jayno 8, Hamo-ay 7, Fabroa 7. Fire and landslide are skipped.
+- Target: 2 photos for each of 6 types (medical_emergency, fallen_debris, road_accident, flood, structural_damage, other), 12 in total, all taken by Ricabo alone. Fire and landslide are skipped.
 - Same rules as below: safety first, no faces, no plate numbers, normal phone photos, nothing from the benchmark sources.
 - Upload to the team Drive in `sagip/own-photos/<type>/`, named `<type>_<member>_<nn>.jpg`, for example `road_accident_ricabo_01.jpg`.
 - Log the count per type and per member in the tracker under AI Integration 5.
