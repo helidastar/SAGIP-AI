@@ -1,16 +1,20 @@
 # Collecting our own photos: shot list and rules
 
-**Owner:** Ricabo, with Jayno, Hamo-ay and Fabroa · **Checklist:** AI Integration 5 · **Status:** guide ready (2026-10-29), target reduced 2026-11-05. Photos not taken yet. **Scope changed 2026-11-18 to test only (option A, rye's choice; adviser to agree).**
+**Owner:** Ricabo, with Jayno, Hamo-ay and Fabroa · **Checklist:** AI Integration 5 · **Status:** guide ready (2026-10-29), target reduced 2026-11-05. Photos not taken yet. **Done 2026-11-20 with a changed scope: test on real Philippine photos, no retrain (team decision, rye). Own-photo collection and retraining moved to after the defense.**
 
-## Plan for 2026-11-18: test only, no retrain
+## Outcome (2026-11-20): what AI 5 became, and why
 
-- The model is frozen: today's result (laptop run 15-49-07-081Z, type 88%, missed urgent 2, severity exact 54%) is not changed. The photos are used to test it, not to train it. They never go into `training/raw/` or any training zip.
-- Target: 2 photos for each of 6 types (medical_emergency, fallen_debris, road_accident, flood, structural_damage, other), 12 in total, all taken by Ricabo alone. Fire and landslide are skipped.
-- Same rules as below: safety first, no faces, no plate numbers, normal phone photos, nothing from the benchmark sources.
-- Upload to the team Drive in `sagip/own-photos/<type>/`, named `<type>_<member>_<nn>.jpg`, for example `road_accident_ricabo_01.jpg`.
-- Log the count per type and per member in the tracker under AI Integration 5.
-- When all photos are in: run the benchmark on this folder only, with the frozen model, and record the type accuracy and missed urgent counts in `docs/handoffs/ai-benchmarking.md`. Write the result as "measured on N own Philippine phone photos" in the defense.
-- Adviser must agree that this is a test, not training, before the team starts shooting.
+**Decision.** AI 5 was "collect our own ground-level photos and retrain". On 2026-11-18 the team changed it to "test the frozen model on real Philippine photos", and on 2026-11-20 closed it with that scope (decided by rye; no adviser sign-off was requested).
+
+**Why.** The Nov 18 model had just passed all three AI 25 marks. Retraining 3 to 4 days before the 24 November defense could produce a model that fails a mark with no time to fix it. The question the panel is most likely to ask is not "did you retrain" but "how does it do on real local photos", and a test answers that.
+
+**What was done.** No team-taken photos were collected. Instead Ricabo collected real Philippine incident photos from Facebook and news. 77 were used (`benchmark/dataset/own/`, git-ignored; mapping to the original files in `mapping.csv`). They are for testing only: never used for training, never published, source stated. None is in the training set (checked by file match and image fingerprint against 10,540 training and benchmark photos). Type labels are the folder each photo was filed in, by one person; severity was not labeled.
+
+**Result** (details in `docs/handoffs/ai-benchmarking.md`): type correct, local model 39/77 (51%), Gemini alone 59/76 (78%), local model with Gemini second opinion as the app runs 55/77 (71%), against 88% for the local model on the 50-photo benchmark. Recorded as risk R-019.
+
+**How to say it in the defense.** "We did not retrain on our own photos before the defense. We tested the final model on 77 real Philippine incident photos from Facebook and news, used for testing only: 51% with the local model alone, 71% as the app runs with Gemini as a second opinion. That gap is why every report is confirmed by a responder. Retraining with our own phone photos is our first step after the defense."
+
+**Not done (stated as a limit):** photos taken by the team; retraining on real local photos; severity accuracy on real photos.
 
 The sections below are the original training plan, kept for reference. They are not in scope this round.
 
