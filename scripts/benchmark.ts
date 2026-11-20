@@ -120,8 +120,10 @@ function makeClassifier(spec: string): Classifier {
   const model = rest.join(":") || undefined;
   const envKey = (name: string) => process.env[name] || (process.env.AI_PROVIDER === provider ? process.env.AI_API_KEY : undefined);
   if (provider === "gemini") {
-    const key = envKey("GEMINI_API_KEY");
-    if (!key) throw new Error("Set GEMINI_API_KEY to benchmark Gemini");
+    // Also accept the backup-slot key the app uses (AI_FALLBACK_API_KEY) when it is set for Gemini.
+    const fallbackGeminiKey = process.env.AI_FALLBACK_PROVIDER === "gemini" ? process.env.AI_FALLBACK_API_KEY : undefined;
+    const key = envKey("GEMINI_API_KEY") || fallbackGeminiKey;
+    if (!key) throw new Error("Set GEMINI_API_KEY (or AI_FALLBACK_API_KEY with AI_FALLBACK_PROVIDER=gemini) to benchmark Gemini");
     return createGeminiClassifier(key, model);
   }
   // Our own ONNX model: free, no key. The "model" part is the .onnx path (default models/sagip-classifier.onnx).
