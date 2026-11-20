@@ -41,13 +41,14 @@
  * Paths in the CSV always use forward slashes, because training reads them on Linux (Colab).
  * Rows written with Windows backslashes by an older run are rewritten on the next real run.
  *
- * API key: GEMINI_API_KEY (same as scripts/benchmark.ts).
+ * API key: GEMINI_API_KEY, or the Gemini key already in .env.local (same lookup as scripts/benchmark.ts).
  */
 import { mkdir, readdir, readFile, writeFile, appendFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { isTransientError } from "@/lib/ai/errors";
 import { createGeminiClassifier } from "@/lib/ai/gemini";
+import { providerKey } from "@/lib/ai/provider-key";
 import { SEVERITY } from "@/lib/constants";
 
 const REQUEST_TIMEOUT_MS = 90_000; // the benchmark's slowest calls took about 45 s
@@ -152,9 +153,9 @@ async function main() {
     console.error("Pass --yes to make real Gemini calls (this costs free-tier quota / a small amount if billed).");
     process.exit(1);
   }
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = providerKey("gemini", "GEMINI_API_KEY");
   if (!apiKey) {
-    console.error("Set GEMINI_API_KEY.");
+    console.error("No Gemini key: set GEMINI_API_KEY, or AI_FALLBACK_API_KEY with AI_FALLBACK_PROVIDER=gemini.");
     process.exit(1);
   }
 
