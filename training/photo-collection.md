@@ -1,6 +1,18 @@
 # Collecting our own photos: shot list and rules
 
-**Owner:** Ricabo, with Jayno, Hamo-ay and Fabroa · **Checklist:** AI Integration 5 · **Status:** guide ready (2026-10-29), target reduced 2026-11-05. Photos not taken yet.
+**Owner:** Ricabo, with Jayno, Hamo-ay and Fabroa · **Checklist:** AI Integration 5 · **Status:** guide ready (2026-10-29), target reduced 2026-11-05. Photos not taken yet. **Scope changed 2026-11-18 to test only (option A, rye's choice; adviser to agree).**
+
+## Plan for 2026-11-18: test only, no retrain
+
+- The model is frozen: today's result (laptop run 15-49-07-081Z, type 88%, missed urgent 2, severity exact 54%) is not changed. The photos are used to test it, not to train it. They never go into `training/raw/` or any training zip.
+- Target: 2 photos for each of 6 types (medical_emergency, fallen_debris, road_accident, flood, structural_damage, other), 12 in total, all taken by Ricabo alone. Fire and landslide are skipped.
+- Same rules as below: safety first, no faces, no plate numbers, normal phone photos, nothing from the benchmark sources.
+- Upload to the team Drive in `sagip/own-photos/<type>/`, named `<type>_<member>_<nn>.jpg`, for example `road_accident_ricabo_01.jpg`.
+- Log the count per type and per member in the tracker under AI Integration 5.
+- When all photos are in: run the benchmark on this folder only, with the frozen model, and record the type accuracy and missed urgent counts in `docs/handoffs/ai-benchmarking.md`. Write the result as "measured on N own Philippine phone photos" in the defense.
+- Adviser must agree that this is a test, not training, before the team starts shooting.
+
+The sections below are the original training plan, kept for reference. They are not in scope this round.
 
 Public datasets cover all 8 types now, but they are weak on Philippine street scenes and on
 `medical_emergency` and `fallen_debris` (see [README.md "Gaps to fill yourselves"](README.md#gaps-to-fill-yourselves)).
