@@ -1,9 +1,13 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button, CameraIcon, ErrorText, Hint, inputClass, Panel, PinIcon } from "@/components/ui/basics";
 import { api } from "@/lib/api-client";
+
+// Leaflet needs the browser, so the map is loaded only on the client.
+const PinMap = dynamic(() => import("./PinMap").then((m) => m.PinMap), { ssr: false });
 
 export function ReportForm() {
   const router = useRouter();
@@ -108,6 +112,10 @@ export function ReportForm() {
           <p className="text-center font-mono text-[10px] text-muted">
             {located ? "using your current location" : "sample location; tap “use my location”"}
           </p>
+          {Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)) && (
+            <PinMap lat={Number(lat)} lng={Number(lng)} onMove={(la, ln) => { setLat(String(la)); setLng(String(ln)); }} />
+          )}
+          <p className="text-center font-mono text-[10px] text-muted">Drag the pin or tap the map to set the incident location.</p>
           {editingPin && (
             <div className="grid grid-cols-2 gap-2">
               <input value={lat} onChange={(e) => setLat(e.target.value)} inputMode="decimal" required aria-label="Latitude" className={inputClass} />
