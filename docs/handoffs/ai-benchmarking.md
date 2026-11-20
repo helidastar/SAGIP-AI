@@ -682,4 +682,4 @@ What it shows:
 
 Defense wording: "On 77 real Philippine Facebook and news photos, our local model alone gets 51% of types right; with Gemini as a second opinion on unsure answers, as the app runs, it gets 71%. Every report is still confirmed by a responder."
 
-Limits: 77 photos from mixed online sources. Some types have only 5 to 8 photos, so their per-type numbers are rough. Labels come from folder names, which may be wrong for some photos. This test does not change the 50-photo benchmark result, and it does not count as AI 5 (own photos), which stays open.
+Limits: 77 photos from mixed online sources. Some types have only 5 to 8 photos, so their per-type numbers are rough. Labels come from folder names, which may be wrong for some photos. This test does not change the 50-photo benchmark result. It closes AI 5 with a changed scope (test on real photos instead of collecting own photos and retraining; see `training/photo-collection.md`). No photos taken by the team were used.
