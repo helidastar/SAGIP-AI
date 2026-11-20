@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
+import { shrinkPhoto } from "@/lib/client/shrink-photo";
 import { saveReport } from "@/lib/citizen/saved-reports";
 import { shrinkPhoto } from "@/lib/citizen/shrink-photo";
 import { CameraIcon, PinIcon } from "./icons";
@@ -37,6 +38,10 @@ export function ReportForm() {
   function choosePhoto(file: File | null) {
     setPhoto(file);
     setPreview(file ? URL.createObjectURL(file) : null);
+    if (file) {
+      // Shrink large phone photos so the upload stays under Vercel's 4.5 MB request limit (ISS-030).
+      void shrinkPhoto(file).then((small) => setPhoto((current) => (current === file ? small : current)));
+    }
   }
 
   function locate() {
