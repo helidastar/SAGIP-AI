@@ -7,7 +7,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // Background classification (retry + fallback provider) can take up to ~60s.
 export const maxDuration = 90;
 
-const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+// Under Vercel's 4.5 MB request body limit (ISS-030). The report form shrinks photos before upload.
+const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
 
 const rateLimit = createRateLimiter({
   limit: Number(process.env.REPORT_RATE_LIMIT ?? 5),
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "photo must be a file" }, { status: 400 });
   }
   if (photo && (!photo.type.startsWith("image/") || photo.size > MAX_PHOTO_BYTES)) {
-    return Response.json({ error: "photo must be an image under 10MB" }, { status: 400 });
+    return Response.json({ error: "photo must be an image under 4 MB" }, { status: 400 });
   }
   if (!description && !photo) {
     return Response.json({ error: "Provide a photo or a description" }, { status: 400 });

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
 import { saveReport } from "@/lib/citizen/saved-reports";
+import { shrinkPhoto } from "@/lib/citizen/shrink-photo";
 import { CameraIcon, PinIcon } from "./icons";
 import { btnPrimary, btnSecondary, Card, inputCls, PageTitle } from "./ui";
 
@@ -68,7 +69,8 @@ export function ReportForm() {
     form.append("description", description);
     form.append("lat", coords.lat);
     form.append("lng", coords.lng);
-    if (photo) form.append("photo", photo);
+    // Shrink on the phone first: Vercel rejects uploads over 4.5 MB (ISS-030).
+    if (photo) form.append("photo", await shrinkPhoto(photo));
 
     const res = await api<{ trackingCode: string }>("/api/reports", { method: "POST", body: form });
     if (!res.ok) {
