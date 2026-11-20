@@ -688,6 +688,7 @@ Limits: 77 photos from mixed online sources. Some types have only 5 to 8 photos,
 
 | Test | Photos | Type correct | Source |
 |---|---|---|---|
+| Colab test set (held out from the same public datasets used for training) | 1,644 | 90.7% | `metrics.json`, Colab run 20261118-145441 |
 | 50-photo benchmark (team-labelled) | 50 | 88% | run 15-49-07-081Z (2026-11-18) |
 | 77 real Philippine Facebook and news photos, local model alone | 77 | 51% (39 of 77) | 2026-11-18T18-28-34-056Z |
 | Same 77, chain as the app runs (local, Gemini when under 0.70) | 77 | 71% (55 of 77) | 2026-11-20 runs |
@@ -698,3 +699,15 @@ What the 51% means: the local model answered each of the 77 photos with its own 
 Not measured on real photos: whether urgent reports were caught. The 77 photos have placeholder severity labels. "61 of 77 rated high or critical" is only the model's output, not a check against the truth.
 
 Defense wording: "The local model gets 88% of types right on our 50-photo benchmark. On 77 real Philippine Facebook and news photos it gets 51% on its own, and 71% with the Gemini second opinion the app uses. Real phone photos are harder than our test set, which is why the AI only drafts the type and a responder confirms every report. Training on real local photos is our next step after the defense."
+
+Is the local model accurate? On photos like the ones it learned from, yes: 91% on the test set and 88% on the benchmark, above the 86% pass mark. On real Philippine phone photos, on its own, no: about half right. Both are true; they measure different things.
+
+Why it drops on real photos: the training photos come from public datasets (often aerial, clean, foreign scenes). Real Facebook and news photos are messy and local, often show people (flood rescues read as medical), and mix types (an injured person at a crash). A model doing worse on photos unlike its training data is expected (domain shift).
+
+Why the app is still safe to demo: the app does not use the local model alone (71% with the Gemini second opinion), and the AI never acts by itself. Every report goes to a responder, who sees the photo and corrects the type, so a wrong guess costs a few seconds of review, not a wrong dispatch.
+
+Likely panel questions:
+- "Is 51% good enough?" No, not on its own, and we do not use it on its own: the app's chain gets 71% and a responder confirms every report.
+- "Why not retrain before the defense?" A new model 3 to 4 days before the defense could fail the benchmark marks with no time to fix it. Retraining on real local photos is the first step after the defense.
+- "Why is Gemini not the primary, if it is better on real photos?" Free-tier limit (15 requests per minute, R-007), 4 s per photo against 0.07 s, and the app must keep working when Gemini is unavailable. The chain uses Gemini only for unsure answers (55 of 77 here).
+- "How do you know the 77 photos were not in training?" Checked against all 10,540 training and benchmark photos by file match and image fingerprint: no copies.
