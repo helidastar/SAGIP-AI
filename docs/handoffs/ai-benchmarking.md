@@ -683,3 +683,18 @@ What it shows:
 Defense wording: "On 77 real Philippine Facebook and news photos, our local model alone gets 51% of types right; with Gemini as a second opinion on unsure answers, as the app runs, it gets 71%. Every report is still confirmed by a responder."
 
 Limits: 77 photos from mixed online sources. Some types have only 5 to 8 photos, so their per-type numbers are rough. Labels come from folder names, which may be wrong for some photos. This test does not change the 50-photo benchmark result. It closes AI 5 with a changed scope (test on real photos instead of collecting own photos and retraining; see `training/photo-collection.md`). No photos taken by the team were used.
+
+## Summary for the defense: local model numbers, all in one place (2026-11-20)
+
+| Test | Photos | Type correct | Source |
+|---|---|---|---|
+| 50-photo benchmark (team-labelled) | 50 | 88% | run 15-49-07-081Z (2026-11-18) |
+| 77 real Philippine Facebook and news photos, local model alone | 77 | 51% (39 of 77) | 2026-11-18T18-28-34-056Z |
+| Same 77, chain as the app runs (local, Gemini when under 0.70) | 77 | 71% (55 of 77) | 2026-11-20 runs |
+| Same 77, Gemini alone | 76 | 78% (59 of 76) | 2026-11-20 runs |
+
+What the 51% means: the local model answered each of the 77 photos with its own guess, and the guess counted as right only if it matched the folder the photo was filed in. Most of its misses are rescue scenes called `medical_emergency` (6 flood photos) and injured people at a crash called `road_accident` (5 medical photos), plus 5 road accident photos called `structural_damage`.
+
+Not measured on real photos: whether urgent reports were caught. The 77 photos have placeholder severity labels. "61 of 77 rated high or critical" is only the model's output, not a check against the truth.
+
+Defense wording: "The local model gets 88% of types right on our 50-photo benchmark. On 77 real Philippine Facebook and news photos it gets 51% on its own, and 71% with the Gemini second opinion the app uses. Real phone photos are harder than our test set, which is why the AI only drafts the type and a responder confirms every report. Training on real local photos is our next step after the defense."
