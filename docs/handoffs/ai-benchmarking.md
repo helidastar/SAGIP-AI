@@ -652,4 +652,34 @@ What this means for the app (these numbers come from the model's own answers, no
 
 Defense wording: "On 50 held-out benchmark photos the model gets 88% of types right; on 77 real Philippine Facebook and news photos it gets 51%. Real phone photos are harder, which is why the AI only drafts the type and a responder confirms every report."
 
+### 2026-11-20: Gemini and the full chain on the same 77 photos
+
+Method: `npm run benchmark -- --models gemini:gemini-3.1-flash-lite --dataset benchmark/dataset/own --concurrency 1 --yes` on the laptop (free tier). The first pass hit the 15-requests-per-minute limit on 36 photos (HTTP 429), so those 36 were run again in 3 batches of 12 with a 65 s pause. Run folders: `2026-11-20T17-16-55-765Z`, `17-21-27-000Z`, `17-23-04-297Z`, `17-25-01-569Z`. Gemini answered 76 of 77; `road_accident_fb_06.jpg` failed twice. About 113 free-tier calls in total.
+
+The chain row is a replay of the rule in `src/lib/ai/chain.ts` on these per-photo answers: keep the local answer when its confidence is at least 0.70, otherwise use Gemini's answer (keep the local answer if Gemini failed). This is what the app does with `AI_PROVIDER=local` and `AI_LOCAL_ESCALATE_TYPES` empty.
+
+| Setup | Type correct | Gemini calls per 77 reports |
+|---|---|---|
+| Local model alone | 39 of 77 (50.6%) | 0 |
+| Gemini flash-lite alone | 59 of 76 (77.6%) | 77 |
+| Chain, as the app runs it | 55 of 77 (71.4%) | 55 |
+
+| Type | Local | Gemini | Chain |
+|---|---|---|---|
+| structural_damage | 14/18 | 16/18 | 16/18 |
+| road_accident | 7/14 | 12/13 | 12/14 |
+| flood | 5/15 | 14/15 | 9/15 |
+| other | 4/8 | 7/8 | 7/8 |
+| medical_emergency | 5/17 | 7/17 | 8/17 |
+| fallen_debris | 4/5 | 3/5 | 3/5 |
+
+What it shows:
+- The chain lifts real-photo type accuracy from 51% to 71%. Gemini alone is higher (78%) but would need a call for every report, against the free-tier limit (R-007).
+- Flood is where the chain loses most: 6 flood photos with people were called medical_emergency by the local model with confidence 0.76 to 0.97, so they never reach Gemini, which gets flood 14 of 15.
+- medical_emergency is weak for both: Gemini called 10 of 17 road_accident. Many of these photos show an injured person at a crash, so the label itself is a judgment call (one main type per report).
+- Gemini latency: 3,966 ms mean, 12,849 ms p95, against 74 ms for the local model.
+- Replay with `AI_LOCAL_ESCALATE_TYPES=medical_emergency`: 58 of 77 (75.3%) with 61 calls. On the 50-photo benchmark the same setting lowered type accuracy from 94% to 88% (ISS-015 above), so the evidence is mixed. Setting left empty; not changed before the defense.
+
+Defense wording: "On 77 real Philippine Facebook and news photos, our local model alone gets 51% of types right; with Gemini as a second opinion on unsure answers, as the app runs, it gets 71%. Every report is still confirmed by a responder."
+
 Limits: 77 photos from mixed online sources. Some types have only 5 to 8 photos, so their per-type numbers are rough. Labels come from folder names, which may be wrong for some photos. This test does not change the 50-photo benchmark result, and it does not count as AI 5 (own photos), which stays open.
