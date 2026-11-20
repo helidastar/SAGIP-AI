@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import "leaflet/dist/leaflet.css";
 import {
   useContext,
   useEffect,
@@ -700,7 +701,7 @@ function LeafletMap({
 
         const mapInstance = leaflet.map(containerRef.current, {
           zoomControl: false,
-          attributionControl: false,
+          attributionControl: true,
           scrollWheelZoom: false,
           doubleClickZoom: false,
           zoomAnimation: false,
@@ -708,6 +709,13 @@ function LeafletMap({
           markerZoomAnimation: false,
         });
         map = mapInstance;
+        // Street map behind the priority pins. OpenStreetMap requires the credit shown by the attribution control.
+        leaflet
+          .tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution: "&copy; OpenStreetMap contributors",
+          })
+          .addTo(mapInstance);
 
         const markers = features.map((feature) => {
           const [lng, lat] = feature.geometry.coordinates;
