@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-// The staff dashboard lives at /dashboard; this older portal page only forwards there.
+/** The old operations wireframe page; staff now work in the designed dashboard at /dashboard. */
 export default function AdminDashboardPage() {
   redirect("/dashboard");
 }

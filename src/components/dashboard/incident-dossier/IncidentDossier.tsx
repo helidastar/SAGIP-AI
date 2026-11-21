@@ -770,7 +770,7 @@ function PriorityBreakdown({ detail }: { detail: DossierIncidentDetail }) {
         <>
           <div className={styles.factorList}>
             {factors.map(({ key, label }) => {
-              const value = detail.priority?.breakdown[key];
+              const value = detail.priority?.breakdown?.[key];
               const maximum = PRIORITY_WEIGHTS[key] * 100;
               const width = value === undefined ? 0 : Math.max(0, Math.min(100, value / maximum * 100));
               return (
@@ -945,3 +945,4 @@ function CheckIcon() {
 function ReopenIcon() {
   return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M13 6a5.5 5.5 0 0 0-9.5-2L2 5m0-3v3h3m-2 3a5.5 5.5 0 0 0 9.5 2L14 9m0 3V9h-3" /></svg>;
 }
+

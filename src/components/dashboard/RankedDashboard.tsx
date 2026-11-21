@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import "leaflet/dist/leaflet.css";
 import {
   useContext,
@@ -84,6 +85,30 @@ const PAGE_SIZE = 100;
 const EMPTY_ITEMS: DashboardIncident[] = [];
 const EMPTY_FEATURES: MapFeature[] = [];
 
+type SortKey = "priority" | "newest" | "oldest";
+
+type Filters = {
+  query: string;
+  step: string | null;
+  band: string | null;
+  type: string | null;
+  area: string | null;
+  sort: SortKey;
+};
+
+const NO_FILTERS: Filters = { query: "", step: null, band: null, type: null, area: null, sort: "priority" };
+
+const SORT_LABELS: Record<SortKey, string> = {
+  priority: "Priority score (highest first)",
+  newest: "Newest reports first",
+  oldest: "Oldest reports first",
+};
+
+type ResolvedState =
+  | { key: number; status: "loading" }
+  | { key: number; status: "ready"; items: DashboardIncident[] }
+  | { key: number; status: "error"; message: string };
+
 export function RankedDashboard() {
   const setReviewCount = useContext(DashboardQueueCountContext);
   const [reload, setReload] = useState(0);
@@ -95,6 +120,9 @@ export function RankedDashboard() {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [now, setNow] = useState<number | null>(null);
   const [isDossierOpen, setIsDossierOpen] = useState(true);
+  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  const [resolvedState, setResolvedState] = useState<ResolvedState | null>(null);
+  const showResolved = WORKFLOW.find((step) => step.key === filters.step)?.statuses.includes("resolved") ?? false;
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "development") return;
@@ -185,6 +213,23 @@ export function RankedDashboard() {
     };
   }, [reload, setReviewCount]);
 
+  // Resolved incidents are not in the open list, so the "Resolved" step card loads them on demand.
+  useEffect(() => {
+    if (!showResolved) return;
+    let cancelled = false;
+    void api<{ items: DashboardIncident[] }>(`/api/incidents?status=resolved&limit=${PAGE_SIZE}`).then((response) => {
+      if (cancelled) return;
+      setResolvedState(
+        response.ok
+          ? { key: reload, status: "ready", items: response.data.items }
+          : { key: reload, status: "error", message: response.error ?? "Could not load resolved incidents." },
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [showResolved, reload]);
+
   useEffect(() => {
     let cancelled = false;
     const key = `${reload}:${mapRetry}`;
@@ -217,8 +262,27 @@ export function RankedDashboard() {
   const readyData = currentLoadState.status === "ready" ? currentLoadState.data : null;
   const items = readyData?.items ?? EMPTY_ITEMS;
   const mapFeatures = currentMapLoadState.status === "ready" ? currentMapLoadState.features : EMPTY_FEATURES;
-  const selectedIncident = items[0] ?? null;
+  const currentResolved =
+    showResolved && resolvedState?.key === reload ? resolvedState : showResolved ? { key: reload, status: "loading" as const } : null;
+  const baseItems = showResolved
+    ? currentResolved?.status === "ready" ? currentResolved.items : EMPTY_ITEMS
+    : items;
+  const stepItems = useMemo(() => {
+    const step = WORKFLOW.find((entry) => entry.key === filters.step);
+    if (!step) return baseItems;
+    const statuses = step.statuses as string[];
+    return baseItems.filter((item) => statuses.includes(item.status));
+  }, [baseItems, filters.step]);
+  const filteredItems = useMemo(() => applyFilters(stepItems, filters), [stepItems, filters]);
+  const filteredIds = useMemo(() => new Set(filteredItems.map((item) => item.id)), [filteredItems]);
+  const visibleFeatures = useMemo(
+    () => mapFeatures.filter((feature) => filteredIds.has(feature.id)),
+    [mapFeatures, filteredIds],
+  );
+  const selectedIncident = filteredItems[0] ?? null;
   const reviewIds = useMemo(() => new Set(readyData?.reviewIds ?? []), [readyData]);
+  const filtersActive =
+    filters.query.trim() !== "" || filters.step !== null || filters.band !== null || filters.type !== null || filters.area !== null;
 
   const previewError = previewState === "error";
   const reviewErrorWouldHideState =
@@ -249,6 +313,11 @@ export function RankedDashboard() {
 
   function clearPreviewState() {
     setPreviewState(null);
+    setFilters(NO_FILTERS);
+  }
+
+  function updateFilters(patch: Partial<Filters>) {
+    setFilters((current) => ({ ...current, ...patch }));
   }
 
   function retryMap() {
@@ -266,7 +335,10 @@ export function RankedDashboard() {
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>Ranked incident list</h1>
-          <p className={styles.pageSubtitle}>Open incidents sorted by priority.</p>
+          <p className={styles.pageSubtitle}>
+            {showResolved ? "Resolved incidents" : "Open incidents"}, {SORT_LABELS[filters.sort].toLowerCase()}.
+            {filtersActive ? " Filters are on." : " Click a step or chip to narrow the list; click a row or map pin to open it."}
+          </p>
         </div>
       </div>
 
@@ -298,22 +370,31 @@ export function RankedDashboard() {
             )}
             <WorkflowCards
               counts={readyData.workflowCounts}
-              activeStatus={null}
+              activeStep={filters.step}
+              onSelect={(step) => updateFilters({ step: filters.step === step ? null : step, band: null, type: null, area: null })}
             />
             <FilterSurface
-              items={items}
-              total={readyData.total}
+              items={stepItems}
+              filters={filters}
+              filtersActive={filtersActive}
+              onChange={updateFilters}
+              onReset={() => setFilters(NO_FILTERS)}
             />
             <div className={styles.resultsGrid}>
               <IncidentListPanel
-                items={items}
-                total={readyData.total}
+                items={filteredItems}
+                total={stepItems.length}
                 reviewIds={reviewIds}
                 selectedId={selectedIncident?.id ?? null}
                 now={now}
+                loading={currentResolved?.status === "loading"}
+                error={currentResolved?.status === "error" ? currentResolved.message : null}
+                filtersActive={filtersActive}
+                onClearFilters={() => setFilters(NO_FILTERS)}
+                heading={showResolved ? "Resolved incidents" : "Ranked Priority Triage"}
               />
               <IncidentMap
-                features={mapFeatures}
+                features={showResolved ? EMPTY_FEATURES : visibleFeatures}
                 selectedId={selectedIncident?.id ?? null}
                 loading={currentMapLoadState.status === "loading"}
                 error={currentMapLoadState.status === "error" ? currentMapLoadState.message : null}
@@ -381,21 +462,26 @@ async function loadAllOpenIncidents(): Promise<
 
 function WorkflowCards({
   counts,
-  activeStatus,
+  activeStep,
+  onSelect,
 }: {
   counts: Record<string, number>;
-  activeStatus: string | null;
+  activeStep: string | null;
+  onSelect: (step: string) => void;
 }) {
   return (
-    <section className={styles.workflowGrid} aria-label="Incident workflow">
+    <section className={styles.workflowGrid} aria-label="Incident workflow (click a step to filter)">
       {WORKFLOW.map((step, index) => {
-        const statuses = step.statuses.join(",");
-        const selected = activeStatus === statuses;
+        const selected = activeStep === step.key;
 
         return (
-          <article
+          <button
+            type="button"
             key={step.key}
             className={`${styles.workflowCard} ${selected ? styles.workflowCardSelected : ""}`}
+            aria-pressed={selected}
+            title={selected ? "Show all open incidents" : `Show only "${step.label}" incidents`}
+            onClick={() => onSelect(step.key)}
           >
             <div className={styles.workflowTopline}>
               <span className={styles.overline}>Step {index + 1}</span>
@@ -407,7 +493,7 @@ function WorkflowCards({
               <h2>{step.label}</h2>
               {step.actor !== "—" && <p>by {step.actor}</p>}
             </div>
-          </article>
+          </button>
         );
       })}
     </section>
@@ -416,11 +502,18 @@ function WorkflowCards({
 
 function FilterSurface({
   items,
-  total,
+  filters,
+  filtersActive,
+  onChange,
+  onReset,
 }: {
   items: DashboardIncident[];
-  total: number;
+  filters: Filters;
+  filtersActive: boolean;
+  onChange: (patch: Partial<Filters>) => void;
+  onReset: () => void;
 }) {
+  const [open, setOpen] = useState(true);
   const bandCounts = countBy(items, (item) => item.priority?.band ?? "");
   const typeCounts = countBy(items, (item) => item.incidentType ?? "");
   const areaCounts = countBy(items, (item) => item.location.area ?? "");
@@ -429,63 +522,103 @@ function FilterSurface({
     .sort((a, b) => formatType(a).localeCompare(formatType(b)));
   const areas = Object.keys(areaCounts).filter(Boolean).sort((a, b) => a.localeCompare(b));
 
+  function chip(label: string, active: boolean, onClick: () => void, key?: string) {
+    return (
+      <button
+        type="button"
+        key={key ?? label}
+        className={`${styles.filterChip} ${active ? styles.filterChipActive : ""}`}
+        aria-pressed={active}
+        onClick={onClick}
+      >
+        {label}
+      </button>
+    );
+  }
+
   return (
     <section className={styles.filterPanel} aria-label="Incident filters">
       <div className={styles.filterMain}>
-        <div className={styles.searchBox} aria-disabled="true">
+        <label className={styles.searchBox}>
           <SearchIcon />
           <input
             type="search"
-            aria-label="Search tracking ID, area, or description"
-            placeholder="Search tracking ID, area, or description"
-            readOnly
+            aria-label="Search tracking ID, area, type, or description"
+            placeholder="Search tracking ID, area, type, or description"
+            value={filters.query}
+            onChange={(event) => onChange({ query: event.target.value })}
           />
-        </div>
-        <div className={styles.sortControl}>
+        </label>
+        <label className={styles.sortControl}>
           <span className={styles.labelCaps}>Order by</span>
-          <span className={styles.sortValue}>Priority score (highest first)</span>
-        </div>
-        <span className={styles.filterToggle} aria-disabled="true">
+          <select
+            className={styles.sortValue}
+            value={filters.sort}
+            onChange={(event) => onChange({ sort: event.target.value as SortKey })}
+          >
+            {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+              <option key={key} value={key}>{SORT_LABELS[key]}</option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          className={styles.filterToggle}
+          aria-expanded={open}
+          aria-controls="ranked-filter-rows"
+          onClick={() => setOpen((value) => !value)}
+        >
           <FilterIcon />
-          <span>Filters</span>
-        </span>
+          <span>{open ? "Hide filters" : "Filters"}</span>
+        </button>
       </div>
 
-      <div className={styles.filterRows}>
-        <div className={styles.chipGroup}>
-          <span className={styles.filterLabel}>Priority:</span>
-          <span className={`${styles.filterChip} ${styles.filterChipActive}`}>All ({total})</span>
-          {(["P1", "P2", "P3", "P4"] as const).map((band) => (
-            <span className={styles.filterChip} key={band}>
-              {band} {priorityLabel(band)} ({bandCounts[band] ?? 0})
-            </span>
-          ))}
+      {open && (
+        <div className={styles.filterRows} id="ranked-filter-rows">
+          <div className={styles.chipGroup}>
+            <span className={styles.filterLabel}>Priority:</span>
+            {chip(`All (${items.length})`, filters.band === null, () => onChange({ band: null }), "all-bands")}
+            {(["P1", "P2", "P3", "P4"] as const).map((band) =>
+              chip(
+                `${band} ${priorityLabel(band)} (${bandCounts[band] ?? 0})`,
+                filters.band === band,
+                () => onChange({ band: filters.band === band ? null : band }),
+                band,
+              ),
+            )}
+          </div>
+          {types.length > 0 && (
+            <div className={styles.chipGroup}>
+              <span className={styles.filterLabel}>Type:</span>
+              {types.map((type) =>
+                chip(
+                  `${formatType(type)} (${typeCounts[type]})`,
+                  filters.type === type,
+                  () => onChange({ type: filters.type === type ? null : type }),
+                  type,
+                ),
+              )}
+            </div>
+          )}
+          {areas.length > 0 && (
+            <div className={styles.chipGroup}>
+              <span className={styles.filterLabel}>Zone:</span>
+              {areas.map((area) =>
+                chip(
+                  `${area} (${areaCounts[area]})`,
+                  filters.area === area,
+                  () => onChange({ area: filters.area === area ? null : area }),
+                  area,
+                ),
+              )}
+            </div>
+          )}
+          <button type="button" className={styles.resetAll} onClick={onReset} disabled={!filtersActive && filters.sort === "priority"}>
+            <ResetIcon />
+            Reset All
+          </button>
         </div>
-        {types.length > 0 && (
-          <div className={styles.chipGroup}>
-            <span className={styles.filterLabel}>Type:</span>
-            {types.map((type) => (
-              <span className={styles.filterChip} key={type}>
-                {formatType(type)} ({typeCounts[type]})
-              </span>
-            ))}
-          </div>
-        )}
-        {areas.length > 0 && (
-          <div className={styles.chipGroup}>
-            <span className={styles.filterLabel}>Zone:</span>
-            {areas.map((area) => (
-              <span className={styles.filterChip} key={area}>
-                {area} ({areaCounts[area]})
-              </span>
-            ))}
-          </div>
-        )}
-        <span className={styles.resetAll}>
-          <ResetIcon />
-          Reset All
-        </span>
-      </div>
+      )}
     </section>
   );
 }
@@ -496,19 +629,43 @@ function IncidentListPanel({
   reviewIds,
   selectedId,
   now,
+  loading,
+  error,
+  filtersActive,
+  onClearFilters,
+  heading,
 }: {
   items: DashboardIncident[];
   total: number;
   reviewIds: Set<string>;
   selectedId: string | null;
   now: number | null;
+  loading: boolean;
+  error: string | null;
+  filtersActive: boolean;
+  onClearFilters: () => void;
+  heading: string;
 }) {
   return (
     <section className={styles.listPanel} aria-labelledby="ranked-incidents-title">
       <header className={styles.panelHeading}>
-        <h2 id="ranked-incidents-title">Ranked Priority Triage</h2>
+        <h2 id="ranked-incidents-title">{heading}</h2>
         <span className={styles.totalBadge}>{total} Total</span>
       </header>
+      {loading ? (
+        <p className={styles.listMessage} role="status">Loading incidents...</p>
+      ) : error ? (
+        <p className={styles.listMessage} role="alert">{error}</p>
+      ) : items.length === 0 ? (
+        <div className={styles.listMessage} role="status">
+          <p>{filtersActive ? "No incidents match these filters." : "No incidents in this step."}</p>
+          {filtersActive && (
+            <button type="button" className={styles.secondaryButton} onClick={onClearFilters}>
+              Clear filters
+            </button>
+          )}
+        </div>
+      ) : (
       <ol
         className={styles.incidentList}
         aria-label="Open incidents ranked by priority"
@@ -524,8 +681,9 @@ function IncidentListPanel({
           />
         ))}
       </ol>
+      )}
       <footer className={styles.listFooter}>
-        Displaying {items.length} of {total} incidents
+        Displaying {items.length} of {total} incidents · click a row to open it
       </footer>
     </section>
   );
@@ -642,7 +800,7 @@ function IncidentMap({
           </div>
         ) : validFeatures.length === 0 ? (
           <div className={styles.mapEmpty} role="status">
-            No valid incident coordinates are available.
+            No incidents to show on the map.
           </div>
         ) : (
           <>
@@ -680,6 +838,8 @@ function LeafletMap({
   selectedId: string | null;
   onError: (message: string) => void;
 }) {
+  const router = useRouter();
+  const openIncidentRef = useRef<(id: string) => void>(() => {});
   const containerRef = useRef<HTMLDivElement>(null);
   const fitMarkersRef = useRef<() => void>(() => {});
   const zoomInRef = useRef<() => void>(() => {});
@@ -689,6 +849,10 @@ function LeafletMap({
   useEffect(() => {
     onErrorRef.current = onError;
   }, [onError]);
+
+  useEffect(() => {
+    openIncidentRef.current = (id) => router.push(`/dashboard/incidents/${id}`);
+  }, [router]);
 
   useEffect(() => {
     let disposed = false;
@@ -743,6 +907,7 @@ function LeafletMap({
             }),
           });
           marker.addTo(mapInstance);
+          marker.on("click", () => openIncidentRef.current(feature.id));
 
           if (feature.id === selectedId) {
             const selectedLabel = document.createElement("span");
@@ -752,6 +917,11 @@ function LeafletMap({
               direction: "top",
               offset: [0, -12],
               className: styles.selectedTooltip,
+            });
+          } else {
+            marker.bindTooltip(`${feature.properties.trackingCode} · ${band ?? "–"} · click to open`, {
+              direction: "top",
+              offset: [0, -12],
             });
           }
           return marker;
@@ -1248,6 +1418,21 @@ function StatusIcon({ status }: { status: string }) {
   );
 }
 
+function applyFilters(items: DashboardIncident[], filters: Filters) {
+  const query = filters.query.trim().toLowerCase();
+  const matches = items.filter((item) => {
+    if (filters.band && item.priority?.band !== filters.band) return false;
+    if (filters.type && item.incidentType !== filters.type) return false;
+    if (filters.area && item.location.area !== filters.area) return false;
+    if (!query) return true;
+    return [item.trackingCode, item.description, item.location.area ?? "", formatType(item.incidentType ?? "unconfirmed")]
+      .some((value) => value.toLowerCase().includes(query));
+  });
+  if (filters.sort === "priority") return matches;
+  const direction = filters.sort === "newest" ? -1 : 1;
+  return [...matches].sort((a, b) => direction * (Date.parse(a.createdAt) - Date.parse(b.createdAt)));
+}
+
 function countBy<T>(items: T[], keyFor: (item: T) => string) {
   return items.reduce<Record<string, number>>((counts, item) => {
     const key = keyFor(item);
@@ -1353,13 +1538,13 @@ function formatDate(value: string) {
 
 function elapsedSince(value: string, now: number) {
   const elapsedSeconds = Math.max(0, Math.floor((now - Date.parse(value)) / 1000));
-  if (elapsedSeconds < 60) return `+${elapsedSeconds}s ago`;
+  if (elapsedSeconds < 60) return `${elapsedSeconds}s ago`;
   const minutes = Math.floor(elapsedSeconds / 60);
-  if (minutes < 60) return `+${minutes}m ago`;
+  if (minutes < 60) return `${minutes}m ago`;
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
-  if (hours < 24) return `+${hours}h ${remainingMinutes}m ago`;
-  return `+${Math.floor(hours / 24)}d ago`;
+  if (hours < 24) return `${hours}h ${remainingMinutes}m ago`;
+  return `${Math.floor(hours / 24)}d ago`;
 }
 
 function isExistingDemoRecord(detail: DashboardDetail) {
