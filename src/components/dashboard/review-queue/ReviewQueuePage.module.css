@@ -367,13 +367,12 @@
   letter-spacing: 0.05em;
 }
 
-.table th:nth-child(1) { width: 12%; }
-.table th:nth-child(2) { width: 24%; }
-.table th:nth-child(3) { width: 12%; }
-.table th:nth-child(4) { width: 12%; }
-.table th:nth-child(5) { width: 15%; }
-.table th:nth-child(6) { width: 13%; }
-.table th:nth-child(7) { width: 12%; text-align: right; }
+.table th:nth-child(1) { width: 34%; }
+.table th:nth-child(2) { width: 10%; }
+.table th:nth-child(3) { width: 10%; }
+.table th:nth-child(4) { width: 16%; }
+.table th:nth-child(5) { width: 16%; }
+.table th:nth-child(6) { width: 14%; text-align: right; }
 
 .clickableRow {
   cursor: pointer;
@@ -1098,7 +1097,7 @@
     margin-left: 0;
   }
 
-  .table th:nth-child(7),
+  .table th:nth-child(6),
   .actionCell {
     position: sticky;
     right: 0;
@@ -1106,7 +1105,7 @@
     box-shadow: -8px 0 8px -8px rgb(16 28 44 / 18%);
   }
 
-  .table th:nth-child(7) {
+  .table th:nth-child(6) {
     background: #f0f3ff;
   }
 
@@ -1122,4 +1121,37 @@
   .table tbody tr:hover .actionCell {
     background: #f8fafc;
   }
+}
+
+/* Simplified review queue: short header, one control row. */
+.header {
+  min-height: 0;
+  padding: 20px 0 12px;
+}
+
+.countBadge {
+  text-transform: none;
+  font-size: 12px;
+}
+
+.controls {
+  padding: 12px;
+}
+
+.controlTop {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.controlTop .searchBox {
+  flex: 1;
+}
+
+.incidentCell p {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
 }

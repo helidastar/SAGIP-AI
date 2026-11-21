@@ -50,11 +50,10 @@ export function DashboardShell({
               <Image src="/brand/sagip-ai-mark.svg" alt="" width={36} height={36} loading="eager" className={styles.brandMark} />
               <span className={styles.brandName}>
                 <strong>SAGIP-AI</strong>
-                <span>Ops portal</span>
+                <span>Staff</span>
               </span>
             </Link>
 
-            <p className={styles.navHeading}>EOC Navigation</p>
             <nav aria-label="Primary">
               <ul className={styles.navList}>
                 <li>
@@ -64,7 +63,7 @@ export function DashboardShell({
                     aria-current={isRankedList ? "page" : undefined}
                   >
                     <GridIcon />
-                    <span>Ranked List</span>
+                    <span>Incidents</span>
                   </Link>
                 </li>
                 <li>
@@ -74,7 +73,7 @@ export function DashboardShell({
                     aria-current={isReviewQueue ? "page" : undefined}
                   >
                     <ReviewIcon />
-                    <span>Review Queue</span>
+                    <span>Review queue</span>
                     {reviewCount !== null && (
                       <span className={styles.navBadge} aria-label={`${reviewCount} waiting`}>
                         {reviewCount}

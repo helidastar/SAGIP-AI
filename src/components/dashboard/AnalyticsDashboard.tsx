@@ -216,9 +216,8 @@ export function AnalyticsDashboard() {
         <div className={styles.workspace}>
           <section className={styles.pageHeader}>
             <div>
-              <p className={styles.overlineTeal}>Historical Audit Module</p>
               <div className={styles.titleLine}>
-                <h1>EOC Incident Analytics</h1>
+                <h1>Analytics</h1>
                 <span className={styles.dateRange}>{formatDateRange(period)}</span>
               </div>
             </div>
@@ -243,24 +242,22 @@ export function AnalyticsDashboard() {
           </section>
 
           <section className={styles.kpiGrid} aria-label="Incident summary">
-            <MetricCard label="Total Incidents" detail="Reports recorded in this period" value={items.length} note="Reports logged" />
-            <MetricCard label="Active Operations" detail="Assigned & in progress" value={metrics.active} tone="teal" note="Live operations" />
+            <MetricCard label="Reports" value={items.length} note="" />
+            <MetricCard label="Responding" value={metrics.active} tone="teal" note="" />
             <MetricCard
               label="Resolved"
-              detail="Verified cleared"
               value={metrics.statusCounts.resolved}
               tone="green"
-              note={`${percent(metrics.statusCounts.resolved, items.length)} clearance`}
+              note={percent(metrics.statusCounts.resolved, items.length)}
             />
-            <MetricCard label="Rejected" detail="Duplicates / out of scope" value={metrics.statusCounts.rejected} tone="neutral" note={`${percent(metrics.statusCounts.rejected, items.length)} rate`} />
-            <MetricCard label="Awaiting Review" detail="Manual EOC sign-off" value={metrics.awaiting} tone="red" note="Needs action" />
+            <MetricCard label="Rejected" value={metrics.statusCounts.rejected} tone="neutral" note={percent(metrics.statusCounts.rejected, items.length)} />
+            <MetricCard label="Needs review" value={metrics.awaiting} tone="red" note="" />
           </section>
 
           <div className={styles.breakdownGrid}>
             <section className={styles.card}>
               <CardHeader
-                eyebrow="DRRM Incident Taxonomy"
-                title="Incidents by Type"
+                title="By type"
                 actionLabel={typeTable ? "View chart" : "View as table"}
                 onAction={() => setTypeTable((value) => !value)}
               />
@@ -286,8 +283,7 @@ export function AnalyticsDashboard() {
 
             <section className={styles.card}>
               <CardHeader
-                eyebrow="Classification & Flow"
-                title="Priority & Operational Status"
+                title="By priority and status"
                 actionLabel={flowTable ? "View chart" : "View as table"}
                 onAction={() => setFlowTable((value) => !value)}
               />
@@ -344,8 +340,7 @@ export function AnalyticsDashboard() {
 
           <section className={styles.card}>
             <CardHeader
-              eyebrow="Temporal Inflow Sequence"
-              title="Incident Reports Over Time"
+              title="Reports per day"
               actionLabel={timelineTable ? "View chart" : "View as table"}
               onAction={() => setTimelineTable((value) => !value)}
               badge={peakLabel(metrics.buckets)}
@@ -360,38 +355,14 @@ export function AnalyticsDashboard() {
             )}
           </section>
 
-          <section className={styles.card}>
-            <div className={styles.velocityHeader}>
-              <div>
-                <p className={styles.overline}>Operational Velocity Metrics</p>
-                <h2>Response Velocity & Dispatch Timelines</h2>
-                <p>Incident status totals by priority for the selected period.</p>
-              </div>
-              <span className={styles.metricHint}>Live incident records</span>
-            </div>
-            <DataTable
-              headings={["Priority band", "Received", "Review", "Classified", "Assigned", "In progress", "Resolved", "Rejected"]}
-              rows={PRIORITIES.map((priority) => [
-                `${priority.band} ${priority.label}`,
-                ...LIFECYCLE.map((step) =>
-                  String(items.filter((item) => item.priority?.band === priority.band && item.status === step.status).length),
-                ),
-              ])}
-            />
-            <div className={styles.velocityFooter}>
-              <span><TrendIcon /> Reports analyzed: <strong>{items.length}</strong></span>
-              <span>Per-stage response times are not recorded in the incident feed.</span>
-            </div>
-          </section>
         </div>
       )}
     </div>
   );
 }
 
-function MetricCard({ label, detail, value, note, tone = "default" }: {
+function MetricCard({ label, value, note, tone = "default" }: {
   label: string;
-  detail: string;
   value: number;
   note: string;
   tone?: "default" | "teal" | "green" | "neutral" | "red";
@@ -399,7 +370,6 @@ function MetricCard({ label, detail, value, note, tone = "default" }: {
   return (
     <article className={styles.kpiCard}>
       <p className={styles.kpiLabel}>{label}</p>
-      <p className={styles.kpiDetail}>{detail}</p>
       <div className={styles.kpiValueLine}>
         <strong className={styles[`value${tone}`]}>{value.toLocaleString()}</strong>
         <span className={styles[`note${tone}`]}>{note}</span>
@@ -408,8 +378,7 @@ function MetricCard({ label, detail, value, note, tone = "default" }: {
   );
 }
 
-function CardHeader({ eyebrow, title, actionLabel, onAction, badge }: {
-  eyebrow: string;
+function CardHeader({ title, actionLabel, onAction, badge }: {
   title: string;
   actionLabel: string;
   onAction: () => void;
@@ -418,7 +387,6 @@ function CardHeader({ eyebrow, title, actionLabel, onAction, badge }: {
   return (
     <header className={styles.cardHeader}>
       <div>
-        <p className={styles.overline}>{eyebrow}</p>
         <h2>{title}</h2>
       </div>
       <div className={styles.cardActions}>
@@ -509,11 +477,10 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
   return (
     <section className={styles.statePanel} aria-live="polite">
       <span className={`${styles.stateIcon} ${styles.errorIcon}`}><SyncErrorIcon /></span>
-      <p className={styles.errorEyebrow}>Analytics data unavailable</p>
-      <h1>Telemetry Stream Desynchronized</h1>
+      <h1>Could not load analytics</h1>
       <p>{message}</p>
       <div className={styles.stateActions}>
-        <button type="button" className={styles.retryButton} onClick={onRetry}><RefreshIcon />Retry Connection</button>
+        <button type="button" className={styles.retryButton} onClick={onRetry}><RefreshIcon />Retry</button>
       </div>
     </section>
   );
@@ -527,12 +494,10 @@ function EmptyState({ period, onPeriodChange, onRefresh }: {
   return (
     <section className={`${styles.statePanel} ${styles.emptyPanel}`} aria-live="polite">
       <span className={styles.stateIcon}><EmptyIcon /></span>
-      <p className={styles.overlineTeal}>Zero Active Telemetry</p>
-      <h1>No Incidents Recorded in This Period</h1>
-      <p>There are no logged incident reports within the selected timeline range.</p>
+      <h1>No reports in this period</h1>
       <div className={styles.stateActions}>
-        {period !== "7days" && <button type="button" className={styles.primaryButton} onClick={() => onPeriodChange("7days")}>Switch to 7-Day Window</button>}
-        <button type="button" className={styles.secondaryButton} onClick={onRefresh}><RefreshIcon />Verify Live Inflow</button>
+        {period !== "7days" && <button type="button" className={styles.primaryButton} onClick={() => onPeriodChange("7days")}>Show last 7 days</button>}
+        <button type="button" className={styles.secondaryButton} onClick={onRefresh}><RefreshIcon />Refresh</button>
       </div>
     </section>
   );
@@ -611,9 +576,6 @@ function TableIcon() {
 }
 function PeakIcon() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5v15h16M7 15l4-4 3 2 5-6" /><path d="M15 7h4v4" /></svg>;
-}
-function TrendIcon() {
-  return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 17 6-6 4 4 8-9M15 6h6v6" /></svg>;
 }
 function RefreshIcon() {
   return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" /><path d="M5.5 9A7 7 0 0 1 18 6l2 6M4 12l2 6a7 7 0 0 0 12.5-3" /></svg>;

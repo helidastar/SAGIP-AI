@@ -182,24 +182,24 @@ export function ReviewForm({ item, onDone, bare = false }: { item: ReviewTarget;
         )}
         {!bare && c && c.hazards.length > 0 && <p className="text-xs text-muted">Hazards: {c.hazards.join(", ")}</p>}
         <div className="grid gap-2 sm:grid-cols-3">
-          <Field label="Final type">
+          <Field label="Type">
             <select value={finalType} onChange={(e) => setFinalType(e.target.value)} className={inputClass}>
               {INCIDENT_TYPES.map((t) => <option key={t} value={t}>{t.replace("_", " ")}</option>)}
             </select>
           </Field>
-          <Field label="Final severity">
+          <Field label="Severity">
             <select value={finalSeverity} onChange={(e) => setFinalSeverity(e.target.value)} className={inputClass}>
               {Object.keys(SEVERITY).map((s) => <option key={s}>{s}</option>)}
             </select>
           </Field>
-          <Field label="Notes">
+          <Field label="Note (optional)">
             <input value={notes} onChange={(e) => setNotes(e.target.value)} className={inputClass} />
           </Field>
         </div>
         <ErrorText>{error}</ErrorText>
         {result && <p className="font-mono text-xs">{result}</p>}
         <div className="flex flex-wrap gap-2">
-          <Button disabled={busy || !!result} onClick={() => send({ finalType, finalSeverity, notes })}>Confirm and rank</Button>
+          <Button disabled={busy || !!result} onClick={() => send({ finalType, finalSeverity, notes })}>Confirm</Button>
           <Button variant="danger" disabled={busy || !!result} onClick={() => send({ reject: true, notes })}>Reject</Button>
           {!bare && <Link href={`/dashboard/incidents/${item.id}`} className="ml-auto self-center font-mono text-[11px] uppercase underline">Full detail</Link>}
         </div>
