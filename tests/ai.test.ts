@@ -11,6 +11,7 @@ import { checkFirstReasons, needsReview } from "@/lib/ai/review";
 import { keywordClassifier, severityFromText, hazardsFromText } from "@/lib/ai/keyword";
 import { normalizeClassification } from "@/lib/ai/normalize";
 import { pickSeverity } from "@/lib/ai/severity";
+import { providerKey } from "@/lib/ai/provider-key";
 
 // ---------------------------------------------------------------------------
 // needsReview
@@ -426,3 +427,21 @@ describe("normalizeClassification", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// providerKey (scripts read the same .env.local slots as the app)
+// ---------------------------------------------------------------------------
+describe("providerKey", () => {
+  it("prefers the explicit variable", () => {
+    assert.equal(providerKey("gemini", "GEMINI_API_KEY", { GEMINI_API_KEY: "a", AI_FALLBACK_PROVIDER: "gemini", AI_FALLBACK_API_KEY: "b" }), "a");
+  });
+  it("uses the primary slot when Gemini is primary", () => {
+    assert.equal(providerKey("gemini", "GEMINI_API_KEY", { AI_PROVIDER: "gemini", AI_API_KEY: "p" }), "p");
+  });
+  it("uses the fallback slot when the local model is primary (current setup)", () => {
+    const env = { AI_PROVIDER: "local", AI_API_KEY: "", AI_FALLBACK_PROVIDER: "gemini", AI_FALLBACK_API_KEY: "f" };
+    assert.equal(providerKey("gemini", "GEMINI_API_KEY", env), "f");
+  });
+  it("returns undefined when no slot is for this provider", () => {
+    assert.equal(providerKey("gemini", "GEMINI_API_KEY", { AI_PROVIDER: "local", AI_FALLBACK_PROVIDER: "claude", AI_FALLBACK_API_KEY: "x" }), undefined);
+  });
+});

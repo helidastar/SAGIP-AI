@@ -1,11 +1,23 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
 import { saveReport } from "@/lib/citizen/saved-reports";
+import { shrinkPhoto } from "@/lib/citizen/shrink-photo";
 import { CameraIcon, PinIcon } from "./icons";
 import { btnPrimary, btnSecondary, Card, inputCls, PageTitle } from "./ui";
+
+// Leaflet needs the browser, so the map loads on the client only.
+const PinMap = dynamic(() => import("./PinMap").then((m) => m.PinMap), { ssr: false });
+
+/** True when both values are numbers inside the valid latitude/longitude range. */
+function validLatLng(lat: string, lng: string) {
+  const a = Number(lat);
+  const b = Number(lng);
+  return lat.trim() !== "" && lng.trim() !== "" && Number.isFinite(a) && Number.isFinite(b) && Math.abs(a) <= 90 && Math.abs(b) <= 180;
+}
 
 /** Report form. Always starts blank: nothing is pre-filled, including the location. */
 export function ReportForm() {
@@ -25,6 +37,10 @@ export function ReportForm() {
   function choosePhoto(file: File | null) {
     setPhoto(file);
     setPreview(file ? URL.createObjectURL(file) : null);
+    if (file) {
+      // Shrink large phone photos so the upload stays under Vercel's 4.5 MB request limit (ISS-030).
+      void shrinkPhoto(file).then((small) => setPhoto((current) => (current === file ? small : current)));
+    }
   }
 
   function locate() {
@@ -57,7 +73,8 @@ export function ReportForm() {
     form.append("description", description);
     form.append("lat", coords.lat);
     form.append("lng", coords.lng);
-    if (photo) form.append("photo", photo);
+    // Usually already shrunk when chosen; this covers a submit before that finished (ISS-030).
+    if (photo) form.append("photo", await shrinkPhoto(photo));
 
     const res = await api<{ trackingCode: string }>("/api/reports", { method: "POST", body: form });
     if (!res.ok) {
@@ -157,6 +174,17 @@ export function ReportForm() {
               <button type="button" onClick={() => setManual(true)} className="mt-3 text-xs font-semibold text-cz-text-2 underline">
                 Can&apos;t use GPS? Enter coordinates
               </button>
+            )}
+
+            {coords && validLatLng(coords.lat, coords.lng) && (
+              <>
+                <PinMap
+                  lat={Number(coords.lat)}
+                  lng={Number(coords.lng)}
+                  onMove={(lat, lng) => setCoords({ lat: lat.toFixed(6), lng: lng.toFixed(6) })}
+                />
+                <p className="mt-1.5 text-xs text-cz-text-3">Not exactly right? Drag the pin or tap the map.</p>
+              </>
             )}
           </Card>
 

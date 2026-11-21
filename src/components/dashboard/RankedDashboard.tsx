@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import "leaflet/dist/leaflet.css";
 import {
   useContext,
   useEffect,
@@ -708,7 +709,7 @@ function LeafletMap({
           markerZoomAnimation: false,
         });
         map = mapInstance;
-        // Street map behind the priority pins. OpenStreetMap credit is shown by the attribution control.
+        // Street map behind the priority pins. OpenStreetMap requires the credit shown by the attribution control.
         leaflet
           .tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
             maxZoom: 19,

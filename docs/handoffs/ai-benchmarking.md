@@ -17,7 +17,7 @@ Add a new dated entry at the top for each session. Keep old entries — they sho
 | Labeled benchmark dataset | 50 photos in `benchmark/dataset/` (all 8 types), severity labeled by 3 team members per photo. First local vs Gemini run on 2026-10-25 (see below) |
 | Cost tracking for Gemini 3.x | Prices added 2026-10-29 in `src/lib/ai/normalize.ts` (paid-tier list prices; the free tier bills $0). Unit-tested. About $0.0004 per Gemini photo call at paid prices, $0 billed on the free tier (see 2026-11-13). Not yet checked on a real `cost_usd` row |
 | Team constraint | **Free only.** No paid APIs, no billing accounts. Free tiers that reset daily, for development and the final demo (Nov 2026) |
-| Own model (`local` provider) | **Retrained 2026-10-25** (EfficientNet-B2, 8 types, 10,456 photos): **88% type accuracy (44/50)** on the benchmark vs 79.6% for Gemini, about 70 ms per photo, free. First run (2026-09-23) was 52%. Now the primary |
+| Own model (`local` provider) | **Retrained 2026-11-18** (EfficientNet-B2, 8 types plus a severity head, 10,954 photos, 704 severity labels, Colab run `20261118-145441`): on the 50-photo benchmark **88% type accuracy, 54% severity exact, 2 missed urgent** (keyword severity: 16% and 13), 137 ms mean per photo on Ricabo's laptop, free. Earlier: 52% (2026-09-23), 88% type only (2026-10-25). Now the primary |
 
 ### How a report was classified until 2026-10-25 (Gemini primary)
 
@@ -95,6 +95,32 @@ but its precision is not measured. On the laptop with the current model files:
 2. Then with `AI_LOCAL_ESCALATE_TYPES=medical_emergency` in `.env.local`, run the chain benchmark (`--models local,gemini:gemini-3.1-flash-lite`) and compare type accuracy and missed urgent.
 3. Pass mark: turn it on only if type accuracy does not drop and medical false positives go down. Cost: each medical guess spends one Gemini free-tier request (15 per minute).
 
+### 2026-11-18 result: medical escalation stays off (AI 24, ISS-015)
+
+**Method:** one baseline run on Ricabo's laptop, `npm run benchmark -- --models local,gemini:gemini-3.1-flash-lite --concurrency 1 --yes`
+(run `benchmark/results/2026-11-18T13-33-30-705Z`, 50 held-out photos, Nov 13 model, 50 Gemini calls of which 2 failed).
+`scripts/benchmark.ts` scores each model on its own and has no chain mode, so a second run with
+`AI_LOCAL_ESCALATE_TYPES` set would give the same numbers. Instead, the decision rule in `src/lib/ai/chain.ts`
+(local first; Gemini second opinion below 0.70 confidence or, when escalation is on, for a listed type) was replayed
+on that run's per-photo answers, with and without `medical_emergency` in the list.
+
+| | Type accuracy | Severity within 1 level | Missed urgent | Medical correct | Non-medical called medical | Gemini calls |
+|---|---|---|---|---|---|---|
+| Local model alone | 92.0% | 68.0% | 13 | 5 / 6 | 0 | 0 |
+| Gemini flash-lite alone | 79.2% | 93.8% | 7 | 3 / 6 | 0 | 48 |
+| Chain, escalation off | 94.0% | 82.0% | 15 | 6 / 6 | 0 | 10 |
+| Chain, escalation on | 88.0% | 82.0% | 15 | 3 / 6 | 0 | 15 |
+
+(Local alone score 88.4, Gemini alone score 60.8.)
+
+**Decision:** fails the pass mark. Type accuracy drops 6 points and there are no medical false positives left to remove,
+so `AI_LOCAL_ESCALATE_TYPES` stays empty. The retrained model already fixed the over-prediction: ISS-015 is resolved by the retrain.
+
+**New finding (before the defense):** the chain misses 15 urgent photos against 13 for the local model alone. Two
+structural damage photos went to Gemini for a second opinion, and Gemini rated them low or moderate with high confidence.
+Since every report goes to a person first (review-first, PR #39), these are not lost, but they are not flagged "check first".
+The severity head retrain (ISS-016, AI 25) is done and passes all three marks (2026-11-18). Official laptop run 15-49-07-081Z (dev with the urgent cutoff, Colab model 20261118-145441): type 88% (pass ≥86%), missed urgent 2 (pass ≤3), severity exact 54%, review-first flag rate 72% (trade-off). Keyword baseline (old Nov 13 model) run 2026-11-18T17-13-16-076Z: severity exact 16%, missed urgent 13, so the severity head beats keywords. Still missed: structural_damage/05_01_0093.jpg and fallen_debris/rf_MBOF5PiYbpJflWoHGBjw.jpg, both labelled high and rated moderate. Limits: 50 photos (one photo = 2 points); severity labels are Gemini drafts, not yet fully team-checked.
+
 ---
 
 ## 2026-11-13 — Gemini cost per report (AI 6, ISS-007)
@@ -113,7 +139,8 @@ but its precision is not measured. On the laptop with the current model files:
 - **Per report with the local model as primary:** Gemini is only called when the local model fails or is below 0.70 confidence. In the 2026-10-25 what-if, 26 of 50 photos would have gone to Gemini, so about **$0.0002 per report** on average. This is an estimate from the old model; the 2026-11-13 model's escalation rate is not measured yet.
 - **Free-tier limits that matter more than money:** 15 requests per minute on `gemini-3.1-flash-lite`, 5 on `gemini-3.6-flash` / `gemini-3.8-flash` (measured 2026-09-15, limits are per model and per key). Token use was under 1% of the 250K tokens-per-minute limit. The requests-per-day limit is not recorded in this repo; read it from Google AI Studio before the defense. When the quota runs out the chain moves on to the keyword matcher and human review.
 - **Daily budget cap counts Gemini only for priced models:** `isOverDailyBudget` (`src/lib/ai/chain.ts`) sums `classifications.cost_usd` since midnight Manila time. `estimateCost` returns null for a model with no entry in `PRICES`, and a null row is not counted. So the cap counts `gemini-3.1-flash-lite` and `gemini-3.6-flash`, but **not** `gemini-3.1-flash` (no "-lite"), which is what Ricabo's `.env.local` had as `AI_FALLBACK_MODEL` on 2026-11-13. With that setting every fallback call saved `cost_usd = null` and the cap ignored it. Fix: set `AI_FALLBACK_MODEL=gemini-3.1-flash-lite` (the benchmarked model, as in `.env.example`) in `.env.local` and in Vercel. Since 2026-11-13 `estimateCost` logs a warning once per unpriced model, and `tests/chain.test.ts` checks that the configured models have a price. `npm test` 153/153 pass. A cap of `AI_DAILY_BUDGET_USD=0.10` would allow about 250 Gemini photo calls a day.
-- **Still to check (closes ISS-007):** one real Gemini-classified row has a non-null `cost_usd` in the database. After fixing `AI_FALLBACK_MODEL`, run `npm run check-live-classification` after a report is classified by Gemini; expected about 0.0004, pass mark: not null and between 0.0001 and 0.002.
+- **Live check, 2026-11-18 (closes ISS-007):** passed. `AI_FALLBACK_MODEL` on Ricabo's laptop changed from `gemini-3.1-flash` (unpriced) to `gemini-3.1-flash-lite`. The first `npm run check-live-classification` failed with "column classifications.severity_confidence does not exist": migration `0007_severity_confidence.sql` had never been applied to the live database, so every classification insert had failed since 2026-10-26 (the error is only logged, so reports were saved without an AI row). Ricabo applied 0007 in the Supabase SQL editor on 2026-11-18. One Cebu City test report (tracking `SGP-VBDT2T`, description "AI 6 test report, please ignore") was then classified with Gemini as primary (set in the shell only). Result: model `primary:gemini-3.1-flash-lite`, `cost_usd` **0.0004265**, `severity_confidence` **0.8**. Both pass marks met (cost non-null and about $0.0004; severity confidence non-null).
+- **Still to do:** set `AI_FALLBACK_MODEL=gemini-3.1-flash-lite` in Vercel too (current Vercel value unknown), and delete test report `SGP-VBDT2T` before the demo.
 
 ---
 
@@ -596,3 +623,91 @@ flowchart LR
 
 ### Open issues
 ```
+
+## 2026-11-18 result: 77 Facebook and news photos (test only, not training)
+
+This is a separate test from the 50-photo benchmark. The photos were collected by one team member from Facebook and news, not taken by the team on their own phones. They are used for testing only, never for training, and are not to be posted anywhere.
+
+Method: `npm run benchmark -- --models local --dataset benchmark/dataset/own --yes` on the laptop, frozen model (Colab run 20261118-145441, dev with the urgent cutoff). Run folder `benchmark\results\2026-11-18T18-28-34-056Z`. Photos per type: medical_emergency 17, structural_damage 18, flood 15, road_accident 14, other 8, fallen_debris 5. Left out: 9 HEIC files (the benchmark cannot read them), and 9 photos that sat in two type folders. None of the 77 photos is in the training set (checked on the laptop by file match and visual fingerprint).
+
+| Type accuracy | Pass mark | Severity | Missed urgent | Mean / p95 ms |
+|---|---|---|---|---|
+| 50.6% (39 of 77) | 86% | not measured (placeholder labels) | not measured | 74 / 74 |
+
+Result: type accuracy is 50.6%, below the 86% mark. This is much lower than the 88% on the 50-photo benchmark. Severity exact, within one level and missed urgent compare against placeholder labels, so they are not a result.
+
+| Type | Correct | Most common wrong answer |
+|---|---|---|
+| structural_damage | 14 of 18 | landslide (2) |
+| fallen_debris | 4 of 5 | structural_damage (1) |
+| road_accident | 7 of 14 | structural_damage (5) |
+| other | 4 of 8 | medical_emergency (2), structural_damage (2) |
+| flood | 5 of 15 | medical_emergency (6), structural_damage (3) |
+| medical_emergency | 5 of 17 | road_accident (5), other (3), fire (2) |
+
+What this means for the app (these numbers come from the model's own answers, not from the labels, so they are valid):
+- Confidence is weak on these photos: 0.60 on average when right and 0.58 when wrong. Only 22 of 77 answers reached 0.70; 12 of those were right and 10 were wrong (for example 5 flood photos called medical_emergency at 0.76 to 0.97, likely rescue scenes with people).
+- 55 of 77 answers are below 0.70, so in the app they would get a Gemini second opinion (`src/lib/ai/chain.ts`). That chain was not run here; a chain run would spend 55 free-tier Gemini calls.
+- The model rated 61 of 77 photos high or critical, so every photo (review rate 100%) would be flagged check first. Every report still goes to a person (review-first), so a wrong type is corrected by staff, never dispatched.
+
+Defense wording: "On 50 held-out benchmark photos the model gets 88% of types right; on 77 real Philippine Facebook and news photos it gets 51%. Real phone photos are harder, which is why the AI only drafts the type and a responder confirms every report."
+
+### 2026-11-20: Gemini and the full chain on the same 77 photos
+
+Method: `npm run benchmark -- --models gemini:gemini-3.1-flash-lite --dataset benchmark/dataset/own --concurrency 1 --yes` on the laptop (free tier). The first pass hit the 15-requests-per-minute limit on 36 photos (HTTP 429), so those 36 were run again in 3 batches of 12 with a 65 s pause. Run folders: `2026-11-20T17-16-55-765Z`, `17-21-27-000Z`, `17-23-04-297Z`, `17-25-01-569Z`. Gemini answered 76 of 77; `road_accident_fb_06.jpg` failed twice. About 113 free-tier calls in total.
+
+The chain row is a replay of the rule in `src/lib/ai/chain.ts` on these per-photo answers: keep the local answer when its confidence is at least 0.70, otherwise use Gemini's answer (keep the local answer if Gemini failed). This is what the app does with `AI_PROVIDER=local` and `AI_LOCAL_ESCALATE_TYPES` empty.
+
+| Setup | Type correct | Gemini calls per 77 reports |
+|---|---|---|
+| Local model alone | 39 of 77 (50.6%) | 0 |
+| Gemini flash-lite alone | 59 of 76 (77.6%) | 77 |
+| Chain, as the app runs it | 55 of 77 (71.4%) | 55 |
+
+| Type | Local | Gemini | Chain |
+|---|---|---|---|
+| structural_damage | 14/18 | 16/18 | 16/18 |
+| road_accident | 7/14 | 12/13 | 12/14 |
+| flood | 5/15 | 14/15 | 9/15 |
+| other | 4/8 | 7/8 | 7/8 |
+| medical_emergency | 5/17 | 7/17 | 8/17 |
+| fallen_debris | 4/5 | 3/5 | 3/5 |
+
+What it shows:
+- The chain lifts real-photo type accuracy from 51% to 71%. Gemini alone is higher (78%) but would need a call for every report, against the free-tier limit (R-007).
+- Flood is where the chain loses most: 6 flood photos with people were called medical_emergency by the local model with confidence 0.76 to 0.97, so they never reach Gemini, which gets flood 14 of 15.
+- medical_emergency is weak for both: Gemini called 10 of 17 road_accident. Many of these photos show an injured person at a crash, so the label itself is a judgment call (one main type per report).
+- Gemini latency: 3,966 ms mean, 12,849 ms p95, against 74 ms for the local model.
+- Replay with `AI_LOCAL_ESCALATE_TYPES=medical_emergency`: 58 of 77 (75.3%) with 61 calls. On the 50-photo benchmark the same setting lowered type accuracy from 94% to 88% (ISS-015 above), so the evidence is mixed. Setting left empty; not changed before the defense.
+
+Defense wording: "On 77 real Philippine Facebook and news photos, our local model alone gets 51% of types right; with Gemini as a second opinion on unsure answers, as the app runs, it gets 71%. Every report is still confirmed by a responder."
+
+Limits: 77 photos from mixed online sources. Some types have only 5 to 8 photos, so their per-type numbers are rough. Labels come from folder names, which may be wrong for some photos. This test does not change the 50-photo benchmark result. It closes AI 5 with a changed scope (test on real photos instead of collecting own photos and retraining; see `training/photo-collection.md`). No photos taken by the team were used.
+
+## Summary for the defense: local model numbers, all in one place (2026-11-20)
+
+| Test | Photos | Type correct | Source |
+|---|---|---|---|
+| Colab test set (held out from the same public datasets used for training) | 1,644 | 90.7% | `metrics.json`, Colab run 20261118-145441 |
+| 50-photo benchmark (team-labelled) | 50 | 88% | run 15-49-07-081Z (2026-11-18) |
+| 77 real Philippine Facebook and news photos, local model alone | 77 | 51% (39 of 77) | 2026-11-18T18-28-34-056Z |
+| Same 77, chain as the app runs (local, Gemini when under 0.70) | 77 | 71% (55 of 77) | 2026-11-20 runs |
+| Same 77, Gemini alone | 76 | 78% (59 of 76) | 2026-11-20 runs |
+
+What the 51% means: the local model answered each of the 77 photos with its own guess, and the guess counted as right only if it matched the folder the photo was filed in. Most of its misses are rescue scenes called `medical_emergency` (6 flood photos) and injured people at a crash called `road_accident` (5 medical photos), plus 5 road accident photos called `structural_damage`.
+
+Not measured on real photos: whether urgent reports were caught. The 77 photos have placeholder severity labels. "61 of 77 rated high or critical" is only the model's output, not a check against the truth.
+
+Defense wording: "The local model gets 88% of types right on our 50-photo benchmark. On 77 real Philippine Facebook and news photos it gets 51% on its own, and 71% with the Gemini second opinion the app uses. Real phone photos are harder than our test set, which is why the AI only drafts the type and a responder confirms every report. Training on real local photos is our next step after the defense."
+
+Is the local model accurate? On photos like the ones it learned from, yes: 91% on the test set and 88% on the benchmark, above the 86% pass mark. On real Philippine phone photos, on its own, no: about half right. Both are true; they measure different things.
+
+Why it drops on real photos: the training photos come from public datasets (often aerial, clean, foreign scenes). Real Facebook and news photos are messy and local, often show people (flood rescues read as medical), and mix types (an injured person at a crash). A model doing worse on photos unlike its training data is expected (domain shift).
+
+Why the app is still safe to demo: the app does not use the local model alone (71% with the Gemini second opinion), and the AI never acts by itself. Every report goes to a responder, who sees the photo and corrects the type, so a wrong guess costs a few seconds of review, not a wrong dispatch.
+
+Likely panel questions:
+- "Is 51% good enough?" No, not on its own, and we do not use it on its own: the app's chain gets 71% and a responder confirms every report.
+- "Why not retrain before the defense?" A new model 3 to 4 days before the defense could fail the benchmark marks with no time to fix it. Retraining on real local photos is the first step after the defense.
+- "Why is Gemini not the primary, if it is better on real photos?" Free-tier limit (15 requests per minute, R-007), 4 s per photo against 0.07 s, and the app must keep working when Gemini is unavailable. The chain uses Gemini only for unsure answers (55 of 77 here).
+- "How do you know the 77 photos were not in training?" Checked against all 10,540 training and benchmark photos by file match and image fingerprint: no copies.
