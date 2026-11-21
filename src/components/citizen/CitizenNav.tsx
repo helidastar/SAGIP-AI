@@ -1,8 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardIcon, ShieldIcon } from "./icons";
+import { ClipboardIcon } from "./icons";
 
 const TABS = [
   { href: "/", label: "Report", icon: AlertTab, match: (p: string) => p === "/" },
@@ -20,9 +21,7 @@ function AlertTab({ className }: { className?: string }) {
 function Logo() {
   return (
     <Link href="/" className="flex items-center gap-2.5" aria-label="SAGIP-AI home">
-      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[#006a63] text-white">
-        <ShieldIcon className="h-4.5 w-4.5" />
-      </span>
+      <Image src="/brand/sagip-ai-mark.svg" alt="" width={36} height={36} loading="eager" className="h-9 w-9" />
       <span className="font-display text-lg font-bold tracking-tight text-white">SAGIP-AI</span>
     </Link>
   );
