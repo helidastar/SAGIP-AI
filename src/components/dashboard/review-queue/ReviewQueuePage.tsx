@@ -4,6 +4,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "r
 import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api-client";
 import { CONFIDENCE_THRESHOLD, INCIDENT_TYPES, SEVERITY } from "@/lib/constants";
+import { severityWithPercent } from "@/lib/severity-label";
 import type { Severity } from "@/types";
 import { DashboardQueueCountContext } from "@/components/dashboard/DashboardShell";
 import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar";
@@ -26,6 +27,7 @@ interface QueueItem {
     model: string;
     incidentType: string;
     severity: Severity;
+    severityConfidence?: number | null;
     confidence: number;
     hazards: string[];
     hoaxSuspected?: boolean;
@@ -658,7 +660,7 @@ function ReviewRow({
         {classification ? (
           <div className={styles.assessmentCell}>
             <strong>{titleCase(classification.incidentType)}</strong>
-            <span>{titleCase(classification.severity)}</span>
+            <span>{severityWithPercent(classification.severity, classification.severityConfidence)}</span>
             <span className={classification.confidence < CONFIDENCE_THRESHOLD ? styles.lowConfidence : ""}>
               Confidence {Math.round(classification.confidence * 100)}%
             </span>
