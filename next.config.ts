@@ -12,8 +12,9 @@ const nextConfig: NextConfig = {
     ],
   },
   outputFileTracingIncludes: {
-    "/api/reports": ["./models/**/*"],
-    "/api/incidents/[id]/reclassify": ["./models/**/*"],
+    // The tracer finds onnxruntime_binding.node but not the shared library it loads.
+    "/api/reports": ["./models/**/*", "./node_modules/onnxruntime-node/bin/napi-v6/linux/x64/libonnxruntime.so.1"],
+    "/api/incidents/*/reclassify": ["./models/**/*", "./node_modules/onnxruntime-node/bin/napi-v6/linux/x64/libonnxruntime.so.1"],
   },
 };
 
