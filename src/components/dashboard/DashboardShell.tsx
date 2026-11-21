@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useState, type ReactNode } from "react";
@@ -46,7 +47,7 @@ export function DashboardShell({
         <div className={styles.shell}>
           <aside className={styles.sidebar} aria-label="Dashboard sidebar">
             <Link href="/dashboard" className={styles.brand} aria-label="SAGIP-AI home">
-              <span className={styles.brandMark} aria-hidden="true"><ShieldIcon /></span>
+              <Image src="/brand/sagip-ai-mark.svg" alt="" width={36} height={36} loading="eager" className={styles.brandMark} />
               <span className={styles.brandName}>
                 <strong>SAGIP-AI</strong>
                 <span>Ops portal</span>
@@ -160,15 +161,6 @@ function AnalyticsIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
       <rect x="4" y="4" width="16" height="16" rx="1" /><path d="M8 16v-4m4 4V8m4 8v-6" />
-    </svg>
-  );
-}
-
-function ShieldIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-      <path d="M12 3 19 6v5c0 4.6-2.7 7.9-7 10-4.3-2.1-7-5.4-7-10V6l7-3Z" />
-      <path d="m9 12 2 2 4-4" />
     </svg>
   );
 }

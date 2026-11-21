@@ -81,17 +81,12 @@
 }
 
 .brandMark {
-  display: grid;
+  display: block;
   width: 36px;
   height: 36px;
   flex: 0 0 36px;
-  place-items: center;
-  border-radius: 8px;
-  background: var(--secondary);
-  color: #ffffff;
 }
 
-.brandMark svg,
 .navLink svg,
 .avatar svg,
 .logoutButton svg {
