@@ -1,11 +1,6 @@
-import { IncidentList } from "@/components/dashboard/IncidentList";
-import { ReviewQueue } from "@/components/dashboard/ReviewQueue";
+import { redirect } from "next/navigation";
 
+/** The old operations wireframe page; staff now work in the designed dashboard at /dashboard. */
 export default function AdminDashboardPage() {
-  return (
-    <>
-      <IncidentList />
-      <ReviewQueue compact />
-    </>
-  );
+  redirect("/dashboard");
 }

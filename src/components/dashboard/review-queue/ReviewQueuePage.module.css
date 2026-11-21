@@ -348,7 +348,7 @@
 
 .table {
   width: 100%;
-  min-width: 1280px;
+  min-width: 960px;
   border-collapse: collapse;
   table-layout: fixed;
 }
@@ -367,14 +367,25 @@
   letter-spacing: 0.05em;
 }
 
-.table th:nth-child(1) { width: 145px; }
-.table th:nth-child(2) { width: 220px; }
-.table th:nth-child(3) { width: 170px; }
-.table th:nth-child(4) { width: 130px; }
-.table th:nth-child(5) { width: 145px; }
-.table th:nth-child(6) { width: 180px; }
-.table th:nth-child(7) { width: 180px; }
-.table th:nth-child(8) { width: 110px; text-align: right; }
+.table th:nth-child(1) { width: 12%; }
+.table th:nth-child(2) { width: 24%; }
+.table th:nth-child(3) { width: 12%; }
+.table th:nth-child(4) { width: 12%; }
+.table th:nth-child(5) { width: 15%; }
+.table th:nth-child(6) { width: 13%; }
+.table th:nth-child(7) { width: 12%; text-align: right; }
+
+.clickableRow {
+  cursor: pointer;
+}
+
+.areaLine {
+  display: block;
+  margin-top: 2px;
+  color: var(--rq-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
 
 .table td {
   height: 92px;
@@ -499,8 +510,10 @@
 .priorityBadge {
   min-height: 44px;
   width: fit-content;
+  max-width: 100%;
   align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 2px 8px;
   border: 1px solid;
   border-radius: 8px;
   padding: 8px;
@@ -1068,5 +1081,45 @@
   .skeletonHeader,
   .skeletonRow span {
     animation: none;
+  }
+}
+
+/* Fit the queue table on a normal laptop screen so the Review button is visible without side-scrolling,
+   and keep the Action column pinned on the right when the table does need to scroll. */
+@media (min-width: 768px) {
+  .priorityBadge {
+    flex-wrap: wrap;
+    column-gap: 4px;
+    row-gap: 0;
+    max-width: 100%;
+  }
+
+  .priorityBadge strong {
+    margin-left: 0;
+  }
+
+  .table th:nth-child(7),
+  .actionCell {
+    position: sticky;
+    right: 0;
+    z-index: 1;
+    box-shadow: -8px 0 8px -8px rgb(16 28 44 / 18%);
+  }
+
+  .table th:nth-child(7) {
+    background: #f0f3ff;
+  }
+
+  .actionCell {
+    background: var(--rq-white);
+    padding-right: 16px;
+  }
+
+  .referenceCell span {
+    white-space: nowrap;
+  }
+
+  .table tbody tr:hover .actionCell {
+    background: #f8fafc;
   }
 }

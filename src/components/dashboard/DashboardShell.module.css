@@ -350,8 +350,59 @@
 }
 
 .toolbarAvatar {
-  background: var(--navy);
-  color: #ffffff;
+  width: 36px;
+  height: 36px;
+  flex-basis: 36px;
+  border-radius: 999px;
+  background: var(--surface-low);
+  color: var(--on-surface-variant);
+}
+
+.toolbarUser {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 8px;
+}
+
+.toolbarUserName {
+  display: grid;
+  text-align: right;
+  line-height: 1.2;
+}
+
+.toolbarUserName strong {
+  color: var(--on-surface);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.toolbarUserName span {
+  color: var(--on-surface-variant);
+  font-size: 11px;
+  text-transform: capitalize;
+}
+
+@media (max-width: 640px) {
+  .toolbarUserName {
+    display: none;
+  }
+}
+
+.toolbarRefreshSpinning svg {
+  animation: toolbar-spin 0.7s linear;
+}
+
+@keyframes toolbar-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toolbarRefreshSpinning svg {
+    animation: none;
+  }
 }
 
 .authError,

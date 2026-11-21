@@ -87,7 +87,8 @@ export function AnalyticsDashboard() {
       since.setDate(since.getDate() - 29);
       const [incidentsResult, reviewResult] = await Promise.all([
         loadIncidents(since.toISOString()),
-        api<{ total: number }>("/api/incidents?status=pending_review&limit=1"),
+        // Same source as the Review Queue page, so the sidebar badge matches everywhere.
+        api<{ items: unknown[] }>("/api/review-queue"),
       ]);
       if (cancelled) return;
 
@@ -103,7 +104,7 @@ export function AnalyticsDashboard() {
         updatedAt: new Date().toISOString(),
       });
       if (reviewResult.ok) {
-        const count = reviewResult.data.total;
+        const count = reviewResult.data.items.length;
         setReviewError(null);
         setReviewCount(count);
       } else {
@@ -189,8 +190,11 @@ export function AnalyticsDashboard() {
     const link = document.createElement("a");
     link.href = url;
     link.download = `sagip-analytics-${period}.csv`;
+    document.body.appendChild(link);
     link.click();
-    URL.revokeObjectURL(url);
+    link.remove();
+    // Revoking right away can cancel the download in some browsers.
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   return (

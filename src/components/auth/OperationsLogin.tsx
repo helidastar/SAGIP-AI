@@ -161,7 +161,7 @@ export function LoginCard({ children }: { children: ReactNode }) {
   );
 }
 
-export function OperationsLogin({ redirectTo = "/admin/dashboard" }: { redirectTo?: string } = {}) {
+export function OperationsLogin({ redirectTo = "/dashboard" }: { redirectTo?: string } = {}) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

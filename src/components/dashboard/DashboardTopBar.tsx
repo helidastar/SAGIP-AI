@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useStaff } from "@/components/dashboard/StaffProvider";
 import styles from "@/components/dashboard/DashboardShell.module.css";
 
@@ -13,10 +14,12 @@ export function DashboardTopBar({
   refreshDisabled?: boolean;
 }) {
   const staff = useStaff();
+  // Spin briefly so a click is visible even when the data has not changed.
+  const [spinning, setSpinning] = useState(false);
   const updatedText = lastUpdated
     ? new Intl.DateTimeFormat("en-PH", {
         dateStyle: "medium",
-        timeStyle: "short",
+        timeStyle: "medium",
         timeZone: "Asia/Manila",
       }).format(lastUpdated instanceof Date ? lastUpdated : new Date(lastUpdated))
     : "Synchronizing";
@@ -33,21 +36,29 @@ export function DashboardTopBar({
       <div className={styles.toolbarActions}>
         <button
           type="button"
-          className={styles.toolbarRefresh}
-          onClick={onRefresh}
+          className={`${styles.toolbarRefresh} ${spinning ? styles.toolbarRefreshSpinning : ""}`}
+          onClick={() => {
+            setSpinning(true);
+            window.setTimeout(() => setSpinning(false), 700);
+            onRefresh();
+          }}
           disabled={refreshDisabled}
           aria-label="Refresh dashboard"
           title="Refresh dashboard"
         >
           <RefreshIcon />
         </button>
-        <span
-          className={styles.toolbarAvatar}
-          role="img"
-          aria-label={staff?.fullName ?? staff?.email ?? "Staff"}
-        >
-          <UserIcon />
-        </span>
+        {staff && (
+          <span className={styles.toolbarUser}>
+            <span className={styles.toolbarUserName}>
+              <strong>{staff.fullName ?? staff.email}</strong>
+              <span>{staff.role}</span>
+            </span>
+            <span className={styles.toolbarAvatar} aria-hidden="true">
+              <UserIcon />
+            </span>
+          </span>
+        )}
       </div>
     </header>
   );

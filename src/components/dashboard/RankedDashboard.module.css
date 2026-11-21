@@ -1601,3 +1601,88 @@
     scroll-behavior: auto;
   }
 }
+
+/* Clickable workflow steps, filter chips, sort and reset (these were static before). */
+button.workflowCard {
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+
+button.workflowCard:hover {
+  border-color: var(--secondary);
+  box-shadow: 0 2px 6px rgb(16 28 44 / 8%);
+}
+
+button.workflowCard:focus-visible,
+button.filterChip:focus-visible,
+button.resetAll:focus-visible,
+button.filterToggle:focus-visible,
+select.sortValue:focus-visible {
+  outline: 2px solid var(--secondary);
+  outline-offset: 2px;
+}
+
+button.filterChip,
+button.filterToggle,
+button.resetAll {
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button.filterChip {
+  font-family: var(--mono-font);
+}
+
+button.filterChip:not(.filterChipActive):hover,
+button.filterToggle:hover {
+  background: var(--surface-container);
+}
+
+button.resetAll {
+  background: transparent;
+  padding: 0 4px;
+}
+
+button.resetAll:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+button.resetAll:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+select.sortValue {
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.searchBox:focus-within {
+  outline: 2px solid var(--secondary);
+  outline-offset: 2px;
+}
+
+.listMessage {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0;
+  padding: 24px 16px;
+  color: var(--on-surface-variant);
+  font-size: 14px;
+}
+
+.listMessage p {
+  margin: 0;
+}
+
+.leafletMarker {
+  cursor: pointer;
+}
