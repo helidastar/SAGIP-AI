@@ -23,6 +23,7 @@ import {
   TRANSITION_LABELS,
 } from "@/lib/workflow";
 import type { ReportStatus, Severity } from "@/types";
+import { severityWithPercent } from "@/lib/severity-label";
 import styles from "./IncidentDossier.module.css";
 
 type DossierClassification = Classification & {
@@ -466,7 +467,7 @@ export function IncidentDossierView({
                     <strong>{latest.model}</strong>
                   </div>
                   <DataPair label="Predicted type" value={titleCase(latest.incidentType)} />
-                  <DataPair label="Estimated severity" value={titleCase(latest.severity)} />
+                  <DataPair label="Estimated severity" value={severityWithPercent(latest.severity, latest.severityConfidence)} />
                   <div className={styles.confidenceBlock}>
                     <div className={styles.dataLabel}>
                       <span>Confidence</span><strong>{formatPercent(latest.confidence)}</strong>
@@ -497,7 +498,7 @@ export function IncidentDossierView({
                             <td><time dateTime={classification.createdAt}>{formatDate(classification.createdAt)}</time></td>
                             <td>{classification.model}</td>
                             <td>{titleCase(classification.incidentType)}</td>
-                            <td>{titleCase(classification.severity)}</td>
+                            <td>{severityWithPercent(classification.severity, classification.severityConfidence)}</td>
                             <td>{formatPercent(classification.confidence)}</td>
                             <td>{classification.hazards.join(", ") || "—"}</td>
                           </tr>
@@ -523,7 +524,7 @@ export function IncidentDossierView({
                 <div>
                   <span className={styles.overline}>AI proposed</span>
                   {latest
-                    ? <strong>{titleCase(latest.incidentType)} · {titleCase(latest.severity)}</strong>
+                    ? <strong>{titleCase(latest.incidentType)} · {severityWithPercent(latest.severity, latest.severityConfidence)}</strong>
                     : <strong>No AI result yet</strong>}
                 </div>
                 <div>
