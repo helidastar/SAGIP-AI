@@ -87,7 +87,7 @@ export function ReviewQueuePage() {
             : state;
 
   const lowConfidenceCount = useMemo(
-    () => items.filter((item) => item.classification && item.classification.confidence < CONFIDENCE_THRESHOLD).length,
+    () => items.filter(isLowConfidence).length,
     [items],
   );
   const highCriticalCount = useMemo(
@@ -111,7 +111,7 @@ export function ReviewQueuePage() {
 
   const reasonCounts = useMemo(() => ({
     all: items.length,
-    low: items.filter((item) => item.classification && item.classification.confidence < CONFIDENCE_THRESHOLD).length,
+    low: items.filter(isLowConfidence).length,
     critical: items.filter((item) => item.classification?.severity === "critical").length,
     high: items.filter((item) => item.classification?.severity === "high").length,
   }), [items]);
@@ -126,7 +126,7 @@ export function ReviewQueuePage() {
       ].some((value) => value.toLowerCase().includes(query))) return false;
       if (severityFilter !== "all" && item.classification?.severity !== severityFilter) return false;
       if (typeFilter !== "all" && item.classification?.incidentType !== typeFilter) return false;
-      if (reasonFilter === "LOW_CONF" && !(item.classification && item.classification.confidence < CONFIDENCE_THRESHOLD)) return false;
+      if (reasonFilter === "LOW_CONF" && !isLowConfidence(item)) return false;
       if (reasonFilter === "CRITICAL" && item.classification?.severity !== "critical") return false;
       if (reasonFilter === "HIGH_SEV" && item.classification?.severity !== "high") return false;
       return true;
@@ -370,8 +370,7 @@ export function ReviewQueuePage() {
                 <thead>
                   <tr>
                     <th scope="col">Reference</th>
-                    <th scope="col">Incident type &amp; telemetry</th>
-                    <th scope="col">Location</th>
+                    <th scope="col">Incident &amp; location</th>
                     <th scope="col">Queue wait</th>
                     <th scope="col">Priority / Score</th>
                     <th scope="col">AI assessment &amp; confidence</th>
@@ -578,7 +577,9 @@ function ReviewModal({
           {saved && <p className={styles.modalSaved}>Action recorded in the audit log</p>}
         </div>
         <footer className={styles.modalFooter}>
-          <button type="button" className={styles.dangerButton} disabled={busy || saved} onClick={() => void send({ reject: true, notes })}>
+          <button type="button" className={styles.dangerButton} disabled={busy || saved} onClick={() => {
+            if (window.confirm(`Mark ${item.trackingCode} as a false alarm? It will be rejected and leave the queue.`)) void send({ reject: true, notes });
+          }}>
             Mark false alarm
           </button>
           <button type="button" className={styles.confirmButton} disabled={busy || saved} onClick={() => void send({ finalType, finalSeverity, notes })}>
@@ -606,12 +607,23 @@ function ReviewRow({
   const reasons = reviewReasons(item);
   const [copied, setCopied] = useState(false);
   async function copyReference() {
-    await navigator.clipboard.writeText(item.trackingCode);
+    try {
+      await navigator.clipboard.writeText(item.trackingCode);
+    } catch {
+      return;
+    }
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1500);
   }
   return (
-    <tr>
+    <tr
+      className={styles.clickableRow}
+      onClick={(event) => {
+        if ((event.target as HTMLElement).closest("button, a")) return;
+        const button = event.currentTarget.querySelector<HTMLButtonElement>("[data-review-button]");
+        if (button) onReview(button);
+      }}
+    >
       <td data-label="Reference">
         <div className={styles.referenceCell}>
           <button
@@ -631,12 +643,8 @@ function ReviewRow({
           <div>
             <strong>{classification ? titleCase(classification.incidentType) : "Unclassified"}</strong>
             <p>{item.description || "No description"}</p>
+            <span className={styles.areaLine}>{item.area ?? "Unknown area"}</span>
           </div>
-        </div>
-      </td>
-      <td data-label="Location">
-        <div className={styles.locationCell}>
-          <strong>{item.area ?? "Unknown area"}</strong>
         </div>
       </td>
       <td data-label="Queue wait">
@@ -677,7 +685,7 @@ function ReviewRow({
         </div>
       </td>
       <td data-label="Action" className={styles.actionCell}>
-        <button type="button" className={styles.reviewButton} onClick={(event) => onReview(event.currentTarget)}>
+        <button type="button" data-review-button className={styles.reviewButton} onClick={(event) => onReview(event.currentTarget)}>
           Review
           <ChevronIcon />
         </button>
@@ -686,12 +694,21 @@ function ReviewRow({
   );
 }
 
+/** Same rule as the server's check-first trigger: type or severity confidence below the threshold. */
+function isLowConfidence(item: QueueItem) {
+  if (item.checkFirst.includes("low_confidence")) return true;
+  const c = item.classification;
+  if (!c) return false;
+  return c.confidence < CONFIDENCE_THRESHOLD || (c.severityConfidence != null && c.severityConfidence < CONFIDENCE_THRESHOLD);
+}
+
 function reviewReasons(item: QueueItem) {
   const reasons: string[] = [];
   if (item.urgentUnverified) reasons.push("Urgent · no AI");
   if (item.classification?.severity === "critical") reasons.push("Critical");
   else if (item.classification?.severity === "high") reasons.push("High");
-  if (item.classification && item.classification.confidence < CONFIDENCE_THRESHOLD) reasons.push("Low confidence");
+  if (isLowConfidence(item)) reasons.push("Low confidence");
+  if (!item.classification) reasons.push("No AI result");
   if (item.classification?.hoaxSuspected) reasons.push("Possible hoax");
   if (item.checkFirst.includes("possible_hoax") && !reasons.includes("Possible hoax")) reasons.push("Possible hoax");
   return reasons;
