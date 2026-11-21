@@ -1,7 +1,7 @@
 import "server-only";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import * as ort from "onnxruntime-node";
+import type * as Ort from "onnxruntime-node";
 import sharp from "sharp";
 import { INCIDENT_TYPES, SEVERITY } from "@/lib/constants";
 import type { IncidentType, Severity } from "@/types";
@@ -35,7 +35,7 @@ interface Labels {
 }
 
 /** Matches the notebook's eval transform: resize shorter side to size*256/224, center-crop, normalize. */
-async function preprocess(image: Buffer, { image_size: size, mean, std }: Labels) {
+async function preprocess(image: Buffer, { image_size: size, mean, std }: Labels, Tensor: typeof Ort.Tensor) {
   const resizeTo = Math.round((size * 256) / 224);
   const resized = await sharp(image, { failOn: "none" })
     .rotate()
@@ -58,7 +58,7 @@ async function preprocess(image: Buffer, { image_size: size, mean, std }: Labels
   for (let i = 0; i < pixels; i++) {
     for (let c = 0; c < 3; c++) tensor[c * pixels + i] = (data[i * 3 + c] / 255 - mean[c]) / std[c];
   }
-  return new ort.Tensor("float32", tensor, [1, 3, size, size]);
+  return new Tensor("float32", tensor, [1, 3, size, size]);
 }
 
 function softmax(logits: Float32Array) {
@@ -72,7 +72,7 @@ export function createLocalClassifier(modelPath = DEFAULT_MODEL_PATH): Classifie
   const resolved = path.resolve(modelPath);
   const labelsPath = path.join(path.dirname(resolved), "labels.json");
   // Load once and reuse; a failed load is retried on the next request.
-  let loading: Promise<{ session: ort.InferenceSession; labels: Labels }> | null = null;
+  let loading: Promise<{ session: Ort.InferenceSession; labels: Labels; Tensor: typeof Ort.Tensor }> | null = null;
   const load = () =>
     (loading ??= (async () => {
       const labels: Labels = JSON.parse(await readFile(labelsPath, "utf8"));
@@ -80,7 +80,10 @@ export function createLocalClassifier(modelPath = DEFAULT_MODEL_PATH): Classifie
       if (unknown.length) throw new Error(`labels.json has classes the app doesn't know: ${unknown.join(", ")}`);
       const badSeverity = (labels.severity_classes ?? []).filter((c) => !(c in SEVERITY));
       if (badSeverity.length) throw new Error(`labels.json has severities the app doesn't know: ${badSeverity.join(", ")}`);
-      return { session: await ort.InferenceSession.create(resolved), labels };
+      // Loaded here, not at the top: if the native runtime is missing, only this step fails and
+      // the chain moves on to Gemini, instead of the whole report route crashing.
+      const ort = await import("onnxruntime-node");
+      return { session: await ort.InferenceSession.create(resolved), labels, Tensor: ort.Tensor };
     })().catch((err) => {
       loading = null;
       throw err;
@@ -94,8 +97,8 @@ export function createLocalClassifier(modelPath = DEFAULT_MODEL_PATH): Classifie
       if (!image) throw new Error("Local classifier needs a photo");
       options?.signal?.throwIfAborted();
 
-      const { session, labels } = await load();
-      const input = await preprocess(image.data, labels);
+      const { session, labels, Tensor } = await load();
+      const input = await preprocess(image.data, labels, Tensor);
       const output = await session.run({ [session.inputNames[0]]: input });
       const probs = softmax(output[session.outputNames[0]].data as Float32Array);
 
