@@ -102,6 +102,11 @@ export function IncidentDossierShell({
                 <AnalyticsIcon /><span>Analytics</span>
               </Link>
             </li>
+            <li>
+              <Link href="/dashboard/definitions" className={styles.navLink}>
+                <BookIcon /><span>Definitions</span>
+              </Link>
+            </li>
           </ul>
         </nav>
         {reviewCountError && <p className={styles.queueError} role="alert">{reviewCountError}</p>}
@@ -223,8 +228,8 @@ export function IncidentDossierView({
         hoaxSuspected: latest.hoaxSuspected ?? false,
       })
     : [];
-  const needsReview = detail.status === "pending_review" ||
-    (!detail.review && reviewReasons.length > 0);
+  // Once staff confirm the type and severity, the AI's check-first flags no longer apply.
+  const needsReview = detail.status === "pending_review" || detail.status === "received";
   const isCurrentStepReview = step?.key === "review";
   const stepTitle = detail.status === "rejected"
     ? "Incident rejected"
@@ -637,7 +642,9 @@ export function IncidentDossierView({
                       type="button"
                       className={styles.buttonSecondary}
                       disabled={busy}
-                      onClick={() => void onAction({ label: "Re-run AI", path: `/api/incidents/${detail.id}/reclassify`, method: "POST" })}
+                      onClick={() => {
+                        if (window.confirm("Run the AI again on this report? Its draft type and severity may change.")) void onAction({ label: "Re-run AI", path: `/api/incidents/${detail.id}/reclassify`, method: "POST" });
+                      }}
                     >
                       Re-run AI
                     </button>
@@ -646,7 +653,9 @@ export function IncidentDossierView({
                         type="button"
                         className={styles.buttonDanger}
                         disabled={busy}
-                        onClick={() => void onAction({ label: "Reject incident", path: `/api/incidents/${detail.id}/status`, method: "PATCH", json: { status: "rejected" } })}
+                        onClick={() => {
+                          if (window.confirm(`Reject ${detail.trackingCode}? It will be marked as not a real incident.`)) void onAction({ label: "Reject incident", path: `/api/incidents/${detail.id}/status`, method: "PATCH", json: { status: "rejected" } });
+                        }}
                       >
                         Reject incident
                       </button>
@@ -676,6 +685,14 @@ function TopBar({ staff, lastRefreshed }: { staff: StaffUser | null; lastRefresh
   );
 }
 
+function lowConfidenceLabel(latest: DossierClassification | undefined) {
+  const threshold = formatPercent(CONFIDENCE_THRESHOLD);
+  const parts: string[] = [];
+  if (latest && latest.confidence < CONFIDENCE_THRESHOLD) parts.push(`type ${formatPercent(latest.confidence)}`);
+  if (latest?.severityConfidence != null && latest.severityConfidence < CONFIDENCE_THRESHOLD) parts.push(`severity ${formatPercent(latest.severityConfidence)}`);
+  return `Low confidence (${parts.join(", ") || "below threshold"}; review below ${threshold})`;
+}
+
 function ReviewBanner({
   latest,
   reasons,
@@ -686,7 +703,7 @@ function ReviewBanner({
   pending: boolean;
 }) {
   const labels = reasons.map((reason) => ({
-    low_confidence: `Low confidence (${formatPercent(latest?.confidence ?? 0)}; review threshold ${formatPercent(CONFIDENCE_THRESHOLD)})`,
+    low_confidence: lowConfidenceLabel(latest),
     high_severity: "High severity",
     possible_hoax: "Possible hoax flag",
   })[reason]);
@@ -802,14 +819,29 @@ function DataPair({ label, value }: { label: string; value: string }) {
   );
 }
 
+function BookIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+      <path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4z" />
+      <path d="M5 17a3 3 0 0 1 3-3h10" />
+    </svg>
+  );
+}
+
 function auditLabel(action: string) {
   const labels: Record<string, string> = {
     status_changed: "Status changed",
     team_assigned: "Team assigned",
     report_classified: "Report classified",
     report_submitted: "Report submitted",
+    report_reviewed: "Classification confirmed by staff",
+    report_rejected: "Marked as false alarm",
+    reclassified: "AI re-run",
+    priority_overridden: "Priority score overridden",
+    ai_fallback_used: "AI fallback used",
+    classification_error: "AI classification failed",
   };
-  return labels[action] ?? action;
+  return labels[action] ?? action.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 }
 
 function openMapUrl(lat: number, lng: number) {
