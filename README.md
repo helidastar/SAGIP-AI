@@ -8,7 +8,7 @@
 
 **Smart AI for Geospatial Intelligence and Prediction**
 
-Report an emergency in under a minute, no account needed. The AI makes a first guess at what happened and how serious it is, a simple formula sorts the list, and a real person always makes the final call.
+Citizens report an emergency in under a minute. The AI makes a first assessment of what happened and how serious it is, then a real person makes the final call.
 
 CPEPE362 Software Development 2 · Team CCRVibe 2.0 · Instructor: Rex A. Seadiño Jr.
 
