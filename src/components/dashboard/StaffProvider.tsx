@@ -109,6 +109,7 @@ export function StaffProvider({
       ) : pathname === "/dashboard" ||
         pathname.startsWith("/dashboard/review") ||
         pathname.startsWith("/dashboard/analytics") ||
+        pathname.startsWith("/dashboard/definitions") ||
         pathname.startsWith("/dashboard/overview") ? (
         <DashboardShell staff={staff} error={error} onLogout={logout}>
           {children}
