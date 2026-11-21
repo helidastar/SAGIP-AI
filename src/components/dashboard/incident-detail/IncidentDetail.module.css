@@ -68,14 +68,11 @@
   height: 31px;
   flex: 0 0 31px;
   place-items: center;
-  border: 1px solid var(--detail-teal);
-  border-radius: 6px;
-  background: #0a625e;
 }
 
-.brandMark svg {
-  width: 20px;
-  height: 20px;
+.brandMark img {
+  width: 100%;
+  height: 100%;
 }
 
 .brandText,
