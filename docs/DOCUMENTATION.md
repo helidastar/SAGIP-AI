@@ -596,7 +596,7 @@ Implemented as Next.js Route Handlers under `src/app/api`.
 | `POST` | `/api/incidents/{id}/assign` | Assign to a team *(admin)* |
 | `PATCH` | `/api/incidents/{id}/priority` | Manually override score / band *(admin)* |
 | `POST` | `/api/incidents/{id}/reclassify` | Re-run AI classification *(admin)* |
-| `GET` | `/api/analytics/summary?from=&to=` | Volume by type / time / area, response times *(v1.5)* |
+| `GET` | `/api/analytics/summary?from=&to=` | Volume by type, severity, status, band, area and day (Philippine time). Default last 7 days, at most 92 days. Response times are not included (v1.5) |
 
 ### 10.3 Example responses
 
