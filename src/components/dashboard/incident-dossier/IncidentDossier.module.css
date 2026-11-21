@@ -1529,3 +1529,40 @@
     text-align: left;
   }
 }
+.navList {
+  margin-top: 16px;
+}
+
+/* Simplified incident page */
+.scoreInline {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid var(--outline-variant, #c5c6cd);
+  padding: 0 12px;
+  font-family: var(--mono-font, monospace);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.collapsible {
+  display: block;
+}
+
+.collapsibleSummary {
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  list-style-position: inside;
+}
+
+.collapsible[open] .collapsibleSummary {
+  margin-bottom: 12px;
+}
+
+.collapsibleSummary:focus-visible {
+  outline: 2px solid #006a63;
+  outline-offset: 2px;
+}
