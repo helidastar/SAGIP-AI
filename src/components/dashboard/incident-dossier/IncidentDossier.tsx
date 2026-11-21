@@ -102,6 +102,11 @@ export function IncidentDossierShell({
                 <AnalyticsIcon /><span>Analytics</span>
               </Link>
             </li>
+            <li>
+              <Link href="/dashboard/definitions" className={styles.navLink}>
+                <BookIcon /><span>Definitions</span>
+              </Link>
+            </li>
           </ul>
         </nav>
         {reviewCountError && <p className={styles.queueError} role="alert">{reviewCountError}</p>}
@@ -912,4 +917,13 @@ function CheckIcon() {
 
 function ReopenIcon() {
   return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M13 6a5.5 5.5 0 0 0-9.5-2L2 5m0-3v3h3m-2 3a5.5 5.5 0 0 0 9.5 2L14 9m0 3V9h-3" /></svg>;
+}
+
+function BookIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+      <path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4z" />
+      <path d="M5 17a3 3 0 0 1 3-3h10" />
+    </svg>
+  );
 }
