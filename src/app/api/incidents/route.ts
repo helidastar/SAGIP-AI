@@ -16,8 +16,14 @@ export const GET = withStaff(async (request) => {
   const bands = csv(params.get("band"));
   const types = csv(params.get("type"));
   const teamId = params.get("teamId");
+  const createdAfter = params.get("createdAfter");
+  const createdAfterDate = createdAfter ? new Date(createdAfter) : null;
   const limit = Math.min(100, Math.max(1, Number(params.get("limit")) || 50));
   const offset = Math.max(0, Number(params.get("offset")) || 0);
+
+  if (createdAfterDate && !Number.isFinite(createdAfterDate.getTime())) {
+    return Response.json({ error: "Invalid createdAfter date." }, { status: 400 });
+  }
 
   const bad =
     statuses.find((s) => !(REPORT_STATUSES as readonly string[]).includes(s)) ??
@@ -35,6 +41,7 @@ export const GET = withStaff(async (request) => {
   if (bands.length) query = query.in("band", bands);
   if (types.length) query = query.in("confirmed_type", types);
   if (teamId) query = query.eq("team_id", teamId);
+  if (createdAfterDate) query = query.gte("created_at", createdAfterDate.toISOString());
 
   const { data, count, error } = await query.returns<IncidentRow[]>();
   if (error) {

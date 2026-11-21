@@ -226,9 +226,9 @@ describe("POST /api/reports – input validation (400)", () => {
     assert.ok(String(body.error).includes("image"));
   });
 
-  it("oversized image (> 10 MB) → 400", async () => {
-    // 10 MB + 1 byte
-    const big = new File([new Uint8Array(10 * 1024 * 1024 + 1)], "big.jpg", { type: "image/jpeg" });
+  it("oversized image (> 4 MB, Vercel body limit ISS-030) → 400", async () => {
+    // 4 MB + 1 byte
+    const big = new File([new Uint8Array(4 * 1024 * 1024 + 1)], "big.jpg", { type: "image/jpeg" });
     const fd = new FormData();
     fd.append("lat", "10.32");
     fd.append("lng", "123.88");
@@ -238,7 +238,7 @@ describe("POST /api/reports – input validation (400)", () => {
     }));
     assert.equal(res.status, 400);
     const body = await json(res);
-    assert.ok(String(body.error).includes("10MB") || String(body.error).includes("image"));
+    assert.ok(String(body.error).includes("4 MB"));
   });
 
   it("exactly 90 lat is valid (boundary)", async () => {

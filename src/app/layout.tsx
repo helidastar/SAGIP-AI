@@ -1,17 +1,21 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Space_Mono } from "next/font/google";
+import { Archivo, IBM_Plex_Mono, Inter, JetBrains_Mono, Public_Sans } from "next/font/google";
 import "./globals.css";
 
-const grotesk = Space_Grotesk({
-  variable: "--font-grotesk",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
-const spaceMono = Space_Mono({
-  variable: "--font-space-mono",
+const jetBrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
   subsets: ["latin"],
-  weight: ["400", "700"],
 });
+
+// Citizen portal fonts (from the Figma design system).
+const archivo = Archivo({ variable: "--font-archivo", subsets: ["latin"] });
+const publicSans = Public_Sans({ variable: "--font-public-sans", subsets: ["latin"] });
+const plexMono = IBM_Plex_Mono({ variable: "--font-plex-mono", subsets: ["latin"], weight: ["400", "500", "600"] });
 
 export const metadata: Metadata = {
   title: "SAGIP-AI",
@@ -22,7 +26,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${grotesk.variable} ${spaceMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${jetBrainsMono.variable} ${archivo.variable} ${publicSans.variable} ${plexMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

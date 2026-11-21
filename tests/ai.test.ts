@@ -7,13 +7,30 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { needsReview } from "@/lib/ai/review";
+import { checkFirstReasons, needsReview } from "@/lib/ai/review";
 import { keywordClassifier, severityFromText, hazardsFromText } from "@/lib/ai/keyword";
 import { normalizeClassification } from "@/lib/ai/normalize";
+import { pickSeverity } from "@/lib/ai/severity";
+import { providerKey } from "@/lib/ai/provider-key";
 
 // ---------------------------------------------------------------------------
 // needsReview
 // ---------------------------------------------------------------------------
+describe("checkFirstReasons", () => {
+  const base = { incidentType: "flood" as const, hazards: [], hoaxSuspected: false };
+  it("lists every trigger that fired", () => {
+    assert.deepEqual(checkFirstReasons({ ...base, severity: "critical", confidence: 0.5, hoaxSuspected: true }), ["low_confidence", "high_severity", "possible_hoax"]);
+  });
+  it("is empty for a confident low/moderate report", () => {
+    assert.deepEqual(checkFirstReasons({ ...base, severity: "moderate", confidence: 0.9 }), []);
+    assert.deepEqual(checkFirstReasons({ ...base, severity: "moderate", confidence: 0.9, severityConfidence: 0.7 }), []);
+    assert.deepEqual(checkFirstReasons({ ...base, severity: "moderate", confidence: 0.9, severityConfidence: null }), []);
+  });
+  it("flags an unsure severity even when the type is confident (ISS-016)", () => {
+    assert.deepEqual(checkFirstReasons({ ...base, severity: "moderate", confidence: 0.95, severityConfidence: 0.55 }), ["low_confidence"]);
+  });
+});
+
 describe("needsReview", () => {
   const base = { incidentType: "flood" as const, hazards: [], hoaxSuspected: false };
 
@@ -57,6 +74,41 @@ describe("needsReview", () => {
 
   it("confidence just below threshold 0.699, severity low → true", () => {
     assert.equal(needsReview({ ...base, severity: "low", confidence: 0.699 }), true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// pickSeverity (local model severity head, ISS-016)
+// ---------------------------------------------------------------------------
+describe("pickSeverity", () => {
+  const tiers = ["low", "moderate", "high", "critical"];
+  const ln = (ps: number[]) => ps.map(Math.log);
+
+  it("takes the top tier and its probability with no calibration", () => {
+    const r = pickSeverity(ln([0.1, 0.6, 0.2, 0.1]), tiers);
+    assert.equal(r.severity, "moderate");
+    assert.ok(Math.abs(r.severityConfidence - 0.6) < 1e-9);
+  });
+
+  it("leans toward urgent: high + critical at the cutoff → the likelier of the two", () => {
+    const r = pickSeverity(ln([0.1, 0.5, 0.25, 0.15]), tiers, { urgentCutoff: 0.4 });
+    assert.equal(r.severity, "high");
+    assert.equal(pickSeverity(ln([0.1, 0.5, 0.15, 0.25]), tiers, { urgentCutoff: 0.4 }).severity, "critical");
+  });
+
+  it("keeps the top tier when high + critical is below the cutoff", () => {
+    assert.equal(pickSeverity(ln([0.1, 0.6, 0.2, 0.1]), tiers, { urgentCutoff: 0.4 }).severity, "moderate");
+  });
+
+  it("temperature above 1 softens the confidence without changing the top tier", () => {
+    const raw = pickSeverity([0, 2, 0, 0], tiers);
+    const soft = pickSeverity([0, 2, 0, 0], tiers, { temperature: 2 });
+    assert.equal(soft.severity, "moderate");
+    assert.ok(soft.severityConfidence < raw.severityConfidence);
+  });
+
+  it("ignores a temperature of 0 or below", () => {
+    assert.equal(pickSeverity([0, 2, 0, 0], tiers, { temperature: 0 }).severityConfidence, pickSeverity([0, 2, 0, 0], tiers).severityConfidence);
   });
 });
 
@@ -375,3 +427,21 @@ describe("normalizeClassification", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// providerKey (scripts read the same .env.local slots as the app)
+// ---------------------------------------------------------------------------
+describe("providerKey", () => {
+  it("prefers the explicit variable", () => {
+    assert.equal(providerKey("gemini", "GEMINI_API_KEY", { GEMINI_API_KEY: "a", AI_FALLBACK_PROVIDER: "gemini", AI_FALLBACK_API_KEY: "b" }), "a");
+  });
+  it("uses the primary slot when Gemini is primary", () => {
+    assert.equal(providerKey("gemini", "GEMINI_API_KEY", { AI_PROVIDER: "gemini", AI_API_KEY: "p" }), "p");
+  });
+  it("uses the fallback slot when the local model is primary (current setup)", () => {
+    const env = { AI_PROVIDER: "local", AI_API_KEY: "", AI_FALLBACK_PROVIDER: "gemini", AI_FALLBACK_API_KEY: "f" };
+    assert.equal(providerKey("gemini", "GEMINI_API_KEY", env), "f");
+  });
+  it("returns undefined when no slot is for this provider", () => {
+    assert.equal(providerKey("gemini", "GEMINI_API_KEY", { AI_PROVIDER: "local", AI_FALLBACK_PROVIDER: "claude", AI_FALLBACK_API_KEY: "x" }), undefined);
+  });
+});

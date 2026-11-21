@@ -32,8 +32,8 @@ Bands are unchanged: **P1** 80–100 Immediate · **P2** 60–79 Urgent · **P3*
 | Weight | Value | Reason |
 |---|---|---|
 | Severity | **0.45** | The question responders ask first is "how bad is it?". It is the only input that describes the incident itself, and it is the one a human confirms in review. It gets the largest weight, but under half, so area and type can still separate two reports of the same severity. One severity tier is worth 11.25 points, more than the full spread of the type term (15 × (1.0 − 0.4) = 9), so the type of incident never outweighs a tier of severity. |
-| Affected population | **0.25** | The same flood is more urgent in a dense barangay than in an empty field. It is the second largest term because the number of people at risk is the main reason to dispatch sooner. It is kept at 0.25, not higher, because the current area data is a sample file (ISS-020). |
-| Location risk | **0.15** | Captures known hazard history (flood-prone, landslide-prone areas). It overlaps with population and type, and it also comes from sample data today, so it gets a small weight. |
+| Affected population | **0.25** | The same flood is more urgent in a dense barangay than in an empty field. It is the second largest term because the number of people at risk is the main reason to dispatch sooner. It is kept at 0.25, not higher, because the current area data is the Cebu City simulation file with estimated values (ISS-020). |
+| Location risk | **0.15** | Captures known hazard history (flood-prone, landslide-prone areas). It overlaps with population and type, and it also comes from simulation data today, so it gets a small weight. |
 | Incident type | **0.15** | Some types escalate faster than others at the same severity (a fire spreads, fallen debris usually does not). The type weights already encode this (fire and medical 1.0, structural 0.9, flood and landslide 0.85, road accident 0.8, fallen debris 0.5, other 0.4), so a small multiplier is enough. |
 
 The four weights add up to 1.0, so the score stays on a 0–100 scale and every term on the dashboard reads as "points out of 100".
@@ -59,7 +59,7 @@ What these show:
 | Alternative | Why not |
 |---|---|
 | Rank by severity only | Most reports would tie within the 4 tiers, and the number of people affected would be ignored. |
-| Equal weights (0.25 each) | Severity would drop to 25 points, so low fallen debris in the densest, riskiest area (6.25 + 25 + 25 + 12.5 = 68.75, P2) would outrank a critical fire outside every known area (25 + 0 + 0 + 25 = 50, P3). The area inputs are sample data today, so giving them half the score would make the ranking depend mostly on placeholder numbers. |
+| Equal weights (0.25 each) | Severity would drop to 25 points, so low fallen debris in the densest, riskiest area (6.25 + 25 + 25 + 12.5 = 68.75, P2) would outrank a critical fire outside every known area (25 + 0 + 0 + 25 = 50, P3). The area inputs are simulation data today, so giving them half the score would make the ranking depend mostly on placeholder numbers. |
 | Multiply instead of add (severity × population × …) | A report with no area data would score 0, even if it is critical. The per-term breakdown on the dashboard would also no longer add up to the score, which makes it harder to explain. |
 | Let the AI produce the priority | Not deterministic and not auditable: the same report could rank differently on two runs, and nobody could say why. The project rule is that the AI only classifies; scoring is plain code (DOCUMENTATION.md 7.6). |
 
@@ -75,6 +75,6 @@ The severity term is the one the AI can get wrong, and it carries the most weigh
 ## 6. When to revisit
 
 Change the weights only with a reason written in the PR (DOCUMENTATION.md 15.3). Existing scores are not recalculated automatically; DOCUMENTATION.md 15.3 mentions `npm run scores:recompute`, but that script does not exist yet. Revisit when:
-- real barangay boundaries, population and risk index replace the sample data (ISS-020): population or location risk may then deserve more weight;
+- real barangay boundaries, population and risk index replace the Cebu City simulation data (ISS-020): population or location risk may then deserve more weight;
 - a pilot partner or responders review real rankings and disagree with the order;
 - severity starts coming from the photo model (ISS-016), which changes how much the severity term can be trusted.

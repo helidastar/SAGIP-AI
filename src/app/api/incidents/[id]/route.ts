@@ -12,7 +12,7 @@ export const GET = withStaff(async (_request, ctx: RouteContext<"/api/incidents/
 
   const [classifications, review, assignments, audit, photo] = await Promise.all([
     db.from("classifications")
-      .select("id, model, incident_type, severity, confidence, hazards, hoax_suspected, latency_ms, created_at")
+      .select("id, model, incident_type, severity, confidence, severity_confidence, hazards, hoax_suspected, latency_ms, created_at")
       .eq("report_id", id).order("created_at", { ascending: false }),
     db.from("reviews")
       .select("final_type, final_severity, notes, created_at, reviewer:profiles ( id, full_name )")
@@ -37,6 +37,7 @@ export const GET = withStaff(async (_request, ctx: RouteContext<"/api/incidents/
       incidentType: c.incident_type,
       severity: c.severity,
       confidence: Number(c.confidence),
+      severityConfidence: c.severity_confidence == null ? null : Number(c.severity_confidence),
       hazards: c.hazards,
       hoaxSuspected: c.hoax_suspected,
       latencyMs: c.latency_ms,

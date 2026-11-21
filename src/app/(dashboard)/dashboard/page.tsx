@@ -1,11 +1,5 @@
-import { IncidentList } from "@/components/dashboard/IncidentList";
-import { ReviewQueue } from "@/components/dashboard/ReviewQueue";
+import { RankedDashboard } from "@/components/dashboard/RankedDashboard";
 
 export default function DashboardPage() {
-  return (
-    <>
-      <IncidentList />
-      <ReviewQueue compact />
-    </>
-  );
+  return <RankedDashboard />;
 }

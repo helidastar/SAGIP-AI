@@ -13,13 +13,15 @@
  *   --dry-run           Validate the dataset and print the plan without calling any API
  *   --yes               Required to make paid API calls
  *
- * API keys: GEMINI_API_KEY, or AI_API_KEY when AI_PROVIDER=gemini. The local model needs no key.
+ * API keys: GEMINI_API_KEY, or the app's own .env.local slots (AI_API_KEY when AI_PROVIDER=gemini,
+ * AI_FALLBACK_API_KEY when AI_FALLBACK_PROVIDER=gemini). The local model needs no key.
  */
 import { mkdir, readFile, writeFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 import { createGeminiClassifier } from "@/lib/ai/gemini";
 import { createLocalClassifier } from "@/lib/ai/local";
+import { providerKey } from "@/lib/ai/provider-key";
 import { needsReview } from "@/lib/ai/review";
 import type { Classifier, ClassifierResult } from "@/lib/ai/types";
 import { INCIDENT_TYPES, SEVERITY } from "@/lib/constants";
@@ -118,10 +120,9 @@ async function loadLabels(dir: string): Promise<Label[]> {
 function makeClassifier(spec: string): Classifier {
   const [provider, ...rest] = spec.split(":");
   const model = rest.join(":") || undefined;
-  const envKey = (name: string) => process.env[name] || (process.env.AI_PROVIDER === provider ? process.env.AI_API_KEY : undefined);
   if (provider === "gemini") {
-    const key = envKey("GEMINI_API_KEY");
-    if (!key) throw new Error("Set GEMINI_API_KEY to benchmark Gemini");
+    const key = providerKey("gemini", "GEMINI_API_KEY");
+    if (!key) throw new Error("No Gemini key: set GEMINI_API_KEY, or AI_FALLBACK_API_KEY with AI_FALLBACK_PROVIDER=gemini");
     return createGeminiClassifier(key, model);
   }
   // Our own ONNX model: free, no key. The "model" part is the .onnx path (default models/sagip-classifier.onnx).

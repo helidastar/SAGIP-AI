@@ -5,13 +5,14 @@
  *   - daily budget cap (AI_DAILY_BUDGET_USD) with a fake Supabase client
  *   - estimateCost prices for Gemini 3.x (ISS-007), severityConfidence normalization (AI 22)
  * ISS-022 – fake providers and database, no network calls.
- * Not covered here: stuck-report recovery, which needs a live database.
+ * Stuck-report recovery (processReceivedReport) is covered separately in tests/classify.test.ts.
  */
+import { readFileSync } from "node:fs";
 import { afterEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { classifyWithFallback, isOverDailyBudget, type ChainProviders } from "@/lib/ai/chain";
-import { estimateCost, normalizeClassification } from "@/lib/ai/normalize";
+import { estimateCost, hasPrice, normalizeClassification } from "@/lib/ai/normalize";
 import type { Classifier, ClassifierResult } from "@/lib/ai/types";
 
 const input = { description: "sunog sa bahay, may usok" };
@@ -184,6 +185,25 @@ describe("daily budget cap", () => {
 });
 
 describe("estimateCost (ISS-007)", () => {
+  it("has a price for every Gemini model the app is set up to use (.env.example and gemini.ts default)", () => {
+    for (const model of ["gemini-3.1-flash-lite", "gemini-3.6-flash"]) assert.ok(hasPrice(model), model);
+  });
+
+  it(".env.example keeps local primary and a priced Gemini fallback", () => {
+    const env = Object.fromEntries(
+      readFileSync(".env.example", "utf8")
+        .split("\n")
+        .filter((line) => /^[A-Z_]+=/.test(line))
+        .map((line) => [line.slice(0, line.indexOf("=")), line.slice(line.indexOf("=") + 1).trim()]),
+    );
+    assert.equal(env.AI_PROVIDER, "local");
+    assert.ok(hasPrice(env.AI_FALLBACK_MODEL), `AI_FALLBACK_MODEL=${env.AI_FALLBACK_MODEL} has no price`);
+  });
+
+  it("has no price for gemini-3.1-flash (not flash-lite), so that model is not counted by the cap", () => {
+    assert.equal(hasPrice("gemini-3.1-flash"), false);
+  });
+
   it("prices gemini-3.1-flash-lite at $0.25 in / $1.50 out per 1M tokens", () => {
     assert.equal(estimateCost("gemini-3.1-flash-lite", 1_000_000, 1_000_000), 1.75);
   });

@@ -10,18 +10,20 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "node --env-file=.env.local scripts/seed.mjs",
+    "seed:demo": "node --env-file=.env.local --conditions=react-server --import tsx scripts/seed-demo.ts",
     "benchmark": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/benchmark.ts",
     "dataset:prepare": "node --conditions=react-server --import tsx scripts/prepare-dataset.ts",
+    "label-severity": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/label-severity.ts",
     "make-admin": "node --env-file=.env.local scripts/make-admin.mjs",
+    "check-live-classification": "node --env-file=.env.local scripts/check-live-classification.mjs",
     "export:training-data": "node --env-file-if-exists=.env.local --conditions=react-server --import tsx scripts/export-training-data.ts",
     "smoke:staff": "node --env-file=.env.local --env-file-if-exists=.env.test.local scripts/smoke-staff.mjs",
-    "test": "node --conditions=react-server --import tsx --test tests/scoring.test.ts tests/ai.test.ts tests/api-inputs.test.ts tests/chain.test.ts"
+    "test": "node --conditions=react-server --import tsx --test tests/scoring.test.ts tests/ai.test.ts tests/api-inputs.test.ts tests/chain.test.ts tests/classify.test.ts tests/demo-data.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.22.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
-    "@types/leaflet": "^1.9.12",
     "leaflet": "^1.9.4",
     "next": "16.3.4",
     "onnxruntime-node": "^1.30.0",
@@ -32,6 +34,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
