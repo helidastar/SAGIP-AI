@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { api } from "@/lib/api-client";
@@ -38,7 +39,7 @@ function ShieldIcon({ className = "" }: { className?: string }) {
 function BrandMark() {
   return (
     <span className={styles.brandMark}>
-      <ShieldIcon />
+      <Image src="/brand/sagip-ai-mark.svg" alt="" width={36} height={36} loading="eager" />
     </span>
   );
 }

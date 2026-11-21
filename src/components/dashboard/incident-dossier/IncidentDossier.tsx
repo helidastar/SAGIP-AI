@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { ReviewForm } from "@/components/dashboard/ReviewQueue";
@@ -76,7 +77,7 @@ export function IncidentDossierShell({
     <div className={styles.shell}>
       <aside className={styles.sidebar} aria-label="Operations portal">
         <Link href="/dashboard" className={styles.brand}>
-          <span className={styles.brandMark} aria-hidden="true"><ShieldIcon /></span>
+          <span className={styles.brandMark} aria-hidden="true"><Image src="/brand/sagip-ai-mark.svg" alt="" width={36} height={36} loading="eager" /></span>
           <span className={styles.brandCopy}>
             <strong>SAGIP-AI</strong>
             <span>Ops portal</span>
@@ -855,10 +856,6 @@ function ReviewIcon() {
 
 function AnalyticsIcon() {
   return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M3 17h14M5 14V9m5 5V4m5 10V7" /></svg>;
-}
-
-function ShieldIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M12 3 19 6v5c0 4.6-2.7 7.9-7 10-4.3-2.1-7-5.4-7-10V6l7-3Z" /><path d="m9 12 2 2 4-4" /></svg>;
 }
 
 function UserIcon() {
