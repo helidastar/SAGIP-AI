@@ -1,11 +1,6 @@
-import { IncidentList } from "@/components/dashboard/IncidentList";
-import { ReviewQueue } from "@/components/dashboard/ReviewQueue";
+import { redirect } from "next/navigation";
 
+// The staff dashboard lives at /dashboard; this older portal page only forwards there.
 export default function AdminDashboardPage() {
-  return (
-    <>
-      <IncidentList />
-      <ReviewQueue compact />
-    </>
-  );
+  redirect("/dashboard");
 }
