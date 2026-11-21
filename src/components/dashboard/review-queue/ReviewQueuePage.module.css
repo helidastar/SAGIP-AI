@@ -1070,3 +1070,56 @@
     animation: none;
   }
 }
+
+/* Fit the queue table on a normal laptop screen so the Review button is visible without side-scrolling,
+   and keep the Action column pinned on the right when the table does need to scroll. */
+@media (min-width: 768px) {
+  .table {
+    min-width: 1090px;
+  }
+
+  .table th:nth-child(1) { width: 150px; }
+  .table th:nth-child(2) { width: 170px; }
+  .table th:nth-child(3) { width: 110px; }
+  .table th:nth-child(4) { width: 120px; }
+  .table th:nth-child(5) { width: 130px; }
+  .table th:nth-child(6) { width: 160px; }
+  .table th:nth-child(7) { width: 110px; }
+  .table th:nth-child(8) { width: 140px; }
+
+  .priorityBadge {
+    flex-wrap: wrap;
+    column-gap: 4px;
+    row-gap: 0;
+    max-width: 100%;
+  }
+
+  .priorityBadge strong {
+    margin-left: 0;
+  }
+
+  .table th:nth-child(8),
+  .actionCell {
+    position: sticky;
+    right: 0;
+    z-index: 1;
+    box-shadow: -8px 0 8px -8px rgb(16 28 44 / 18%);
+  }
+
+  .table th:nth-child(8) {
+    background: #f0f3ff;
+  }
+
+  .actionCell {
+    background: var(--rq-white);
+    padding-right: 16px;
+  }
+
+  .referenceCell span {
+    white-space: nowrap;
+  }
+
+  .table tbody tr:hover .actionCell {
+    background: #f8fafc;
+  }
+}
