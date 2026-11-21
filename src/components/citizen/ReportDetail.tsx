@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { CheckIcon, ArrowLeftIcon, TypeIcon } from "./icons";
 import { CopyCode } from "./CopyCode";
+import { SafetyTips } from "./SafetyTips";
 import { btnPrimary, btnSecondary, Card, SeverityChip, Skeleton, StatusChip } from "./ui";
 import { STATUS_LABEL, TIMELINE, timeAgo, timelineIndex, type CitizenReport } from "@/lib/citizen/reports";
 import { useTracked } from "@/lib/citizen/use-tracked";
@@ -109,6 +110,8 @@ export function ReportDetail({ code, justSubmitted = false }: { code: string; ju
           <Timeline report={r} />
         </Card>
       </div>
+
+      {r.status !== "resolved" && r.status !== "rejected" && <SafetyTips type={r.type} />}
 
       {justSubmitted && (
         <div className="flex flex-col gap-3 sm:flex-row">
