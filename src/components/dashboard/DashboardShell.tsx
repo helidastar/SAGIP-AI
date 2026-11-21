@@ -35,6 +35,7 @@ export function DashboardShell({
   const isReviewQueue = pathname.startsWith("/dashboard/review");
   const isRankedList = pathname === "/dashboard" || pathname.startsWith("/dashboard/incidents");
   const isAnalytics = pathname.startsWith("/dashboard/analytics");
+  const isDefinitions = pathname.startsWith("/dashboard/definitions");
 
   return (
     <DashboardQueueCountContext.Provider value={setReviewCount}>
@@ -88,6 +89,16 @@ export function DashboardShell({
                   >
                     <AnalyticsIcon />
                     <span>Analytics</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/dashboard/definitions"
+                    className={`${styles.navLink} ${isDefinitions ? styles.navLinkActive : ""}`}
+                    aria-current={isDefinitions ? "page" : undefined}
+                  >
+                    <BookIcon />
+                    <span>Definitions</span>
                   </Link>
                 </li>
               </ul>
@@ -174,6 +185,15 @@ function LogoutIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
       <path d="M10 4H5v16h5m5-4 4-4-4-4m4 4H9" />
+    </svg>
+  );
+}
+
+function BookIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
+      <path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4z" />
+      <path d="M5 17a3 3 0 0 1 3-3h10" />
     </svg>
   );
 }
