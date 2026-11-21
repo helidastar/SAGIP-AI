@@ -758,7 +758,7 @@ function PriorityBreakdown({ detail }: { detail: DossierIncidentDetail }) {
         <>
           <div className={styles.factorList}>
             {factors.map(({ key, label }) => {
-              const value = detail.priority?.breakdown[key];
+              const value = detail.priority?.breakdown?.[key];
               const maximum = PRIORITY_WEIGHTS[key] * 100;
               const width = value === undefined ? 0 : Math.max(0, Math.min(100, value / maximum * 100));
               return (

@@ -404,7 +404,7 @@ export function PriorityBreakdown({ detail }: { detail: IncidentDetailData }) {
       ) : (
         <div className={styles.scoreGrid}>
           {SCORE_FACTORS.map(({ key, label }) => {
-            const value = detail.priority?.breakdown[key];
+            const value = detail.priority?.breakdown?.[key];
             const max = PRIORITY_WEIGHTS[key] * 100;
             const width = value === undefined ? 0 : Math.max(0, Math.min(100, (value / max) * 100));
             return (
