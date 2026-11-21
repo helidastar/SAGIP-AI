@@ -2,22 +2,24 @@
 
 <div align="center">
 
+<img src="public/brand/sagip-ai-logo.png" alt="SAGIP-AI logo" width="220">
+
 # SAGIP-AI
 
 **Smart AI for Geospatial Intelligence and Prediction**
 
-Report it in under a minute. Classify it with AI. Rank it with a formula you can read. Keep a human in command.
+Citizens report an emergency in under a minute. The AI makes a first assessment of what happened and how serious it is, then a real person makes the final call.
 
 CPEPE362 Software Development 2 · Team CCRVibe 2.0 · Instructor: Rex A. Seadiño Jr.
 
 ![Stack](https://img.shields.io/badge/stack-Next.js%2016%20%2B%20TypeScript-black?logo=next.js&logoColor=white)
-![Maps](https://img.shields.io/badge/maps-custom%20SVG-0EA5E9)
+![Maps](https://img.shields.io/badge/maps-Leaflet%20%2B%20OpenStreetMap-0EA5E9)
 ![DB](https://img.shields.io/badge/db-Supabase%20%2B%20PostGIS-3FCF8E?logo=supabase&logoColor=white)
 ![AI](https://img.shields.io/badge/AI-local%20ONNX%20%2B%20Gemini%20free%20tier-4285F4?logo=onnx&logoColor=white)
-![Deploy](https://img.shields.io/badge/deploy-Vercel%20(not%20yet%20live)-000000?logo=vercel&logoColor=white)
+![Deploy](https://img.shields.io/badge/deploy-Vercel%20(live)-000000?logo=vercel&logoColor=white)
 ![License](https://img.shields.io/badge/license-TBD-lightgrey)
 
-Pilot area: **TODO** (no named pilot partner yet, see Risk Log R-002) · Focus: citizen emergency reporting and responder triage in the Philippines
+Live app: **[sagip-ai-six.vercel.app](https://sagip-ai-six.vercel.app)** · Demo area: Cebu City (simulated data) · Focus: citizen emergency reporting and responder triage in the Philippines
 
 **[For Reviewers](#for-reviewers)** · **[Quickstart](#collaborator-quickstart)** · **[Local Setup](#local-setup)** · **[Docs](#documentation-map)**
 
@@ -36,7 +38,7 @@ Pilot area: **TODO** (no named pilot partner yet, see Risk Log R-002) · Focus: 
     <li><a href="#repository-structure">Repository structure</a></li>
     <li><a href="#collaborator-quickstart">Collaborator Quickstart</a></li>
     <li><a href="#local-setup">Local Setup</a></li>
-    <li><a href="#roadmap">Roadmap</a></li>
+    <li><a href="#features">Features</a></li>
     <li><a href="#contributing">Contributing</a></li>
     <li><a href="#documentation-map">Documentation map</a></li>
     <li><a href="#core-data-model">Core data model</a></li>
@@ -96,8 +98,8 @@ SAGIP-AI gives citizens one simple way to report an emergency (photo, short desc
 **Start here:**
 
 1. Read [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md) sections 3 to 7: problem, user flow, core concepts and architecture.
-2. Read the [AI log](docs/handoffs/ai-benchmarking.md) for what the AI has actually been measured to do so far.
-3. Run the app locally with the [Collaborator Quickstart](#collaborator-quickstart). A public URL is **TODO**: the app is not deployed yet.
+2. Read the [AI log](docs/handoffs/ai-benchmarking.md) for how the AI was trained and tested.
+3. Open the live app at [sagip-ai-six.vercel.app](https://sagip-ai-six.vercel.app) (simulated Cebu City data), or run it locally with the [Collaborator Quickstart](#collaborator-quickstart). The 8-minute demo flow is in [docs/demo-script.md](docs/demo-script.md).
 
 **What we want you to notice:**
 
@@ -105,19 +107,18 @@ SAGIP-AI gives citizens one simple way to report an emergency (photo, short desc
 - **Explainable ranking.** The priority score is plain code, not an AI call: `100 × (0.45·severity + 0.25·population + 0.15·location risk + 0.15·type)`. The reason for each weight, with worked examples, is in [docs/priority-weights.md](docs/priority-weights.md).
 - **Free tiers only.** Vercel Hobby, Supabase Free, our own ONNX model running on the server and the Gemini free tier as fallback. No billing account is linked.
 - **Fails safe.** If the Gemini quota runs out or the model errors, the chain falls back to the keyword matcher and human review instead of failing the report.
-- **Our own model, measured honestly.** An EfficientNet-B2 image classifier trained in free Colab gets **88% of incident types right (44/50)** on a 50-photo benchmark the team labeled itself, against **79.6% for Gemini**, at about 70 ms per photo instead of 12 seconds. It went from 52% to 88% in one day of retraining with 15 public CC BY photo sets ([training/README.md](https://github.com/helidastar/SAGIP-AI/blob/dev/training/README.md#second-training-run-2026-10-25)). It is the primary provider; Gemini gives a second opinion when it is unsure.
+- **Our own model.** An EfficientNet-B2 image classifier trained in free Colab predicts both the type and the severity of a report photo in about 137 ms. It is the primary provider, and Gemini gives a second opinion when it is unsure. Details in [docs/handoffs/ai-benchmarking.md](docs/handoffs/ai-benchmarking.md).
 
-**Known limits, stated plainly:**
+**Design limits:**
 
-- The local model predicts the **type only**. Severity comes from description keywords, and both our model and Gemini rated **7 of 31 urgent benchmark photos** as low or moderate with high confidence, so those would not be flagged check first (ISS-016, ISS-028). Every report is still reviewed by a person, but these would sit lower in the queue.
-- The benchmark and training photos are public photos. Accuracy on **real Philippine phone photos is not measured yet**.
-- Whether the local model fits in a Vercel function is **not tested yet** (deploy test due 2026-10-31, R-017).
-- A report needs GPS and an internet connection. There is no offline queue.
-- The UI is still the testing wireframe. The analytics page is a placeholder and the definitions page is not started.
+- The AI's answer is always a draft. A person confirms the type and severity of every report before it is acted on.
+- A report needs GPS and an internet connection.
+- Gemini's free tier allows 15 requests per minute. When it is busy, the chain uses the local model or the keyword matcher and sends the report to review.
+- Area population and location risk use sample data for the Cebu City simulation.
 
 | Question | Where it's answered |
 |---|---|
-| How good is the AI, really? | [docs/handoffs/ai-benchmarking.md](docs/handoffs/ai-benchmarking.md) · [docs/training-runs/2026-09-23/](docs/training-runs/2026-09-23/) · [DOCUMENTATION.md Appendix B](docs/DOCUMENTATION.md#appendix-b--ai-classification-benchmarking-plan) |
+| How was the AI trained and tested? | [docs/handoffs/ai-benchmarking.md](docs/handoffs/ai-benchmarking.md) · [docs/training-runs/2026-09-23/](docs/training-runs/2026-09-23/) · [DOCUMENTATION.md Appendix B](docs/DOCUMENTATION.md#appendix-b--ai-classification-benchmarking-plan) |
 | How is the human kept in the loop? | [DOCUMENTATION.md §6.4–6.5](docs/DOCUMENTATION.md#64-ai-estimated-vs-confirmed-severity) |
 | How is a report ranked? | [DOCUMENTATION.md §6.6–6.7](docs/DOCUMENTATION.md#66-priority-score) · [priority-weights.md](docs/priority-weights.md) · `src/lib/scoring/index.ts` |
 | How is the data protected? | [DOCUMENTATION.md §9.3](docs/DOCUMENTATION.md#93-security-supabase-rls) (row-level security, private photo bucket) |
@@ -133,15 +134,15 @@ SAGIP-AI gives citizens one simple way to report an emergency (photo, short desc
 | Area | Technology | Purpose |
 |---|---|---|
 | Frontend + API | Next.js 16 App Router, React 19, TypeScript | Citizen portal, staff dashboard and route handlers in one app |
-| Styling | Tailwind CSS 4 | Temporary wireframe UI (final design in progress) |
-| Maps | Custom SVG (`src/components/dashboard/IncidentMap.tsx`) | Incident pins on the dashboard, no map library; detail view links to OpenStreetMap |
+| Styling | Tailwind CSS 4 + CSS modules | Citizen portal and staff dashboard, following the team Figma |
+| Maps | Leaflet + OpenStreetMap tiles | Pin drop on the report form (`PinMap.tsx`) and the incident map on the dashboard |
 | Database | Supabase Postgres + PostGIS | Reports, classifications, scores, areas; spatial queries |
 | Auth & storage | Supabase Auth, Supabase Storage | Staff login (responder, admin); private `report-photos` bucket |
-| AI (local) | Own EfficientNet-B2 model, `onnxruntime-node` + `sharp` | **Primary.** Free on-server classification of all 8 types |
+| AI (local) | Own EfficientNet-B2 model, `onnxruntime-node` + `sharp` | **Primary.** Free on-server type and severity for all 8 types. Model files are fetched from a private Supabase bucket at build time (`scripts/fetch-models.mjs`) |
 | AI (cloud) | Gemini free tier via `@google/genai` | `gemini-3.1-flash-lite` fallback and second opinion for unsure local answers |
 | AI (last resort) | Keyword matcher (`src/lib/ai/keyword.ts`) | Always answers with confidence 0, so the report goes to review |
 | Ranking | Deterministic weighted formula | Explainable 0–100 priority score and P1–P4 bands |
-| Deployment | Vercel + Supabase | Free-tier hosting (**not deployed yet**) |
+| Deployment | Vercel Hobby + Supabase Free | Live at [sagip-ai-six.vercel.app](https://sagip-ai-six.vercel.app) |
 
 Everything runs on free tiers; no billing account is linked.
 
@@ -169,10 +170,10 @@ SAGIP-AI/
 ├── src/
 │   ├── app/
 │   │   ├── (citizen)/   # Report (/), submitted (/submitted), track (/track). No login.
-│   │   ├── (dashboard)/ # /dashboard list + map, incidents/[id], review, analytics (placeholder).
-│   │   ├── login/       # Staff login.
-│   │   └── api/         # 16 route handlers: reports, incidents, review queue, auth, teams, areas.
-│   ├── components/      # citizen/, dashboard/ (incl. IncidentMap.tsx), ui/.
+│   │   ├── (dashboard)/ # /dashboard list + map, incidents/[id], review, analytics, definitions.
+│   │   ├── login/       # Staff login (admins also have /admin/login).
+│   │   └── api/         # 17 route handlers: reports, incidents, review queue, analytics, auth, teams, areas.
+│   ├── components/      # citizen/, dashboard/, auth/, ui/.
 │   ├── lib/
 │   │   ├── ai/          # Provider chain, Gemini/local/keyword classifiers, review rules.
 │   │   ├── scoring/     # Deterministic priority score and bands.
@@ -181,12 +182,14 @@ SAGIP-AI/
 │   │   └── constants.ts # Types, severities, statuses, thresholds, weights. Single source of truth.
 │   └── types/           # Shared TypeScript types.
 ├── supabase/
-│   └── migrations/      # 6 SQL migrations: schema, staff accounts, views, map/areas, locks, hoax flag.
-├── scripts/             # seed, make-admin, benchmark, dataset prep, training export, staff smoke test.
+│   └── migrations/      # 7 SQL migrations: schema, staff accounts, views, map/areas, locks, hoax flag, severity confidence.
+├── scripts/             # seed, demo seed, make-admin, fetch-models, benchmark, dataset prep, training export, staff smoke test.
 ├── benchmark/           # Labeled-photo benchmark (dataset itself is git-ignored).
 ├── training/            # Colab notebook and guide for our own ONNX classifier.
-├── models/              # Trained .onnx + labels.json (git-ignored, shared via Drive).
-└── docs/                # DOCUMENTATION.md, ONBOARDING.md, AI log, training-run metrics.
+├── models/              # Trained .onnx + labels.json (git-ignored; fetched from Supabase at build).
+├── public/brand/        # Logo files (SVG and PNG).
+├── tests/               # Unit tests (node:test), run with npm test.
+└── docs/                # DOCUMENTATION.md, ONBOARDING.md, AI log, demo script, handoff notes.
 ```
 
 One Next.js app holds both the pages and the API (a modular monolith), so there is one thing to deploy to Vercel. The database lives as SQL migrations under `supabase/`, and the AI tooling (benchmark, training) sits beside the app because it is run by hand, not deployed.
@@ -205,7 +208,7 @@ The team shares one Supabase project, already migrated and seeded, so there is n
    ```bash
    git clone https://github.com/helidastar/SAGIP-AI.git
    cd SAGIP-AI
-   git checkout development
+   git checkout dev
    npm install
    ```
 
@@ -244,12 +247,12 @@ Everything is read from one file. Copy `.env.example` and fill in real values on
 | `.env.local` | `REPORT_RATE_LIMIT` (default `5`), `REPORT_RATE_WINDOW_MS` (default `600000`) | Per-IP limit on `POST /api/reports` |
 | `.env.test.local` | `TEST_ADMIN_EMAIL`, `TEST_ADMIN_PASSWORD`, `TEST_RESPONDER_EMAIL`, `TEST_RESPONDER_PASSWORD` | `scripts/smoke-staff.mjs` only |
 
-`AI_DAILY_BUDGET_USD` does not yet count Gemini 3.x spend, because their prices are missing from `src/lib/ai/normalize.ts` (ISS-007).
+Gemini 3.x prices are in `src/lib/ai/normalize.ts`, so `AI_DAILY_BUDGET_USD` counts Gemini spend (the free tier bills $0).
 
 ### Database (Supabase)
 
 1. Enable the `postgis` extension.
-2. Run the files in `supabase/migrations/` in order (`0001_init.sql` to `0006_hoax_flag.sql`) in the SQL Editor or with the Supabase CLI. They create the tables, row-level security policies and the private `report-photos` bucket.
+2. Run the files in `supabase/migrations/` in order (`0001_init.sql` to `0007_severity_confidence.sql`) in the SQL Editor or with the Supabase CLI. They create the tables, row-level security policies and the private `report-photos` bucket.
 3. Load teams and Cebu City areas, then give a staff user a role:
 
    ```bash
@@ -276,8 +279,8 @@ npm run lint
 | Ranked list and map | `/dashboard` | staff |
 | Incident detail | `/dashboard/incidents/<id>` | staff |
 | Review queue | `/dashboard/review` | staff |
-| Analytics | `/dashboard/analytics` | staff (placeholder) |
-| Definitions | TODO | not started |
+| Analytics | `/dashboard/analytics` | staff |
+| Definitions | `/dashboard/definitions` | staff |
 
 ### AI tooling
 
@@ -291,40 +294,27 @@ See [benchmark/README.md](https://github.com/helidastar/SAGIP-AI/blob/dev/benchm
 
 ### Tests
 
-There is no automated test runner in `package.json` yet. The one end-to-end check today is the staff API smoke test, run against `npm run dev`:
-
 ```bash
-node --env-file=.env.local --env-file=.env.test.local scripts/smoke-staff.mjs
+npm test             # unit tests (scoring, AI chain, API inputs, analytics, severity labels, safety tips, demo data)
+npm run smoke:staff  # staff API smoke test against a running npm run dev
 ```
-
-TODO: staff-side end-to-end test (ISS-010, due 2026-10-30), load test (R-004), and low-end phone and weak-connection test.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ---
 
-## Roadmap
+## Features
 
-- [x] Citizen report, submitted and track pages
-- [x] Staff login, ranked list and map, incident detail, review queue
-- [x] AI chain with fallback, keyword matcher and 4 human-review triggers
-- [x] Deterministic priority score with per-factor breakdown
-- [x] Own image classifier trained (first run 79.8% test accuracy, 6 types)
-- [x] Label severities and run the 50-photo benchmark: Gemini 79.6%, first local model 52%
-- [x] Retrain the local model on all 8 types: 88% on the benchmark (2026-10-25)
-- [x] Select the primary model: local, with Gemini as fallback (2026-10-25)
-- [x] Write the priority weights design doc ([priority-weights.md](docs/priority-weights.md))
-- [x] Define "severity %" (DOCUMENTATION.md 6.4)
-- [ ] Vercel preview deploy with the local model (R-017, due 2026-10-31), then switch production to local
-- [ ] Send under-rated urgent reports to review (ISS-016, ISS-028)
-- [ ] Add severity % to the database, API and UI
-- [ ] Analytics page and endpoint, definitions page
-- [ ] Add Gemini 3.x prices to the cost tracker (ISS-007)
-- [ ] Staff end-to-end test (ISS-010), load test (R-004), low-end phone and weak-connection test
-- [ ] Final UI design on all 9 pages
-- [ ] Deploy to Vercel from `main`
-
-See the [open issues](https://github.com/helidastar/SAGIP-AI/issues) for more.
+- Citizen report, submitted and tracking pages, with safety tips for each emergency type
+- Staff login, ranked incident list and map, incident detail and review queue
+- AI chain: our own image model first, Gemini as a second opinion, a keyword matcher as the last fallback
+- Every report goes to a person first, with the AI's answer and a draft priority score pre-filled
+- Four "check first" triggers for low confidence, high severity, suspected hoaxes and keyword fallback
+- Plain-code priority score with a per-factor breakdown ([priority-weights.md](docs/priority-weights.md))
+- Severity confidence shown in the review queue and incident detail
+- Analytics page, definitions page and a full audit log of staff actions
+- Team logo on every page and as the favicon
+- Live on Vercel at [sagip-ai-six.vercel.app](https://sagip-ai-six.vercel.app)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -332,13 +322,13 @@ See the [open issues](https://github.com/helidastar/SAGIP-AI/issues) for more.
 
 ## Contributing
 
-Work goes from a feature branch into `development`, then into `main` through pull requests. `main` is protected and needs one approval.
+Work goes from a team branch into `dev`, then into `main` through pull requests. `main` is protected and needs one approval. We only use these branches: `dev`, `feat/backend`, `feat/AI`, `UI/admin` and `UI/citizen`.
 
-1. Branch from `development` (`git checkout -b feat/<area>`)
+1. Update your team branch from `dev` (for example `git checkout UI/admin && git merge dev`)
 2. Commit with a one-line message in the form `type(scope): what changed` (e.g. `feat(ai): add local onnx classifier provider`)
-3. Check your work (`npm run build` and `npm run lint`)
-4. Push the branch (`git push origin feat/<area>`)
-5. Open a pull request into `development`
+3. Check your work (`npm run build`, `npm run lint` and `npm test`)
+4. Push the branch (`git push origin UI/admin`)
+5. Open a pull request into `dev`
 
 ### Top contributors:
 
@@ -358,9 +348,11 @@ Work goes from a feature branch into `development`, then into `main` through pul
 | [docs/ONBOARDING.md](docs/ONBOARDING.md) | Team access, setup, `.env.local`, staff accounts and how we work. |
 | [docs/priority-weights.md](docs/priority-weights.md) | Why each priority weight is what it is, with worked examples and rejected alternatives. |
 | [docs/handoffs/ai-benchmarking.md](docs/handoffs/ai-benchmarking.md) | AI status, benchmark results, live test log and open AI issues. |
-| [docs/training-runs/2026-09-23/](docs/training-runs/2026-09-23/) | First local model run: metrics, labels and confusion matrix. |
+| [docs/demo-script.md](docs/demo-script.md) | The final demo flow, the numbers to say and the limits to state. |
+| [docs/backend-handoff.md](docs/backend-handoff.md) | Backend endpoints, tables and open items. |
+| [docs/training-runs/2026-09-23/](docs/training-runs/2026-09-23/) | Training run metrics, labels and confusion matrix. |
 | [benchmark/README.md](https://github.com/helidastar/SAGIP-AI/blob/dev/benchmark/README.md) | How to build and run the labeled-photo benchmark. |
-| [training/README.md](https://github.com/helidastar/SAGIP-AI/blob/dev/training/README.md) | Photo sources (with CC BY credits), the 2026-10-25 retraining rounds and how to train the local model. |
+| [training/README.md](https://github.com/helidastar/SAGIP-AI/blob/dev/training/README.md) | Photo sources (with CC BY credits), and how to train the local model. |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -378,7 +370,7 @@ A report moves through 7 statuses: `received`, `pending_review`, `classified`, `
 * [Google AI Studio](https://aistudio.google.com) for the Gemini free tier
 * [Supabase](https://supabase.com) and [Vercel](https://vercel.com) free tiers
 * [ONNX Runtime](https://onnxruntime.ai) and [sharp](https://sharp.pixelplumbing.com)
-* [OpenStreetMap](https://www.openstreetmap.org) for incident location links
+* [Leaflet](https://leafletjs.com) and [OpenStreetMap](https://www.openstreetmap.org) for the maps
 * [Img Shields](https://shields.io)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -389,6 +381,6 @@ A report moves through 7 statuses: `received`, `pending_review`, `classified`, `
 
 **SAGIP-AI** — the AI assists; a person always decides.
 
-Built for CCRVIBE 2.0 · License: TODO (no LICENSE file in the repo yet)
+Built for CCRVIBE 2.0 · License: TODO
 
 </div>
