@@ -37,5 +37,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/dashboard/:path*", "/api/auth/:path*", "/api/incidents/:path*", "/api/review-queue", "/api/areas", "/api/teams", "/api/reports/:id/review"],
+  matcher: ["/admin/:path*", "/dashboard/:path*", "/api/auth/:path*", "/api/incidents/:path*", "/api/review-queue", "/api/areas", "/api/teams", "/api/reports/:id/review", "/api/analytics/:path*"],
 };
