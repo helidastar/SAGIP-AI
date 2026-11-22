@@ -24,6 +24,7 @@ import {
 } from "@/lib/workflow";
 import type { ReportStatus, Severity } from "@/types";
 import { severityWithPercent } from "@/lib/severity-label";
+import { DossierMiniMap } from "./DossierMiniMap";
 import styles from "./IncidentDossier.module.css";
 
 type DossierClassification = Classification & {
@@ -42,6 +43,13 @@ export interface IncidentAction {
   json?: unknown;
 }
 
+interface PendingConfirmation {
+  prompt: string;
+  confirmLabel: string;
+  danger?: boolean;
+  run: () => Promise<void>;
+}
+
 interface IncidentDossierShellProps {
   staff: StaffUser | null;
   error: string | null;
@@ -56,6 +64,7 @@ export function IncidentDossierShell({
   children,
 }: IncidentDossierShellProps) {
   const staffName = staff?.fullName ?? staff?.email ?? "Staff account";
+  const initials = initialsFor(staffName);
   const [reviewCount, setReviewCount] = useState<number | null>(null);
   const [reviewCountError, setReviewCountError] = useState<string | null>(null);
 
@@ -76,67 +85,126 @@ export function IncidentDossierShell({
     <div className={styles.shell}>
       <aside className={styles.sidebar} aria-label="Operations portal">
         <Link href="/dashboard" className={styles.brand}>
-          <span className={styles.brandMark} aria-hidden="true"><Image src="/brand/sagip-ai-mark.svg" alt="" width={36} height={36} loading="eager" /></span>
+          <span className={styles.brandMark} aria-hidden="true">
+            <Image src="/brand/sagip-ai-mark.svg" alt="" width={30} height={30} loading="eager" />
+          </span>
           <span className={styles.brandCopy}>
             <strong>SAGIP-AI</strong>
-            <span>Staff</span>
+            <span>Staff Operations</span>
           </span>
         </Link>
         <nav aria-label="Primary">
           <ul className={styles.navList}>
             <li>
               <Link href="/dashboard" className={`${styles.navLink} ${styles.navLinkActive}`} aria-current="page">
-                <ListIcon /><span>Incidents</span>
+                <ListIcon />
+                <span>Incidents</span>
               </Link>
             </li>
             <li>
               <Link href="/dashboard/review" className={styles.navLink}>
-                <ReviewIcon /><span>Review queue</span>
-                {reviewCount !== null && <span className={styles.navBadge} aria-label={`${reviewCount} items in review queue`}>{reviewCount}</span>}
+                <ReviewIcon />
+                <span>Review queue</span>
+                {reviewCount !== null && (
+                  <span className={styles.navBadge} aria-label={`${reviewCount} items in review queue`}>
+                    {reviewCount}
+                  </span>
+                )}
               </Link>
             </li>
             <li>
               <Link href="/dashboard/analytics" className={styles.navLink}>
-                <AnalyticsIcon /><span>Analytics</span>
+                <AnalyticsIcon />
+                <span>Analytics</span>
               </Link>
             </li>
             <li>
               <Link href="/dashboard/definitions" className={styles.navLink}>
-                <BookIcon /><span>Definitions</span>
+                <BookIcon />
+                <span>Definitions</span>
               </Link>
             </li>
           </ul>
         </nav>
-        {reviewCountError && <p className={styles.queueError} role="alert">{reviewCountError}</p>}
-        <div className={styles.account}>
-          <span className={styles.avatar} aria-hidden="true"><UserIcon /></span>
-          <span className={styles.accountCopy}>
-            <strong>{staffName}</strong>
-            <span>{staff?.role ?? "Staff role unavailable"}</span>
-          </span>
-          <button
-            type="button"
-            className={styles.logoutButton}
-            onClick={onLogout}
-            aria-label="Log out"
-            title="Log out"
-          >
-            <LogoutIcon />
-          </button>
+        {reviewCountError && (
+          <p className={styles.queueError} role="alert">
+            {reviewCountError}
+          </p>
+        )}
+
+        <div className={styles.sidebarFooter}>
+          <Link href="/" className={styles.citizenLink}>
+            <span>Citizen Portal</span>
+            <ExternalLinkIcon />
+          </Link>
+          <div className={styles.account}>
+            <span className={styles.avatar} aria-hidden="true">
+              {initials}
+            </span>
+            <span className={styles.accountCopy}>
+              <strong>{staffName}</strong>
+              <span>{staff?.role ?? "Staff"}</span>
+            </span>
+            <button
+              type="button"
+              className={styles.logoutButton}
+              onClick={onLogout}
+              aria-label="Log out"
+              title="Log out"
+            >
+              <LogoutIcon />
+            </button>
+          </div>
         </div>
       </aside>
+
       <div className={styles.mainColumn}>
+        <nav className={styles.compactNav} aria-label="Staff navigation">
+          <Link href="/dashboard" className={styles.compactBrand}>
+            <Image src="/brand/sagip-ai-mark.svg" alt="" width={24} height={24} loading="eager" />
+            <strong>SAGIP-AI</strong>
+            <span>Staff</span>
+          </Link>
+          <div className={styles.compactLinks}>
+            <Link href="/dashboard" className={`${styles.compactLink} ${styles.compactLinkActive}`}>
+              Incidents
+            </Link>
+            <Link href="/dashboard/review" className={styles.compactLink}>
+              Review
+              {reviewCount !== null && <span className={styles.navBadge}>{reviewCount}</span>}
+            </Link>
+            <Link href="/dashboard/analytics" className={styles.compactLink}>
+              Analytics
+            </Link>
+            <Link href="/dashboard/definitions" className={styles.compactLink}>
+              Definitions
+            </Link>
+          </div>
+        </nav>
+
         {error ? (
-          <main className={styles.shellMessage} role="alert">{error}</main>
+          <main className={styles.shellMessage} role="alert">
+            {error}
+          </main>
         ) : staff ? (
           children
         ) : (
-          <main className={styles.shellMessage} aria-busy="true">Loading staff session...</main>
+          <main className={styles.shellMessage} aria-busy="true">
+            Loading staff session...
+          </main>
         )}
       </div>
     </div>
   );
 }
+
+const LIFECYCLE_STEPS = [
+  { key: "received", label: "Received" },
+  { key: "review", label: "Reviewed" },
+  { key: "assign", label: "Assign" },
+  { key: "respond", label: "Responding" },
+  { key: "done", label: "Resolved" },
+] as const;
 
 export function IncidentDossierView({
   state,
@@ -152,6 +220,7 @@ export function IncidentDossierView({
   onAction,
   onReviewDone,
   onRetry,
+  onRefresh,
   photoFailed,
   onPhotoError,
 }: {
@@ -168,6 +237,7 @@ export function IncidentDossierView({
   onAction: (action: IncidentAction) => Promise<boolean>;
   onReviewDone: () => void;
   onRetry: () => void;
+  onRefresh?: () => void;
   photoFailed: boolean;
   onPhotoError: () => void;
 }) {
@@ -175,7 +245,19 @@ export function IncidentDossierView({
   const [score, setScore] = useState("");
   const [reason, setReason] = useState("");
   const [overrideOpen, setOverrideOpen] = useState(false);
-  const [adminToolsOpen, setAdminToolsOpen] = useState(false);
+  const [showRawJson, setShowRawJson] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirmation | null>(null);
+
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setLightboxOpen(false);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [lightboxOpen]);
 
   if (state !== "ready" || !detail) {
     const title = state === "notFound"
@@ -185,8 +267,12 @@ export function IncidentDossierView({
         : "Loading incident";
     return (
       <main className={styles.content}>
-        <TopBar staff={staff} lastRefreshed={lastRefreshed} />
-        <section className={state === "loading" ? styles.loadingCard : styles.stateCard} role={state === "error" || state === "notFound" ? "alert" : undefined} aria-busy={state === "loading"}>
+        <TopBar trackingCode={null} lastRefreshed={lastRefreshed} onRefresh={onRefresh} busy={busy} />
+        <section
+          className={state === "loading" ? styles.loadingCard : styles.stateCard}
+          role={state === "error" || state === "notFound" ? "alert" : undefined}
+          aria-busy={state === "loading"}
+        >
           {state === "loading" ? (
             <>
               <span className={styles.spinner} aria-hidden="true" />
@@ -196,7 +282,9 @@ export function IncidentDossierView({
             <>
               <h1>{title}</h1>
               <p>{state === "notFound" ? "This incident may have been removed or is no longer available." : stateMessage}</p>
-              <button type="button" className={styles.buttonPrimary} onClick={onRetry}>Retry</button>
+              <button type="button" className={styles.buttonPrimary} onClick={onRetry}>
+                Retry
+              </button>
             </>
           )}
         </section>
@@ -211,8 +299,7 @@ export function IncidentDossierView({
   const isAdmin = staff?.role === "admin";
   const onTeam = Boolean(detail.teamId && detail.teamId === staff?.teamId);
   const step = stepFor(detail.status);
-  const transitions = (STATUS_TRANSITIONS[detail.status] ?? [])
-    .filter((status) => status !== "rejected");
+  const transitions = (STATUS_TRANSITIONS[detail.status] ?? []).filter((status) => status !== "rejected");
   const canReject = (STATUS_TRANSITIONS[detail.status] ?? []).includes("rejected");
   const canAssign = ASSIGNABLE_STATUSES.includes(detail.status);
   const incidentType = latest && INCIDENT_TYPES.find((value) => value === latest.incidentType);
@@ -226,65 +313,125 @@ export function IncidentDossierView({
         hoaxSuspected: latest.hoaxSuspected ?? false,
       })
     : [];
-  // Once staff confirm the type and severity, the AI's check-first flags no longer apply.
   const needsReview = detail.status === "pending_review" || detail.status === "received";
   const isCurrentStepReview = step?.key === "review";
   const stepTitle = detail.status === "rejected"
     ? "Incident rejected"
     : step?.next ?? titleCase(detail.status);
+  const stepStageIndex = lifecycleStageIndex(detail.status);
+  const mapUrl = openMapUrl(detail.location.lat, detail.location.lng);
 
-  async function assignTeam(label: string) {
-    const team = teams.find((item) => item.id === selectedTeamId);
-    if (!selectedTeamId || !window.confirm(`Confirm ${label.toLowerCase()}${team ? ` to ${team.name}` : ""}?`)) return;
-    const saved = await onAction({
-      label,
-      path: `/api/incidents/${incident.id}/assign`,
-      method: "POST",
-      json: { teamId: selectedTeamId },
-    });
-    if (saved) setSelectedTeamId("");
-  }
-
-  async function saveOverride() {
-    if (!window.confirm("Confirm this priority score override?")) return;
-    const saved = await onAction({
-      label: "Priority override",
-      path: `/api/incidents/${incident.id}/priority`,
-      method: "PATCH",
-      json: { score: Number(score), reason },
-    });
-    if (saved) {
-      setOverrideOpen(false);
-      setScore("");
-      setReason("");
+  function copyTrackingCode() {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      void navigator.clipboard.writeText(incident.trackingCode).catch(() => {});
     }
+    setCopiedCode(true);
+    window.setTimeout(() => setCopiedCode(false), 1800);
   }
 
-  function assignmentForm(label: string) {
+  function requestAssignTeam(label: string) {
+    if (!selectedTeamId) return;
+    const team = teams.find((item) => item.id === selectedTeamId);
+    setPendingConfirm({
+      prompt: `Confirm ${label.toLowerCase()}${team ? ` to ${team.name}` : ""} for ${incident.trackingCode}?`,
+      confirmLabel: label,
+      run: async () => {
+        const saved = await onAction({
+          label,
+          path: `/api/incidents/${incident.id}/assign`,
+          method: "POST",
+          json: { teamId: selectedTeamId },
+        });
+        if (saved) setSelectedTeamId("");
+      },
+    });
+  }
+
+  function requestSaveOverride() {
+    const parsed = Number(score);
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100 || !reason.trim()) return;
+    setPendingConfirm({
+      prompt: `Override priority score to ${formatScore(parsed)}? Reason: "${reason.trim()}"`,
+      confirmLabel: "Save override",
+      run: async () => {
+        const saved = await onAction({
+          label: "Priority override",
+          path: `/api/incidents/${incident.id}/priority`,
+          method: "PATCH",
+          json: { score: parsed, reason: reason.trim() },
+        });
+        if (saved) {
+          setOverrideOpen(false);
+          setScore("");
+          setReason("");
+        }
+      },
+    });
+  }
+
+  function requestRerunAi() {
+    setPendingConfirm({
+      prompt: `Re-run AI on ${incident.trackingCode}? Its draft type and severity may update.`,
+      confirmLabel: "Re-run AI",
+      run: async () => {
+        await onAction({
+          label: "Re-run AI",
+          path: `/api/incidents/${incident.id}/reclassify`,
+          method: "POST",
+        });
+      },
+    });
+  }
+
+  function requestReject() {
+    setPendingConfirm({
+      prompt: `Reject ${incident.trackingCode} as not a real incident?`,
+      confirmLabel: "Reject incident",
+      danger: true,
+      run: async () => {
+        await onAction({
+          label: "Reject incident",
+          path: `/api/incidents/${incident.id}/status`,
+          method: "PATCH",
+          json: { status: "rejected" },
+        });
+      },
+    });
+  }
+
+  function teamSelector(label: string) {
     return (
-      <div className={styles.formRow}>
-        <label className={styles.field}>
-          <span>Team</span>
-          <select value={selectedTeamId} onChange={(event) => setSelectedTeamId(event.target.value)} disabled={busy}>
-            <option value="">Choose team</option>
-            {teams.map((team) => (
-              <option key={team.id} value={team.id} disabled={team.id === incident.teamId}>
-                {team.name}{team.id === incident.teamId ? " (current)" : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="button" className={styles.buttonPrimary} disabled={busy || !selectedTeamId} onClick={() => void assignTeam(label)}>
-          <TeamIcon />{label}
+      <>
+        <select
+          className={styles.selectModern}
+          aria-label="Choose response team"
+          value={selectedTeamId}
+          onChange={(event) => setSelectedTeamId(event.target.value)}
+          disabled={busy}
+        >
+          <option value="">Select response team…</option>
+          {teams.map((team) => (
+            <option key={team.id} value={team.id} disabled={team.id === incident.teamId}>
+              {team.name}{team.id === incident.teamId ? " (current)" : ""}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          className={styles.buttonPrimary}
+          disabled={busy || !selectedTeamId}
+          onClick={() => requestAssignTeam(label)}
+        >
+          {label}
         </button>
-      </div>
+      </>
     );
   }
 
   function transitionAction(status: ReportStatus) {
     const label = incident.status === "resolved" && status === "in_progress"
       ? "Reopen"
-      : TRANSITION_LABELS[status] ?? status;
+      : TRANSITION_LABELS[status] ?? titleCase(status);
     return (
       <button
         type="button"
@@ -305,36 +452,77 @@ export function IncidentDossierView({
     );
   }
 
+  const agreedWithAi = Boolean(
+    latest &&
+    detail.review &&
+    latest.incidentType === detail.review.finalType &&
+    latest.severity === detail.review.finalSeverity
+  );
+
   return (
     <main className={styles.content}>
-      <TopBar staff={staff} lastRefreshed={lastRefreshed} />
+      <TopBar trackingCode={detail.trackingCode} lastRefreshed={lastRefreshed} onRefresh={onRefresh ?? onRetry} busy={busy} />
       <div className={styles.page}>
-        <section className={`${styles.hero} ${detail.priority?.band === "P1" ? styles.heroCritical : ""}`}>
-          <div className={styles.breadcrumbs}>
-            <Link href="/dashboard">← Incidents</Link>
-          </div>
-          <div className={styles.titleRow}>
-            <div className={styles.titleGroup}>
-              <h1>{detail.incidentType ? titleCase(detail.incidentType) : "Unconfirmed incident"}</h1>
-              <span className={`${styles.priorityBadge} ${detail.priority?.band === "P1" ? styles.priorityCritical : ""}`}>
-                {detail.priority?.band ?? "Priority unavailable"}
-              </span>
-              <span className={`${styles.statusBadge} ${detail.status === "pending_review" ? styles.statusReview : ""}`}>
-                {titleCase(detail.status)}
-              </span>
-              {detail.priority && <span className={styles.scoreInline}>Score {formatScore(detail.priority.score)}</span>}
-              {demoData && <span className={styles.demoBadge}>Demo data</span>}
+        {/* Compact Hero Command Card */}
+        <section className={`${styles.heroCard} ${detail.priority?.band === "P1" ? styles.heroCritical : ""}`}>
+          <div className={styles.heroTop}>
+            <div className={styles.heroLeft}>
+              <div className={styles.heroTitleRow}>
+                <h1 className={styles.heroTitle}>
+                  {detail.incidentType ? titleCase(detail.incidentType) : "Unconfirmed incident"}
+                </h1>
+                <span className={`${styles.pill} ${priorityPillClass(detail.priority?.band)}`}>
+                  {priorityBandLabel(detail.priority?.band)}
+                </span>
+                <span className={`${styles.pill} ${statusPillClass(detail.status)}`}>
+                  {titleCase(detail.status)}
+                </span>
+                {detail.priority && (
+                  <span className={styles.pillScore}>{formatScore(detail.priority.score)}</span>
+                )}
+                {demoData && <span className={`${styles.pill} ${styles.pillMuted}`}>Demo data</span>}
+              </div>
+
+              <div className={styles.heroMeta}>
+                <button
+                  type="button"
+                  className={styles.codeCopy}
+                  onClick={copyTrackingCode}
+                  title="Copy tracking code"
+                >
+                  {copiedCode ? "Copied!" : detail.trackingCode}
+                </button>
+                <span>{detail.location.area ?? "Unknown area"}</span>
+                <time dateTime={detail.createdAt}>{formatShortDate(detail.createdAt)}</time>
+                <span>
+                  Team: <strong>{currentTeam?.name ?? (detail.teamId ? "Unavailable" : "Unassigned")}</strong>
+                </span>
+              </div>
+            </div>
+
+            <div className={styles.stepper} aria-label="Incident lifecycle">
+              {detail.status === "rejected" ? (
+                <span className={`${styles.stepPill} ${styles.stepPillRejected}`}>Rejected</span>
+              ) : (
+                LIFECYCLE_STEPS.map((item, index) => {
+                  const done = index < stepStageIndex || stepStageIndex === 4;
+                  const current = index === stepStageIndex && stepStageIndex < 4;
+                  return (
+                    <span key={item.key} style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                      {index > 0 && <span className={styles.stepSep} aria-hidden="true">›</span>}
+                      <span
+                        className={`${styles.stepPill} ${done ? styles.stepPillDone : ""} ${current ? styles.stepPillCurrent : ""}`}
+                      >
+                        {done ? "✓ " : ""}
+                        {item.label}
+                      </span>
+                    </span>
+                  );
+                })
+              )}
             </div>
           </div>
-          <div className={styles.metaRow}>
-            <span className={styles.coordinates}>{detail.trackingCode}</span>
-            <span>{detail.location.area ?? "Unknown area"}</span>
-            <a href={openMapUrl(detail.location.lat, detail.location.lng)} target="_blank" rel="noreferrer">
-              Open map <ExternalLinkIcon />
-            </a>
-            <span><time dateTime={detail.createdAt}>{formatDate(detail.createdAt)}</time></span>
-            <span>Team <strong>{currentTeam?.name ?? (detail.teamId ? "Team unavailable" : "None")}</strong></span>
-          </div>
+
           {needsReview && (
             <ReviewBanner
               latest={latest}
@@ -342,120 +530,272 @@ export function IncidentDossierView({
               pending={detail.status === "pending_review"}
             />
           )}
-          <section className={styles.lifecycle} aria-label="Next step">
-            <div className={styles.nextStep}>
-              <div className={styles.nextStepCopy}>
-                <span className={styles.overline}>Next step</span>
-                <h3>{stepTitle}</h3>
-              </div>
-              <div className={styles.nextStepActions}>
-                {isCurrentStepReview && (
-                  <a className={styles.buttonPrimary} href="#human-verification">Review now</a>
-                )}
-                {step?.key === "assign" && (
-                  isAdmin
-                    ? assignmentForm("Assign team")
-                    : <span className={styles.mutedMessage}>Waiting for an admin to assign a team.</span>
-                )}
-                {(step?.key === "respond" || step?.key === "done") && transitions.map(transitionAction)}
-                {step?.key === "respond" && !isAdmin && !onTeam && (
-                  <span className={styles.mutedMessage}>Only {currentTeam?.name ?? "the assigned team"} or an admin can update this incident.</span>
-                )}
+
+          <div className={styles.actionStrip}>
+            <div className={styles.actionStripCopy}>
+              <strong>Next step: {stepTitle}</strong>
+              <span>{nextStepDescription(detail, currentTeam?.name ?? null)}</span>
+            </div>
+            <div className={styles.actionControls}>
+              {isCurrentStepReview && (
+                <a className={styles.buttonPrimary} href="#human-verification">
+                  Review now
+                </a>
+              )}
+              {step?.key === "assign" && (
+                isAdmin ? (
+                  teamSelector("Assign team")
+                ) : (
+                  <span className={styles.mutedMessage}>Waiting for an admin to assign a team.</span>
+                )
+              )}
+              {(step?.key === "respond" || step?.key === "done") && transitions.map(transitionAction)}
+              {step?.key === "respond" && !isAdmin && !onTeam && (
+                <span className={styles.mutedMessage}>
+                  Only {currentTeam?.name ?? "the assigned team"} or an admin can update this.
+                </span>
+              )}
+            </div>
+          </div>
+
+          {pendingConfirm && (
+            <div className={styles.inlineConfirm} role="alert">
+              <span>{pendingConfirm.prompt}</span>
+              <div className={styles.inlineConfirmActions}>
+                <button
+                  type="button"
+                  className={`${pendingConfirm.danger ? styles.buttonDangerSoft : styles.buttonPrimary} ${styles.buttonSmall}`}
+                  disabled={busy}
+                  onClick={() => {
+                    const action = pendingConfirm;
+                    setPendingConfirm(null);
+                    void action.run();
+                  }}
+                >
+                  {pendingConfirm.confirmLabel}
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.buttonSecondary} ${styles.buttonSmall}`}
+                  disabled={busy}
+                  onClick={() => setPendingConfirm(null)}
+                >
+                  Cancel
+                </button>
               </div>
             </div>
-          </section>
+          )}
+
           {(error || message) && (
-            <p className={error ? styles.actionError : styles.actionMessage} role={error ? "alert" : "status"}>
+            <p
+              className={`${styles.feedbackBar} ${error ? styles.feedbackError : styles.feedbackSuccess}`}
+              role={error ? "alert" : "status"}
+            >
               {error ?? message}
             </p>
           )}
         </section>
 
-        <div className={styles.contentGrid}>
-          <div className={styles.primaryColumn}>
-            <section className={styles.card} aria-labelledby="evidence-title">
-              <CardHeading icon={<PhotoIcon />} title="Photo" id="evidence-title" />
-              {detail.photoUrl && !photoFailed ? (
-                <div className={styles.photoFrame}>
-                  {/* eslint-disable-next-line @next/next/no-img-element -- signed evidence URL returned by the staff API */}
-                  <img
-                    src={detail.photoUrl}
-                    alt={`Evidence photo for ${detail.trackingCode}: ${detail.description || "incident report"}`}
-                    onError={onPhotoError}
-                  />
-                </div>
-              ) : (
-                <div className={styles.photoFallback} role="status">
-                  <PhotoIcon />
-                  <strong>{photoFailed ? "Photo unavailable" : "No photo available"}</strong>
-                </div>
-              )}
-              {detail.photoUrl && !photoFailed && (
-                <a className={styles.textLink} href={detail.photoUrl} target="_blank" rel="noreferrer">Open original photo <ExternalLinkIcon /></a>
-              )}
-              <div className={styles.transcript}>
-                <h3>What the citizen wrote</h3>
-                {detail.description
-                  ? <p>{detail.description}</p>
-                  : <p className={styles.emptyText}>No description recorded.</p>}
+        {/* 3 Equal-Height Balanced Columns (Fits 1366x720 desktop in 1 screen) */}
+        <div className={styles.grid3}>
+          {/* Column 1: Evidence Photo + Embedded Mini-Map + Citizen Quote */}
+          <section className={styles.card} aria-labelledby="evidence-title">
+            <div className={styles.cardHead}>
+              <h2 className={styles.cardHeadTitle} id="evidence-title">
+                <PhotoIcon />
+                Evidence &amp; Location
+              </h2>
+              <span className={styles.coordsTag}>
+                {Number.isFinite(detail.location.lat) && Number.isFinite(detail.location.lng)
+                  ? `${detail.location.lat.toFixed(4)}, ${detail.location.lng.toFixed(4)}`
+                  : "No coords"}
+              </span>
+            </div>
+
+            {detail.photoUrl && !photoFailed ? (
+              <button
+                type="button"
+                className={styles.photoBox}
+                onClick={() => setLightboxOpen(true)}
+                aria-label="Inspect full evidence photo"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element -- signed evidence URL returned by the staff API */}
+                <img
+                  src={detail.photoUrl}
+                  alt={`Evidence photo for ${detail.trackingCode}: ${detail.description || "incident report"}`}
+                  onError={onPhotoError}
+                />
+                <span className={styles.photoOverlayBtn}>Inspect photo</span>
+              </button>
+            ) : (
+              <div className={styles.photoFallback} role="status">
+                <PhotoIcon />
+                <strong>{photoFailed ? "Photo unavailable" : "No photo attached"}</strong>
               </div>
-            </section>
+            )}
 
-            <details className={`${styles.card} ${styles.collapsible}`}>
-              <summary className={styles.collapsibleSummary}>History ({detail.auditLog.length})</summary>
-              {detail.auditLog.length ? (
-                <ol className={styles.auditList}>
-                  {detail.auditLog.map((event) => (
-                    <li key={event.id}>
-                      <details className={styles.auditEvent}>
-                        <summary>
-                          <span className={styles.auditDot} aria-hidden="true" />
-                          <strong>{auditLabel(event.action)}</strong>
-                          <time dateTime={event.createdAt}>{formatDate(event.createdAt)}</time>
-                        </summary>
-                        <pre>{JSON.stringify({ before: event.before, after: event.after, actorId: event.actorId }, null, 2)}</pre>
-                      </details>
-                    </li>
-                  ))}
-                </ol>
+            <DossierMiniMap
+              lat={detail.location.lat}
+              lng={detail.location.lng}
+              area={detail.location.area}
+              openMapUrl={mapUrl}
+            />
+
+            <div className={styles.citizenQuote}>
+              <span className={styles.overline}>What the citizen wrote</span>
+              {detail.description ? (
+                <p>“{detail.description}”</p>
               ) : (
-                <p className={styles.emptyText}>No changes yet.</p>
+                <p className={styles.emptyText}>No description recorded.</p>
               )}
-            </details>
-          </div>
+            </div>
+          </section>
 
-          <div className={styles.secondaryColumn}>
+          {/* Column 2: Unified Verification & AI Analysis + Activity Trail */}
+          <div className={styles.col}>
             <section className={styles.card} id="human-verification" aria-labelledby="verification-title">
-              <CardHeading icon={<VerificationIcon />} title="Review" id="verification-title" />
-              <div className={styles.reviewValues}>
-                <div>
-                  <span className={styles.overline}>AI proposed</span>
-                  {latest
-                    ? <strong>{titleCase(latest.incidentType)} · {severityWithPercent(latest.severity, latest.severityConfidence)}</strong>
-                    : <strong>No AI result yet</strong>}
+              <div className={styles.cardHead}>
+                <h2 className={styles.cardHeadTitle} id="verification-title">
+                  <VerificationIcon />
+                  Verification &amp; AI Analysis
+                </h2>
+                <span
+                  className={`${styles.pill} ${detail.review ? styles.pillStatusResolved : styles.pillStatusReview}`}
+                  style={{ fontSize: "10.5px" }}
+                >
+                  {detail.review ? "Confirmed" : "Pending review"}
+                </span>
+              </div>
+
+              <div className={styles.compareBox}>
+                <div className={styles.cmpPanel}>
+                  <span className={styles.overline}>
+                    AI Draft{latest ? ` (${shortModelName(latest.model)})` : ""}
+                  </span>
+                  {latest ? (
+                    <>
+                      <div className={styles.cmpMain}>
+                        {titleCase(latest.incidentType)} · {titleCase(latest.severity)}
+                      </div>
+                      <div className={styles.cmpSub}>
+                        {latest.severityConfidence != null
+                          ? `Severity conf: ${Math.round(latest.severityConfidence * 100)}%`
+                          : "Severity conf: —"}
+                      </div>
+                    </>
+                  ) : (
+                    <div className={styles.cmpSub}>No AI result yet</div>
+                  )}
                 </div>
-                <div>
-                  <span className={styles.overline}>Human confirmed</span>
+
+                <div className={`${styles.cmpPanel} ${detail.review ? styles.cmpPanelConfirmed : ""}`}>
+                  <span className={styles.overline}>Human Confirmed</span>
                   {detail.review ? (
-                    <strong>{titleCase(detail.review.finalType)} · {titleCase(detail.review.finalSeverity)}</strong>
-                  ) : detail.incidentType || detail.severity ? (
-                    <strong>{detail.incidentType ? titleCase(detail.incidentType) : "Type not confirmed"} · {detail.severity ? titleCase(detail.severity) : "Severity not confirmed"}</strong>
-                  ) : <strong>Not confirmed</strong>}
+                    <>
+                      <div className={`${styles.cmpMain} ${styles.cmpMainConfirmed}`}>
+                        {titleCase(detail.review.finalType)} · {titleCase(detail.review.finalSeverity)}
+                      </div>
+                      <div className={`${styles.cmpSub} ${styles.cmpSubConfirmed}`}>
+                        {agreedWithAi ? "Agreed with AI" : "Adjusted by staff"}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className={styles.cmpMain}>
+                        {detail.incidentType ? titleCase(detail.incidentType) : "Not confirmed"}
+                      </div>
+                      <div className={styles.cmpSub}>Awaiting staff confirmation</div>
+                    </>
+                  )}
                 </div>
               </div>
-              {detail.review?.notes && (
-                <div className={styles.reviewerNotes}>
-                  <span className={styles.overline}>Reviewer notes</span>
-                  <p>{detail.review.notes}</p>
+
+              {latest && (
+                <>
+                  <div className={styles.confBarRow}>
+                    <span>Type confidence</span>
+                    <strong>{formatPercent(latest.confidence)}</strong>
+                  </div>
+                  <span
+                    className={styles.barTrack}
+                    role="meter"
+                    aria-label="AI type confidence"
+                    aria-valuenow={Math.round(latest.confidence * 100)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                  >
+                    <span
+                      className={styles.barFill}
+                      style={{ width: `${Math.min(100, Math.max(0, latest.confidence * 100))}%` }}
+                    />
+                  </span>
+
+                  <div className={styles.metaStrip}>
+                    <div className={styles.hazardsInline}>
+                      <span className={styles.overline} style={{ margin: 0 }}>Hazards:</span>
+                      {latest.hazards.length > 0 ? (
+                        latest.hazards.map((hazard, index) => (
+                          <span className={styles.hazardPill} key={`${hazard}-${index}`}>
+                            {hazard}
+                          </span>
+                        ))
+                      ) : (
+                        <span className={styles.emptyText}>None</span>
+                      )}
+                    </div>
+                    <span className={styles.coordsTag}>
+                      {latest.latencyMs != null ? `${latest.latencyMs} ms · ` : ""}
+                      {detail.classifications.length} {detail.classifications.length === 1 ? "run" : "runs"}
+                    </span>
+                  </div>
+                </>
+              )}
+
+              {detail.review && (
+                <div className={styles.reviewerNote}>
+                  {detail.review.notes ? (
+                    <>
+                      <strong>Note:</strong> “{detail.review.notes}”{" "}
+                    </>
+                  ) : null}
+                  <span className={styles.reviewerMeta}>
+                    — {detail.review.reviewer?.full_name ?? "Staff"} · {formatShortDate(detail.review.createdAt)}
+                  </span>
                 </div>
               )}
-              {detail.review && (
-                <p className={styles.reviewMeta}>
-                  Reviewed by {detail.review.reviewer?.full_name ?? "Staff"} · {formatDate(detail.review.createdAt)}
-                </p>
+
+              {detail.classifications.length > 1 && (
+                <details className={styles.historyDisclosure}>
+                  <summary>Past AI runs ({detail.classifications.length})</summary>
+                  <div className={styles.tableScroller}>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>When</th>
+                          <th>Model</th>
+                          <th>Type</th>
+                          <th>Severity</th>
+                          <th>Conf</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {detail.classifications.map((classification) => (
+                          <tr key={classification.id}>
+                            <td>{formatShortDate(classification.createdAt)}</td>
+                            <td>{shortModelName(classification.model)}</td>
+                            <td>{titleCase(classification.incidentType)}</td>
+                            <td>{severityWithPercent(classification.severity, classification.severityConfidence)}</td>
+                            <td>{formatPercent(classification.confidence)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
               )}
+
               {isCurrentStepReview && (
-                <div className={styles.reviewForm}>
+                <div className={styles.reviewFormWrap}>
                   <ReviewForm
                     bare
                     item={{
@@ -470,166 +810,368 @@ export function IncidentDossierView({
               )}
             </section>
 
-            <details className={`${styles.card} ${styles.collapsible}`}>
-              <summary className={styles.collapsibleSummary}>
-                Team: {currentTeam?.name ?? (detail.teamId ? "Team unavailable" : "None")}
-              </summary>
-              {teamsError && <p className={styles.actionError} role="alert">Teams could not be loaded: {teamsError}</p>}
-              {detail.assignments.length ? (
-                <ul className={styles.assignmentList}>
-                  {detail.assignments.map((assignment) => (
-                    <li key={assignment.id}>
-                      <strong>{assignment.team?.name ?? "Team unavailable"}</strong>
-                      {assignment.assignedBy?.full_name && <span>Assigned by {assignment.assignedBy.full_name}</span>}
-                      <time dateTime={assignment.assignedAt}>{formatDate(assignment.assignedAt)}</time>
-                    </li>
-                  ))}
-                </ul>
-              ) : <p className={styles.emptyText}>No team assigned yet.</p>}
-            </details>
+            {/* Human-Readable Activity Trail */}
+            <section className={`${styles.card} ${styles.cardGrow}`} aria-labelledby="activity-title">
+              <div className={styles.cardHead}>
+                <h2 className={styles.cardHeadTitle} id="activity-title">
+                  <ClockIcon />
+                  Activity Trail
+                  <span className={`${styles.pill} ${styles.pillMuted}`} style={{ fontSize: "10.5px", padding: "1px 7px" }}>
+                    {detail.auditLog.length}
+                  </span>
+                </h2>
+                {detail.auditLog.length > 0 && (
+                  <button
+                    type="button"
+                    className={styles.buttonGhost}
+                    onClick={() => setShowRawJson((prev) => !prev)}
+                  >
+                    {showRawJson ? "Hide JSON" : "Raw JSON"}
+                  </button>
+                )}
+              </div>
 
-            {isAdmin ? (
-              <details
-                className={styles.adminTools}
-                open={adminToolsOpen}
-                onToggle={(event) => {
-                  if (event.currentTarget.open !== adminToolsOpen) setAdminToolsOpen(event.currentTarget.open);
-                }}
-              >
-                <summary><strong>Admin tools</strong><span>{adminToolsOpen ? "Hide" : "Show"}</span></summary>
-                <div className={styles.adminToolsBody}>
-                  {canAssign && detail.status !== "classified" && (
-                    <section className={styles.adminAction}>
-                      <h3>Reassign team</h3>
-                      {assignmentForm("Reassign team")}
-                    </section>
-                  )}
-                  <section className={styles.adminAction}>
-                    <h3>Priority score manual override</h3>
-                    {overrideOpen ? (
-                      <div className={styles.adminForm}>
-                        <label className={styles.field}>
-                          <span>Score (0–100)</span>
-                          <input value={score} onChange={(event) => setScore(event.target.value)} inputMode="decimal" />
-                        </label>
-                        <label className={styles.field}>
-                          <span>Reason</span>
-                          <input value={reason} onChange={(event) => setReason(event.target.value)} />
-                        </label>
-                        <div className={styles.formActions}>
-                          <button
-                            type="button"
-                            className={styles.buttonPrimary}
-                            disabled={busy || !score || !reason}
-                            onClick={() => void saveOverride()}
-                          >
-                            Save override
-                          </button>
-                          <button type="button" className={styles.buttonSecondary} onClick={() => setOverrideOpen(false)}>Cancel</button>
+              {detail.auditLog.length > 0 ? (
+                <div className={styles.auditScroll}>
+                  <ol className={styles.auditList}>
+                    {detail.auditLog.map((event, idx) => (
+                      <li key={event.id} className={styles.auditItem}>
+                        <div className={styles.auditRail}>
+                          <span className={`${styles.auditDot} ${auditDotClass(event.action)}`} aria-hidden="true" />
+                          {idx < detail.auditLog.length - 1 && <span className={styles.auditLine} aria-hidden="true" />}
                         </div>
-                      </div>
-                    ) : (
-                      <button type="button" className={styles.buttonSecondary} onClick={() => setOverrideOpen(true)}>
-                        Override score
-                      </button>
-                    )}
-                  </section>
-                  <section className={styles.adminAction}>
-                    <h3>AI pipeline re-evaluation</h3>
+                        <div className={styles.auditBody}>
+                          <div className={styles.auditHead}>
+                            <span className={styles.auditTitle}>{auditLabel(event.action)}</span>
+                            <time className={styles.auditTime} dateTime={event.createdAt}>
+                              {formatShortDate(event.createdAt)}
+                            </time>
+                          </div>
+                          <div className={styles.auditDesc}>{summarizeAuditEvent(event)}</div>
+                          {showRawJson && (
+                            <pre className={styles.jsonPre}>
+                              {JSON.stringify({ before: event.before, after: event.after, actorId: event.actorId }, null, 2)}
+                            </pre>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ) : (
+                <p className={styles.emptyText}>No recorded activity yet.</p>
+              )}
+            </section>
+          </div>
+
+          {/* Column 3: Priority Score Breakdown + Admin Controls */}
+          <div className={styles.col}>
+            <PriorityBreakdownCard
+              detail={detail}
+              isAdmin={isAdmin}
+              busy={busy}
+              overrideOpen={overrideOpen}
+              setOverrideOpen={setOverrideOpen}
+              score={score}
+              setScore={setScore}
+              reason={reason}
+              setReason={setReason}
+              onSaveOverride={requestSaveOverride}
+            />
+
+            <section className={styles.card} aria-labelledby="controls-title">
+              <div className={styles.cardHead} style={{ marginBottom: "6px" }}>
+                <h2 className={styles.cardHeadTitle} id="controls-title">
+                  <ControlsIcon />
+                  {isAdmin ? "Admin Controls" : "Team History"}
+                </h2>
+              </div>
+
+              {teamsError && (
+                <p className={styles.errorInline} role="alert">
+                  Teams could not be loaded: {teamsError}
+                </p>
+              )}
+
+              {isAdmin ? (
+                <>
+                  <p className={styles.adminNote}>
+                    All overrides, reassignments, and actions are logged in the activity trail.
+                  </p>
+
+                  {canAssign && detail.status !== "classified" && (
+                    <div className={styles.reassignWrap}>{teamSelector("Reassign")}</div>
+                  )}
+
+                  <div className={styles.adminActionsRow}>
                     <button
                       type="button"
                       className={styles.buttonSecondary}
                       disabled={busy}
-                      onClick={() => {
-                        if (window.confirm("Run the AI again on this report? Its draft type and severity may change.")) void onAction({ label: "Re-run AI", path: `/api/incidents/${detail.id}/reclassify`, method: "POST" });
-                      }}
+                      onClick={requestRerunAi}
                     >
                       Re-run AI
                     </button>
                     {canReject && (
                       <button
                         type="button"
-                        className={styles.buttonDanger}
+                        className={styles.buttonDangerSoft}
                         disabled={busy}
-                        onClick={() => {
-                          if (window.confirm(`Reject ${detail.trackingCode}? It will be marked as not a real incident.`)) void onAction({ label: "Reject incident", path: `/api/incidents/${detail.id}/status`, method: "PATCH", json: { status: "rejected" } });
-                        }}
+                        onClick={requestReject}
                       >
-                        Reject incident
+                        Reject
                       </button>
                     )}
-                  </section>
-                </div>
-              </details>
-            ) : (
-              <p className={styles.roleHint}>Admin tools are for admins only.</p>
-            )}
-          </div>
-          <div className={styles.tertiaryColumn}>
-            <section className={styles.card} aria-labelledby="ai-title">
-              <CardHeading icon={<AiIcon />} title="AI guess" id="ai-title" />
-              {latest ? (
-                <>
-                  <DataPair label="Type" value={titleCase(latest.incidentType)} />
-                  <DataPair label="Severity" value={severityWithPercent(latest.severity, latest.severityConfidence)} />
-                  <div className={styles.confidenceBlock}>
-                    <div className={styles.dataLabel}>
-                      <span>Confidence</span><strong>{formatPercent(latest.confidence)}</strong>
-                    </div>
-                    <span className={styles.confidenceTrack} role="meter" aria-label="AI confidence" aria-valuenow={latest.confidence * 100} aria-valuemin={0} aria-valuemax={100}>
-                      <span style={{ width: `${Math.min(100, Math.max(0, latest.confidence * 100))}%` }} />
-                    </span>
                   </div>
-                  {latest.hazards.length > 0 && (
-                    <div className={styles.hazards}>
-                      <span className={styles.overline}>Hazards</span>
-                      <ul>{latest.hazards.map((hazard, index) => <li key={`${hazard}-${index}`}>{hazard}</li>)}</ul>
-                    </div>
-                  )}
                 </>
               ) : (
-                <p className={styles.emptyText}>No AI result yet</p>
+                <p className={styles.adminNote}>Admin controls are restricted to admin accounts.</p>
               )}
-              <details className={styles.historyDisclosure}>
-                <summary>Past AI results ({detail.classifications.length})</summary>
-                {detail.classifications.length ? (
-                  <div className={styles.tableScroller}>
-                    <table>
-                      <thead><tr><th>When</th><th>Model / Step</th><th>Type</th><th>Severity</th><th>Conf</th><th>Hazards</th></tr></thead>
-                      <tbody>
-                        {detail.classifications.map((classification) => (
-                          <tr key={classification.id}>
-                            <td><time dateTime={classification.createdAt}>{formatDate(classification.createdAt)}</time></td>
-                            <td>{classification.model}</td>
-                            <td>{titleCase(classification.incidentType)}</td>
-                            <td>{severityWithPercent(classification.severity, classification.severityConfidence)}</td>
-                            <td>{formatPercent(classification.confidence)}</td>
-                            <td>{classification.hazards.join(", ") || "—"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : <p className={styles.emptyText}>No AI classifications recorded.</p>}
-              </details>
-            </section>
 
-            <PriorityBreakdown detail={detail} />
+              {detail.assignments.length > 0 && (
+                <ul className={styles.assignmentList} aria-label="Past team assignments">
+                  {detail.assignments.map((assignment) => (
+                    <li key={assignment.id}>
+                      <strong>{assignment.team?.name ?? "Team unavailable"}</strong>
+                      <time dateTime={assignment.assignedAt}>{formatShortDate(assignment.assignedAt)}</time>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
           </div>
         </div>
       </div>
+
+      {/* Photo Lightbox Modal */}
+      {lightboxOpen && detail.photoUrl && !photoFailed && (
+        <div
+          className={styles.lightbox}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Full evidence photo for ${detail.trackingCode}`}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setLightboxOpen(false);
+          }}
+        >
+          <div className={styles.lightboxInner}>
+            {/* eslint-disable-next-line @next/next/no-img-element -- signed evidence URL returned by the staff API */}
+            <img
+              src={detail.photoUrl}
+              alt={`Full evidence photo for ${detail.trackingCode}`}
+            />
+            <div className={styles.lightboxBar}>
+              <span>
+                {detail.trackingCode} · {detail.location.area ?? "Unknown area"} · {formatShortDate(detail.createdAt)}
+              </span>
+              <div className={styles.lightboxActions}>
+                <a className={styles.lightboxLink} href={detail.photoUrl} target="_blank" rel="noreferrer">
+                  Open original
+                </a>
+                <button
+                  type="button"
+                  className={`${styles.buttonSecondary} ${styles.buttonSmall}`}
+                  onClick={() => setLightboxOpen(false)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
 
-function TopBar({ lastRefreshed }: { staff: StaffUser | null; lastRefreshed: string | null }) {
+function TopBar({
+  trackingCode,
+  lastRefreshed,
+  onRefresh,
+  busy,
+}: {
+  trackingCode: string | null;
+  lastRefreshed: string | null;
+  onRefresh?: () => void;
+  busy: boolean;
+}) {
   return (
     <header className={styles.topBar}>
-      <div className={styles.lastUpdated}>
-        <ClockIcon />
-        <span>Updated <time dateTime={lastRefreshed ?? undefined}>{lastRefreshed ? new Intl.DateTimeFormat("en-PH", { timeStyle: "short", timeZone: "Asia/Manila" }).format(new Date(lastRefreshed)) : "—"}</time></span>
+      <nav className={styles.crumbs} aria-label="Breadcrumb">
+        <Link href="/dashboard">Incidents</Link>
+        {trackingCode && (
+          <>
+            <span aria-hidden="true">/</span>
+            <code>{trackingCode}</code>
+          </>
+        )}
+      </nav>
+      <div className={styles.topBarRight}>
+        <span className={styles.lastUpdated}>
+          <ClockIcon />
+          <span>
+            Updated{" "}
+            <time dateTime={lastRefreshed ?? undefined}>
+              {lastRefreshed
+                ? new Intl.DateTimeFormat("en-PH", { timeStyle: "short", timeZone: "Asia/Manila" }).format(
+                    new Date(lastRefreshed)
+                  )
+                : "—"}
+            </time>
+          </span>
+        </span>
+        {onRefresh && (
+          <button
+            type="button"
+            className={`${styles.buttonSecondary} ${styles.buttonSmall}`}
+            onClick={onRefresh}
+            disabled={busy}
+          >
+            Refresh
+          </button>
+        )}
       </div>
     </header>
+  );
+}
+
+function PriorityBreakdownCard({
+  detail,
+  isAdmin,
+  busy,
+  overrideOpen,
+  setOverrideOpen,
+  score,
+  setScore,
+  reason,
+  setReason,
+  onSaveOverride,
+}: {
+  detail: DossierIncidentDetail;
+  isAdmin: boolean;
+  busy: boolean;
+  overrideOpen: boolean;
+  setOverrideOpen: (open: boolean) => void;
+  score: string;
+  setScore: (value: string) => void;
+  reason: string;
+  setReason: (value: string) => void;
+  onSaveOverride: () => void;
+}) {
+  const factors: { key: keyof typeof PRIORITY_WEIGHTS; label: string; fillClass: string }[] = [
+    { key: "severity", label: "Severity (45%)", fillClass: styles.barFillDanger },
+    { key: "population", label: "Population (25%)", fillClass: "" },
+    { key: "locationRisk", label: "Location risk (15%)", fillClass: styles.barFillAmber },
+    { key: "type", label: "Incident type (15%)", fillClass: styles.barFillTeal },
+  ];
+
+  return (
+    <section className={`${styles.card} ${styles.cardGrow}`} aria-labelledby="priority-title">
+      <div className={styles.cardHead}>
+        <h2 className={styles.cardHeadTitle} id="priority-title">
+          <ScoreIcon />
+          Priority Score
+        </h2>
+        {isAdmin && (
+          <button
+            type="button"
+            className={`${styles.buttonGhost} ${styles.buttonGhostBrand}`}
+            onClick={() => setOverrideOpen(!overrideOpen)}
+          >
+            {overrideOpen ? "Close" : "Override"}
+          </button>
+        )}
+      </div>
+
+      {detail.priority ? (
+        <>
+          <div className={styles.scoreHeaderRow}>
+            <div>
+              <span className={styles.scoreBig}>{formatScore(detail.priority.score)}</span>
+              <span className={styles.scoreOutOf}> / 100</span>
+            </div>
+            <span className={`${styles.pill} ${priorityPillClass(detail.priority.band)}`}>
+              {detail.priority.overridden ? `${detail.priority.band} · Overridden` : priorityBandLabel(detail.priority.band)}
+            </span>
+          </div>
+
+          <div className={styles.scoreList}>
+            {factors.map(({ key, label, fillClass }) => {
+              const value = detail.priority?.breakdown?.[key];
+              const maximum = PRIORITY_WEIGHTS[key] * 100;
+              const width = value === undefined ? 0 : Math.max(0, Math.min(100, (value / maximum) * 100));
+              return (
+                <div key={key}>
+                  <div className={styles.scoreRowHead}>
+                    <strong>{label}</strong>
+                    <span>
+                      {value === undefined ? "—" : formatScore(value)} / {formatScore(maximum)}
+                    </span>
+                  </div>
+                  <span
+                    className={styles.barTrack}
+                    role="meter"
+                    aria-label={label}
+                    aria-valuenow={value}
+                    aria-valuemin={0}
+                    aria-valuemax={maximum}
+                  >
+                    <span className={`${styles.barFill} ${fillClass}`} style={{ width: `${width}%` }} />
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <p className={styles.emptyText}>Priority score not available.</p>
+      )}
+
+      {isAdmin && overrideOpen && (
+        <div className={styles.overrideDrawer}>
+          <div className={styles.overrideInputs}>
+            <input
+              className={styles.inputField}
+              type="number"
+              min={0}
+              max={100}
+              step={0.5}
+              placeholder="0–100"
+              aria-label="New priority score (0 to 100)"
+              value={score}
+              onChange={(event) => setScore(event.target.value)}
+              disabled={busy}
+            />
+            <input
+              className={styles.inputField}
+              placeholder="Audit reason (required)"
+              aria-label="Reason for priority score override"
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              disabled={busy}
+            />
+          </div>
+          <div className={styles.overrideActions}>
+            <button
+              type="button"
+              className={`${styles.buttonSecondary} ${styles.buttonSmall}`}
+              onClick={() => setOverrideOpen(false)}
+              disabled={busy}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={`${styles.buttonPrimary} ${styles.buttonSmall}`}
+              disabled={busy || !score || !reason.trim()}
+              onClick={onSaveOverride}
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -637,7 +1179,9 @@ function lowConfidenceLabel(latest: DossierClassification | undefined) {
   const threshold = formatPercent(CONFIDENCE_THRESHOLD);
   const parts: string[] = [];
   if (latest && latest.confidence < CONFIDENCE_THRESHOLD) parts.push(`type ${formatPercent(latest.confidence)}`);
-  if (latest?.severityConfidence != null && latest.severityConfidence < CONFIDENCE_THRESHOLD) parts.push(`severity ${formatPercent(latest.severityConfidence)}`);
+  if (latest?.severityConfidence != null && latest.severityConfidence < CONFIDENCE_THRESHOLD) {
+    parts.push(`severity ${formatPercent(latest.severityConfidence)}`);
+  }
   return `Low confidence (${parts.join(", ") || "below threshold"}; review below ${threshold})`;
 }
 
@@ -668,92 +1212,165 @@ function ReviewBanner({
   );
 }
 
-function PriorityBreakdown({ detail }: { detail: DossierIncidentDetail }) {
-  const factors: { key: keyof typeof PRIORITY_WEIGHTS; label: string }[] = [
-    { key: "severity", label: "Severity" },
-    { key: "population", label: "Population" },
-    { key: "locationRisk", label: "Location risk" },
-    { key: "type", label: "Type" },
-  ];
-
-  return (
-    <section className={styles.card} aria-labelledby="priority-title">
-      <CardHeading icon={<ScoreIcon />} title="Score breakdown" id="priority-title">
-        {detail.priority && <strong className={styles.totalInline}>{formatScore(detail.priority.score)} / 100</strong>}
-      </CardHeading>
-      {detail.priority ? (
-        <div className={styles.factorList}>
-            {factors.map(({ key, label }) => {
-              const value = detail.priority?.breakdown?.[key];
-              const maximum = PRIORITY_WEIGHTS[key] * 100;
-              const width = value === undefined ? 0 : Math.max(0, Math.min(100, value / maximum * 100));
-              return (
-                <div className={styles.factor} key={key}>
-                  <div className={styles.dataLabel}><strong>{label}</strong><span>{value === undefined ? "—" : formatScore(value)} / {formatScore(maximum)}</span></div>
-                  <span className={styles.factorTrack} role="meter" aria-label={label} aria-valuenow={value} aria-valuemin={0} aria-valuemax={maximum}>
-                    <span style={{ width: `${width}%` }} />
-                  </span>
-                </div>
-              );
-            })}
-        </div>
-      ) : <p className={styles.emptyText}>Priority score not available.</p>}
-    </section>
-  );
+function lifecycleStageIndex(status: ReportStatus): number {
+  switch (status) {
+    case "received":
+      return 0;
+    case "pending_review":
+      return 1;
+    case "classified":
+      return 2;
+    case "assigned":
+    case "in_progress":
+      return 3;
+    case "resolved":
+      return 4;
+    default:
+      return 0;
+  }
 }
 
-function CardHeading({
-  icon,
-  title,
-  id,
-  children,
-}: {
-  icon: ReactNode;
-  title: string;
-  id: string;
-  children?: ReactNode;
-}) {
-  return (
-    <header className={styles.cardHeading}>
-      <span className={styles.cardIcon} aria-hidden="true">{icon}</span>
-      <h2 id={id}>{title}</h2>
-      {children}
-    </header>
-  );
+function nextStepDescription(detail: DossierIncidentDetail, teamName: string | null): string {
+  switch (detail.status) {
+    case "received":
+      return "AI is analyzing the submitted photo and report.";
+    case "pending_review":
+      return "Confirm or correct the AI draft before dispatch.";
+    case "classified":
+      return detail.review?.reviewer?.full_name
+        ? `Confirmed by ${detail.review.reviewer.full_name} — dispatch a response team.`
+        : "Type and severity confirmed — dispatch a response team.";
+    case "assigned":
+      return `${teamName ?? "Assigned team"} notified — start response when en route.`;
+    case "in_progress":
+      return `${teamName ?? "Response team"} is responding — mark resolved when cleared.`;
+    case "resolved":
+      return "Incident closed. Reopen if response continues.";
+    case "rejected":
+      return "Marked as not a real incident.";
+    default:
+      return "";
+  }
 }
 
-function DataPair({ label, value }: { label: string; value: string }) {
-  return (
-    <div className={styles.dataPair}>
-      <span className={styles.overline}>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
+function priorityBandLabel(band: string | undefined): string {
+  switch (band) {
+    case "P1":
+      return "P1 Immediate";
+    case "P2":
+      return "P2 Urgent";
+    case "P3":
+      return "P3 Standard";
+    case "P4":
+      return "P4 Low";
+    default:
+      return "Priority unavailable";
+  }
 }
 
-function BookIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-      <path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4z" />
-      <path d="M5 17a3 3 0 0 1 3-3h10" />
-    </svg>
-  );
+function priorityPillClass(band: string | undefined): string {
+  switch (band) {
+    case "P1":
+      return styles.pillP1;
+    case "P2":
+      return styles.pillP2;
+    case "P3":
+      return styles.pillP3;
+    default:
+      return styles.pillP4;
+  }
+}
+
+function statusPillClass(status: ReportStatus): string {
+  switch (status) {
+    case "pending_review":
+    case "received":
+      return styles.pillStatusReview;
+    case "assigned":
+      return styles.pillStatusAssigned;
+    case "in_progress":
+      return styles.pillStatusProgress;
+    case "resolved":
+      return styles.pillStatusResolved;
+    case "rejected":
+      return styles.pillStatusRejected;
+    default:
+      return styles.pillStatus;
+  }
+}
+
+function auditDotClass(action: string): string {
+  if (action === "report_reviewed" || action === "team_assigned" || action === "resolved") return styles.auditDotOk;
+  if (action === "report_rejected" || action === "classification_error") return styles.auditDotDanger;
+  if (action === "report_submitted") return styles.auditDotMuted;
+  return "";
 }
 
 function auditLabel(action: string) {
   const labels: Record<string, string> = {
-    status_changed: "Status changed",
+    status_changed: "Status updated",
     team_assigned: "Team assigned",
-    report_classified: "Report classified",
-    report_submitted: "Report submitted",
-    report_reviewed: "Classification confirmed by staff",
+    report_classified: "AI draft generated",
+    report_submitted: "Citizen report received",
+    report_reviewed: "Confirmed by staff",
     report_rejected: "Marked as false alarm",
-    reclassified: "AI re-run",
+    reclassified: "AI re-run completed",
     priority_overridden: "Priority score overridden",
     ai_fallback_used: "AI fallback used",
     classification_error: "AI classification failed",
   };
   return labels[action] ?? action.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+}
+
+function summarizeAuditEvent(event: IncidentDetailData["auditLog"][number]): string {
+  const after = asRecord(event.after);
+  const before = asRecord(event.before);
+
+  if (event.action === "status_changed" && typeof after?.status === "string") {
+    const prev = typeof before?.status === "string" ? `${titleCase(before.status)} → ` : "";
+    return `${prev}${titleCase(after.status)}.`;
+  }
+  if (event.action === "report_reviewed") {
+    const type = typeof after?.finalType === "string" ? titleCase(after.finalType) : typeof after?.incident_type === "string" ? titleCase(after.incident_type) : null;
+    const sev = typeof after?.finalSeverity === "string" ? titleCase(after.finalSeverity) : typeof after?.severity === "string" ? titleCase(after.severity) : null;
+    const notes = typeof after?.notes === "string" && after.notes.trim() ? ` Note: “${after.notes.trim()}”.` : "";
+    if (type || sev) return `${[type, sev].filter(Boolean).join(" · ")}.${notes}`;
+  }
+  if (event.action === "priority_overridden" && typeof after?.score === "number") {
+    const reasonText = typeof after?.reason === "string" ? ` Reason: “${after.reason}”.` : "";
+    return `Score set to ${formatScore(after.score)}.${reasonText}`;
+  }
+  if (event.action === "team_assigned") {
+    const name = typeof after?.teamName === "string" ? after.teamName : typeof after?.team_id === "string" ? "Response team dispatched" : "Team assigned";
+    return `${name}.`;
+  }
+  if (event.action === "report_classified" || event.action === "reclassified") {
+    const type = typeof after?.incidentType === "string" ? titleCase(after.incidentType) : typeof after?.incident_type === "string" ? titleCase(after.incident_type) : null;
+    const sev = typeof after?.severity === "string" ? titleCase(after.severity) : null;
+    if (type || sev) return `Draft: ${[type, sev].filter(Boolean).join(" · ")}.`;
+  }
+  if (event.action === "report_submitted") {
+    return "Submitted with incident details and location.";
+  }
+  return "Recorded in incident audit log.";
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function shortModelName(model: string): string {
+  if (model.toLowerCase().includes("local") || model.toLowerCase().includes("onnx")) return "Local";
+  if (model.toLowerCase().includes("gemini")) return "Gemini";
+  return model.length > 16 ? `${model.slice(0, 15)}…` : model;
+}
+
+function initialsFor(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  return name.slice(0, 2).toUpperCase() || "ST";
 }
 
 function openMapUrl(lat: number, lng: number) {
@@ -762,14 +1379,18 @@ function openMapUrl(lat: number, lng: number) {
 
 function isDemoData(detail: DossierIncidentDetail) {
   const placeholderAreas = ["Sample Area A", "Sample Area B", "Sample Area C"];
-  return detail.trackingCode.startsWith("SGP-DEM") ||
-    (detail.location.area !== null && placeholderAreas.includes(detail.location.area));
+  return (
+    detail.trackingCode.startsWith("SGP-DEM") ||
+    (detail.location.area !== null && placeholderAreas.includes(detail.location.area))
+  );
 }
 
-function formatDate(value: string) {
+function formatShortDate(value: string) {
   return new Intl.DateTimeFormat("en-PH", {
-    dateStyle: "short",
-    timeStyle: "medium",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
     timeZone: "Asia/Manila",
   }).format(new Date(value));
 }
@@ -786,59 +1407,55 @@ function titleCase(value: string | Severity) {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+/* Crisp Stroke SVG Icons (Zero emojis) */
 function ListIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M7 5h10M7 10h10M7 15h10" /><circle cx="3.5" cy="5" r=".7" /><circle cx="3.5" cy="10" r=".7" /><circle cx="3.5" cy="15" r=".7" /></svg>;
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>;
 }
 
 function ReviewIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M3 4h14v13H3zM6 2v4m8-4v4M6 9h8m-8 4h5" /></svg>;
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>;
 }
 
 function AnalyticsIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M3 17h14M5 14V9m5 5V4m5 10V7" /></svg>;
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>;
 }
 
-function UserIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><circle cx="12" cy="8" r="3.2" /><path d="M5.5 19c.8-3.1 3-4.7 6.5-4.7s5.7 1.6 6.5 4.7" /></svg>;
+function BookIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>;
 }
 
 function LogoutIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M10 4H5v16h5m5-4 4-4-4-4m4 4H9" /></svg>;
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>;
 }
 
 function ClockIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="10" cy="10" r="7.5" /><path d="M10 5v5l3 2" /></svg>;
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>;
 }
 
 function PhotoIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="13" rx="1" /><circle cx="7" cy="8" r="1.3" /><path d="m3 14 4.5-4 3.2 2.4 2.2-2 4.1 3.6" /></svg>;
-}
-
-function AiIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M10 2.5a5 5 0 0 0-2.5 9.3V15h5v-3.2A5 5 0 0 0 10 2.5Zm-2.5 15h5M10 1v1" /><path d="m3 5 1.5 1M17 5l-1.5 1" /></svg>;
-}
-
-function ScoreIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="1" /><path d="M6 13l2.5-3 2 1.5L14 7" /></svg>;
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></svg>;
 }
 
 function VerificationIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="8" cy="6" r="3" /><path d="M2.5 17c.3-3.2 2.2-5 5.5-5 1.2 0 2.2.3 3 .8m2.5-.3 1.5 1.5 3-3" /></svg>;
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><polyline points="9 12 11 14 15 10" /></svg>;
 }
 
-function TeamIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="7" cy="6" r="2.5" /><circle cx="14" cy="7" r="2" /><path d="M2 17c.3-3 2-4.5 5-4.5s4.7 1.5 5 4.5m1-4c2.6-.1 4 1.2 4.2 4" /></svg>;
+function ScoreIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>;
+}
+
+function ControlsIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>;
 }
 
 function ExternalLinkIcon() {
-  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M9 2h5v5m0-5L7 9" /><path d="M12 9v4H3V4h4" /></svg>;
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" width="12" height="12" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>;
 }
 
 function CheckIcon() {
-  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m2 8 4 4 8-8" /></svg>;
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>;
 }
 
 function ReopenIcon() {
-  return <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M13 6a5.5 5.5 0 0 0-9.5-2L2 5m0-3v3h3m-2 3a5.5 5.5 0 0 0 9.5 2L14 9m0 3V9h-3" /></svg>;
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>;
 }
-

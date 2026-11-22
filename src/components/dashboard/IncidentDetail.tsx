@@ -175,6 +175,7 @@ export function IncidentDetail({ id }: { id: string }) {
       onAction={act}
       onReviewDone={() => void load()}
       onRetry={retry}
+      onRefresh={() => void load()}
       photoFailed={failedPhotoId === id}
       onPhotoError={() => setFailedPhotoId(id)}
     />
