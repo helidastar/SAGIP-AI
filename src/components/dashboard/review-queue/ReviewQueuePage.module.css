@@ -1155,3 +1155,42 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
 }
+
+/* Desktop one-screen layout: only the table rows scroll. */
+@media (min-width: 1024px) and (min-height: 600px) {
+  .page {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    padding-bottom: 16px;
+  }
+
+  .main {
+    min-height: 0;
+    flex: 1;
+    gap: 12px;
+  }
+
+  .tablePanel {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+  }
+
+  .tableScroll {
+    min-height: 0;
+    flex: 1;
+    overflow: auto;
+  }
+
+  .table thead th {
+    position: sticky;
+    z-index: 3;
+    top: 0;
+  }
+
+  .footer {
+    flex: 0 0 auto;
+  }
+}

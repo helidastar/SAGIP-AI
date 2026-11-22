@@ -49,13 +49,13 @@ const PRIORITIES = [
   { band: "P4", label: "Low", color: "slate" },
 ] as const;
 const LIFECYCLE = [
-  { status: "received", label: "Recv", color: "pale" },
+  { status: "received", label: "New", color: "pale" },
   { status: "pending_review", label: "Review", color: "red" },
-  { status: "classified", label: "Class", color: "blue" },
-  { status: "assigned", label: "Asgn", color: "teal" },
-  { status: "in_progress", label: "In prog", color: "darkTeal" },
-  { status: "resolved", label: "Res", color: "green" },
-  { status: "rejected", label: "Rej", color: "pale" },
+  { status: "classified", label: "Confirmed", color: "blue" },
+  { status: "assigned", label: "Assigned", color: "teal" },
+  { status: "in_progress", label: "Responding", color: "darkTeal" },
+  { status: "resolved", label: "Resolved", color: "green" },
+  { status: "rejected", label: "Rejected", color: "pale" },
 ] as const;
 const PERIOD_LABELS: Record<Period, string> = {
   today: "Today",
@@ -299,7 +299,7 @@ export function AnalyticsDashboard() {
               ) : (
                 <div className={styles.flowContent}>
                   <div className={styles.sectionLabel}>
-                    <span>Priority Distribution (P1–P4)</span>
+                    <span>Priority</span>
                     <span>{metrics.scored} scored</span>
                   </div>
                   <div className={styles.priorityBar} aria-label="Priority distribution">
@@ -316,7 +316,7 @@ export function AnalyticsDashboard() {
                     ))}
                   </div>
                   <div className={styles.lifecycle}>
-                    <p className={styles.sectionLabel}>Lifecycle Progression Pipeline</p>
+                    <p className={styles.sectionLabel}>Status</p>
                     <div className={styles.lifecycleGrid}>
                       {LIFECYCLE.map((step) => (
                         <div key={step.status}>
@@ -330,9 +330,6 @@ export function AnalyticsDashboard() {
                   {metrics.scored < items.length && (
                     <p className={styles.unscoredNote}>{items.length - metrics.scored} incident(s) do not have a confirmed priority score.</p>
                   )}
-                  <p className={styles.clearanceNote}>
-                    Resolution clearance rate: {percent(metrics.statusCounts.resolved, items.length)} · Based on recorded incident statuses
-                  </p>
                 </div>
               )}
             </section>
@@ -413,50 +410,23 @@ function DataTable({ headings, rows }: { headings: string[]; rows: string[][] })
 }
 
 function TimelineChart({ buckets }: { buckets: { date: Date; label: string; count: number }[] }) {
-  const width = 900;
-  const height = 250;
-  const padLeft = 38;
-  const padRight = 30;
-  const padTop = 34;
-  const padBottom = 42;
-  const max = Math.max(5, Math.ceil(Math.max(...buckets.map((bucket) => bucket.count), 0) / 5) * 5);
-  const x = (index: number) => padLeft + (buckets.length <= 1 ? 0 : index * (width - padLeft - padRight) / (buckets.length - 1));
-  const y = (count: number) => height - padBottom - count / max * (height - padTop - padBottom);
-  const points = buckets.map((bucket, index) => `${x(index)},${y(bucket.count)}`).join(" ");
-  const peak = Math.max(...buckets.map((bucket) => bucket.count), 0);
-  const peakIndex = buckets.findIndex((bucket) => bucket.count === peak);
+  const max = Math.max(1, ...buckets.map((bucket) => bucket.count));
   const labelStep = buckets.length > 10 ? Math.ceil(buckets.length / 7) : 1;
-  const gridValues = Array.from(new Set([0, Math.round(max / 2), max]));
 
   return (
-    <div className={styles.chartWrap}>
-      <svg className={styles.chart} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Incident reports per day">
-        <defs>
-          <linearGradient id="analytics-chart-fill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#0f766e" stopOpacity=".2" />
-            <stop offset="100%" stopColor="#0f766e" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        {gridValues.map((value) => (
-          <g key={value}>
-            <line x1={padLeft} x2={width - padRight} y1={y(value)} y2={y(value)} className={styles.gridLine} />
-            <text x={padLeft - 12} y={y(value) + 4} textAnchor="end" className={styles.axisText}>{value}</text>
-          </g>
-        ))}
-        {buckets.length > 1 && <polygon points={`${padLeft},${height - padBottom} ${points} ${width - padRight},${height - padBottom}`} fill="url(#analytics-chart-fill)" />}
-        {buckets.length > 1 && <polyline points={points} className={styles.chartLine} />}
-        {buckets.map((bucket, index) => (
-          <g key={bucket.label}>
-            <circle cx={x(index)} cy={y(bucket.count)} r={index === peakIndex && peak > 0 ? 5 : 4} className={index === peakIndex && peak > 0 ? styles.peakDot : styles.chartDot} />
-            {(buckets.length <= 10 || index % labelStep === 0 || index === buckets.length - 1) && (
-              <>
-                <text x={x(index)} y={y(bucket.count) - 12} textAnchor="middle" className={styles.valueLabel}>{bucket.count}</text>
-                <text x={x(index)} y={height - 14} textAnchor="middle" className={styles.axisText}>{bucket.label}</text>
-              </>
-            )}
-          </g>
-        ))}
-      </svg>
+    <div className={styles.chartWrap} role="img" aria-label="Incident reports per day">
+      <div className={styles.bars}>
+        {buckets.map((bucket, index) => {
+          const showLabel = buckets.length <= 10 || index % labelStep === 0 || index === buckets.length - 1;
+          return (
+            <div className={styles.barCol} key={bucket.label} title={`${bucket.label}: ${bucket.count}`}>
+              <span className={styles.barValue}>{showLabel || bucket.count === max ? bucket.count : ""}</span>
+              <span className={styles.barFill} style={{ height: `${(bucket.count / max) * 100}%` }} />
+              <span className={styles.barLabel}>{showLabel ? bucket.label : ""}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

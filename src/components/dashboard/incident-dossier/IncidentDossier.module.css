@@ -542,12 +542,12 @@
 
 .reviewBanner {
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-md);
+  align-items: center;
+  gap: var(--space-sm);
   border: 1px solid #c7d7fc;
   border-radius: 8px;
   background: #e3ecff;
-  padding: var(--space-md) var(--space-lg);
+  padding: var(--space-sm) var(--space-md);
   color: #22324c;
 }
 
@@ -571,10 +571,10 @@
 }
 
 .reviewBanner p {
-  margin: var(--space-xs) 0 0;
-  color: #3e4c62;
-  font-size: var(--body-small-size);
-  line-height: var(--body-small-line);
+  margin: 0;
+  color: #22324c;
+  font-size: var(--body-medium-size);
+  line-height: var(--body-medium-line);
 }
 
 .lifecycle {
@@ -685,7 +685,8 @@
 }
 
 .primaryColumn,
-.secondaryColumn {
+.secondaryColumn,
+.tertiaryColumn {
   display: grid;
   min-width: 0;
   align-content: start;
@@ -1565,4 +1566,99 @@
 .collapsibleSummary:focus-visible {
   outline: 2px solid #006a63;
   outline-offset: 2px;
+}
+
+/* Desktop one-screen layout: the page never scrolls; long columns scroll on their own. */
+@media (min-width: 1025px) and (min-height: 600px) {
+  .shell {
+    height: 100vh;
+    min-height: 0;
+  }
+
+  .mainColumn {
+    display: flex;
+    height: 100vh;
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .content {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+  }
+
+  .page {
+    display: flex;
+    width: 100%;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--space-md);
+    padding: var(--space-md) var(--space-lg);
+  }
+
+  .hero {
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--space-lg);
+    row-gap: var(--space-xs);
+    padding: var(--space-md) var(--space-lg);
+  }
+
+  .hero > * {
+    grid-column: 1;
+  }
+
+  .hero > .lifecycle {
+    grid-column: 2;
+    grid-row: 1 / 4;
+    align-self: center;
+  }
+
+  .hero > .reviewBanner,
+  .hero > .actionError,
+  .hero > .actionMessage {
+    grid-column: 1 / -1;
+    margin-top: var(--space-xs);
+  }
+
+  .hero .nextStep {
+    align-items: center;
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .contentGrid {
+    min-height: 0;
+    flex: 1;
+    align-items: stretch;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-md);
+  }
+
+  .primaryColumn,
+  .secondaryColumn,
+  .tertiaryColumn {
+    display: grid;
+    min-height: 0;
+    min-width: 0;
+    align-content: start;
+    gap: var(--space-md);
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+
+  .photoFrame img {
+    max-height: 240px;
+  }
+
+  .photoFallback {
+    min-height: 150px;
+  }
+
+  .card {
+    padding: var(--space-md) var(--space-lg);
+  }
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   CONFIDENCE_THRESHOLD,
   INCIDENT_TYPES,
@@ -51,87 +52,114 @@ const FACTOR_NOTES: Record<keyof typeof PRIORITY_WEIGHTS, { label: string; note:
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 const label = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
 
+const TABS = [
+  { key: "types", label: "Types" },
+  { key: "severity", label: "Severity" },
+  { key: "score", label: "Score" },
+  { key: "check", label: "Check first" },
+  { key: "status", label: "Statuses" },
+] as const;
+
+type TabKey = (typeof TABS)[number]["key"];
+
 export function DefinitionsView() {
+  const [tab, setTab] = useState<TabKey>("types");
   const bands = [...PRIORITY_BANDS];
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <p className={styles.overline}>Reference</p>
-        <h1>Definitions</h1>
-        <p>What each label, band and weight on the dashboard means. Values come from the app&apos;s own settings.</p>
-      </header>
+      <h1 className={styles.title}>Definitions</h1>
 
-      <section className={styles.card} aria-labelledby="def-types">
-        <h2 id="def-types">Incident types ({INCIDENT_TYPES.length})</h2>
-        <table>
-          <thead><tr><th>Type</th><th>Meaning</th><th>Type weight</th></tr></thead>
-          <tbody>
-            {INCIDENT_TYPES.map((t) => (
-              <tr key={t}><td>{label(t)}</td><td>{TYPE_NOTES[t]}</td><td>{TYPE_WEIGHTS[t].toFixed(2)}</td></tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+      <div className={styles.tabs} role="tablist" aria-label="Definitions">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            id={`def-tab-${t.key}`}
+            aria-selected={tab === t.key}
+            aria-controls="def-panel"
+            className={`${styles.tab} ${tab === t.key ? styles.tabActive : ""}`}
+            onClick={() => setTab(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-      <section className={styles.card} aria-labelledby="def-severity">
-        <h2 id="def-severity">Severity levels ({Object.keys(SEVERITY).length})</h2>
-        <table>
-          <thead><tr><th>Level</th><th>Value</th><th>Meaning</th></tr></thead>
-          <tbody>
-            {(Object.keys(SEVERITY) as (keyof typeof SEVERITY)[]).map((s) => (
-              <tr key={s}><td><span className={`${styles.chip} ${styles[s]}`}>{label(s)}</span></td><td>{SEVERITY[s]}</td><td>{SEVERITY_NOTES[s]}</td></tr>
-            ))}
-          </tbody>
-        </table>
-        <p className={styles.note}>
-          <strong>Severity %</strong> (for example &quot;High · 82%&quot;) is the AI&apos;s confidence that its severity level is right.
-          It is not a second scale and does not change the priority score. &quot;–&quot; means the classifier gave none (keyword matcher).
-        </p>
-      </section>
+      <section className={styles.card} id="def-panel" role="tabpanel" aria-labelledby={`def-tab-${tab}`}>
+        {tab === "types" && (
+          <table>
+            <thead><tr><th>Type</th><th>Meaning</th><th>Weight</th></tr></thead>
+            <tbody>
+              {INCIDENT_TYPES.map((t) => (
+                <tr key={t}><td>{label(t)}</td><td>{TYPE_NOTES[t]}</td><td>{TYPE_WEIGHTS[t].toFixed(2)}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        )}
 
-      <section className={styles.card} aria-labelledby="def-score">
-        <h2 id="def-score">Priority score (0 to 100)</h2>
-        <p>Score = 100 × the sum of each factor (0 to 1) times its weight. It is a fixed formula, not an AI guess, so every score can be explained.</p>
-        <table>
-          <thead><tr><th>Factor</th><th>Weight</th><th>Input</th></tr></thead>
-          <tbody>
-            {(Object.keys(PRIORITY_WEIGHTS) as (keyof typeof PRIORITY_WEIGHTS)[]).map((k) => (
-              <tr key={k}><td>{FACTOR_NOTES[k].label}</td><td>{PRIORITY_WEIGHTS[k].toFixed(2)}</td><td>{FACTOR_NOTES[k].note}</td></tr>
-            ))}
-          </tbody>
-        </table>
-        <h3>Bands</h3>
-        <table>
-          <thead><tr><th>Band</th><th>Name</th><th>Score</th></tr></thead>
-          <tbody>
-            {bands.map((b, i) => (
-              <tr key={b.band}><td>{b.band}</td><td>{b.label}</td><td>{i === 0 ? `${b.min} to 100` : `${b.min} to below ${bands[i - 1].min}`}</td></tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+        {tab === "severity" && (
+          <>
+            <table>
+              <thead><tr><th>Level</th><th>Value</th><th>Meaning</th></tr></thead>
+              <tbody>
+                {(Object.keys(SEVERITY) as (keyof typeof SEVERITY)[]).map((s) => (
+                  <tr key={s}><td><span className={`${styles.chip} ${styles[s]}`}>{label(s)}</span></td><td>{SEVERITY[s]}</td><td>{SEVERITY_NOTES[s]}</td></tr>
+                ))}
+              </tbody>
+            </table>
+            <p className={styles.note}>
+              The % next to severity (for example &quot;High · 82%&quot;) is how sure the AI is. It does not change the score.
+            </p>
+          </>
+        )}
 
-      <section className={styles.card} aria-labelledby="def-review">
-        <h2 id="def-review">Check first (4 triggers)</h2>
-        <p>Every report is confirmed by a person. These triggers only move a report to the top of the review queue.</p>
-        <ol>
-          <li>AI confidence in the type, or in the severity, is below {pct(CONFIDENCE_THRESHOLD)}.</li>
-          <li>AI severity is high or critical.</li>
-          <li>The AI suspects a hoax. A hoax is never rejected automatically; staff decide.</li>
-          <li>The AI services were unavailable and the keyword matcher answered.</li>
-        </ol>
-      </section>
+        {tab === "score" && (
+          <>
+            <p>Score = 100 × each factor (0 to 1) × its weight, added up. A fixed formula, not an AI guess.</p>
+            <div className={styles.split}>
+              <table>
+                <thead><tr><th>Factor</th><th>Weight</th><th>Input</th></tr></thead>
+                <tbody>
+                  {(Object.keys(PRIORITY_WEIGHTS) as (keyof typeof PRIORITY_WEIGHTS)[]).map((k) => (
+                    <tr key={k}><td>{FACTOR_NOTES[k].label}</td><td>{PRIORITY_WEIGHTS[k].toFixed(2)}</td><td>{FACTOR_NOTES[k].note}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+              <table>
+                <thead><tr><th>Band</th><th>Name</th><th>Score</th></tr></thead>
+                <tbody>
+                  {bands.map((b, i) => (
+                    <tr key={b.band}><td>{b.band}</td><td>{b.label}</td><td>{i === 0 ? `${b.min} to 100` : `${b.min} to below ${bands[i - 1].min}`}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
 
-      <section className={styles.card} aria-labelledby="def-status">
-        <h2 id="def-status">Report statuses ({REPORT_STATUSES.length})</h2>
-        <table>
-          <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
-          <tbody>
-            {REPORT_STATUSES.map((s) => (
-              <tr key={s}><td>{label(s)}</td><td>{STATUS_NOTES[s]}</td></tr>
-            ))}
-          </tbody>
-        </table>
+        {tab === "check" && (
+          <>
+            <p>Every report is confirmed by a person. These only move a report to the top of the review queue.</p>
+            <ol>
+              <li>AI is less than {pct(CONFIDENCE_THRESHOLD)} sure of the type or severity.</li>
+              <li>AI says high or critical.</li>
+              <li>AI suspects a hoax (staff decide, never automatic).</li>
+              <li>AI was offline and the keyword matcher answered.</li>
+            </ol>
+          </>
+        )}
+
+        {tab === "status" && (
+          <table>
+            <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+            <tbody>
+              {REPORT_STATUSES.map((s) => (
+                <tr key={s}><td>{label(s)}</td><td>{STATUS_NOTES[s]}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </section>
     </div>
   );

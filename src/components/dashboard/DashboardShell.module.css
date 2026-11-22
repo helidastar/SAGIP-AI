@@ -497,3 +497,33 @@
 .navList {
   margin-top: var(--space-lg);
 }
+
+/* Desktop: the whole staff UI fits one screen; panels scroll inside instead of the page. */
+@media (min-width: 1024px) and (min-height: 600px) {
+  .shell {
+    height: 100vh;
+    min-height: 0;
+  }
+
+  .mainColumn {
+    display: flex;
+    height: 100vh;
+    min-height: 0;
+    min-width: 0;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .content {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .content > * {
+    min-height: 0;
+    flex: 1;
+  }
+}

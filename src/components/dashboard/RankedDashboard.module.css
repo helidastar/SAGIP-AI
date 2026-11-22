@@ -1826,3 +1826,56 @@ button.resetAll {
   padding: 0;
   color: var(--on-surface);
 }
+
+/* Desktop one-screen layout: only the incident list scrolls. */
+@media (min-width: 1024px) and (min-height: 600px) {
+  .page {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    padding-bottom: 16px;
+  }
+
+  .pageHeader {
+    padding: 12px 0;
+  }
+
+  .pageBody {
+    min-height: 0;
+    flex: 1;
+    gap: 12px;
+  }
+
+  .resultsGrid {
+    min-height: 0;
+    flex: 1;
+    align-items: stretch;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .listPanel {
+    height: auto;
+    min-height: 0;
+    grid-column: span 5;
+  }
+
+  .mapPanel {
+    min-height: 0;
+    grid-column: span 7;
+  }
+
+  .mapCanvas {
+    min-height: 0;
+  }
+
+  .mapCanvas :global(.leaflet-container) {
+    position: absolute;
+    inset: 0;
+    height: auto;
+    min-height: 0;
+  }
+
+  .incidentLink {
+    min-height: 88px;
+  }
+}
