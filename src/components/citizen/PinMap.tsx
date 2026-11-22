@@ -75,7 +75,7 @@ export function PinMap({ lat, lng, onMove }: PinMapProps) {
   return (
     <div
       ref={containerRef}
-      className="relative z-0 mt-3 h-56 w-full overflow-hidden rounded border border-cz-border"
+      className="cz-pinmap relative z-0 mt-3 h-56 w-full overflow-hidden rounded border border-cz-border"
       role="application"
       aria-label="Map of the incident location. Drag the pin or tap the map to move it."
     />

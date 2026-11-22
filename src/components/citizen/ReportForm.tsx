@@ -107,7 +107,7 @@ export function ReportForm() {
                 </button>
               </div>
             ) : (
-              <label className="flex h-40 cursor-pointer flex-col items-center justify-center gap-2 rounded border-2 border-dashed border-cz-border-strong text-cz-text-2 transition-colors hover:bg-cz-surface-2 focus-within:ring-2 focus-within:ring-cz-primary/40">
+              <label className="cz-dropzone flex h-40 cursor-pointer flex-col items-center justify-center gap-2 rounded border-2 border-dashed border-cz-border-strong text-cz-text-2 transition-colors hover:bg-cz-surface-2 focus-within:ring-2 focus-within:ring-cz-primary/40">
                 <CameraIcon className="h-8 w-8" />
                 <span className="text-sm font-semibold">Add photo</span>
                 <span className="text-xs text-cz-text-3">Take a picture or choose one from your gallery</span>

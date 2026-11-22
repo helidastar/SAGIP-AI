@@ -1,24 +1,24 @@
 .dashboard {
-  --surface: #f9f9ff;
+  --surface: #f8fafc;
   --surface-lowest: #ffffff;
-  --surface-low: #f0f3ff;
-  --surface-container: #e7eeff;
-  --surface-high: #dee8ff;
-  --surface-highest: #d8e3fb;
-  --on-surface: #111c2d;
-  --on-surface-variant: #44474c;
-  --navy: #101c2c;
-  --nav-muted: #aab4c3;
-  --nav-muted-strong: #c7d0dc;
-  --secondary: #006a63;
-  --secondary-container: #99efe5;
-  --on-secondary-container: #006f67;
-  --error: #ba1a1a;
-  --outline: #75777d;
-  --outline-variant: #c5c6cd;
-  --line: #e7eeff;
-  --ui-font: var(--font-dashboard-ui), Arial, sans-serif;
-  --mono-font: var(--font-dashboard-mono), Consolas, monospace;
+  --surface-low: #f1f5f9;
+  --surface-container: #e2e8f0;
+  --surface-high: #e2e8f0;
+  --surface-highest: #cbd5e1;
+  --on-surface: #0f172a;
+  --on-surface-variant: #475569;
+  --navy: #0d2548;
+  --nav-muted: #a9b8d0;
+  --nav-muted-strong: #cbd5e1;
+  --secondary: #173f7d;
+  --secondary-container: #e8eefb;
+  --on-secondary-container: #173f7d;
+  --error: #b91c1c;
+  --outline: #64748b;
+  --outline-variant: #cbd5e1;
+  --line: #e2e8f0;
+  --ui-font: var(--font-public-sans), Arial, sans-serif;
+  --mono-font: var(--font-plex-mono), Consolas, monospace;
   --space-2xs: 2px;
   --space-xs: 4px;
   --space-sm: 8px;
@@ -150,7 +150,7 @@
 
 .navLink:hover,
 .navLinkActive {
-  background: rgb(249 249 255 / 10%);
+  background: rgb(248 250 252 / 10%);
   color: #ffffff;
 }
 
@@ -186,7 +186,7 @@
   gap: var(--space-sm);
   margin-top: auto;
   border-radius: 8px;
-  background: rgb(249 249 255 / 5%);
+  background: rgb(248 250 252 / 5%);
   padding: var(--space-sm);
 }
 
@@ -245,7 +245,7 @@
 }
 
 .logoutButton:hover {
-  background: rgb(249 249 255 / 10%);
+  background: rgb(248 250 252 / 10%);
   color: #ffffff;
 }
 
@@ -264,13 +264,13 @@
   z-index: 20;
   top: 0;
   display: flex;
-  min-height: 64px;
+  min-height: 52px;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-lg);
   margin: 0 calc(-1 * var(--space-2xl));
   border-bottom: 1px solid rgb(197 198 205 / 55%);
-  background: rgb(249 249 255 / 94%);
+  background: rgb(248 250 252 / 94%);
   padding: 0 var(--space-2xl);
   backdrop-filter: blur(16px);
 }
@@ -281,7 +281,7 @@
   right: 0;
   left: 0;
   height: 3px;
-  background: linear-gradient(90deg, #14b8a6, #3b82f6);
+  background: linear-gradient(90deg, #2f63b5, #3b82f6);
   content: "";
   pointer-events: none;
 }
@@ -413,9 +413,9 @@
 }
 
 .authError {
-  border: 1px solid #ffdad6;
-  background: #ffdad6;
-  color: #93000a;
+  border: 1px solid #fee2e2;
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .authLoading {
@@ -499,7 +499,7 @@
 }
 
 /* Desktop: the whole staff UI fits one screen; panels scroll inside instead of the page. */
-@media (min-width: 1024px) and (min-height: 600px) {
+@media (min-width: 1024px) and (min-height: 500px) {
   .shell {
     height: 100vh;
     min-height: 0;
@@ -526,4 +526,11 @@
     min-height: 0;
     flex: 1;
   }
+}
+
+/* Same type as the citizen portal: Archivo headings. */
+.dashboard h1,
+.dashboard h2 {
+  font-family: var(--font-archivo), var(--ui-font);
+  letter-spacing: -0.01em;
 }

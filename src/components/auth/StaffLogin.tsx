@@ -4,11 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { Inter } from "next/font/google";
 import { api } from "@/lib/api-client";
 import styles from "@/components/auth/staff-login.module.css";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-login" });
 
 /** Staff sign-in for responders and admins. Citizens never need an account. */
 export function StaffLogin({ redirectTo = "/dashboard" }: { redirectTo?: string }) {
@@ -57,7 +55,7 @@ export function StaffLogin({ redirectTo = "/dashboard" }: { redirectTo?: string 
   }
 
   return (
-    <main className={`${styles.page} ${inter.variable}`}>
+    <main className={styles.page}>
       <div className={styles.card}>
         <div className={styles.brand}>
           <Image src="/brand/sagip-ai-mark.svg" alt="" width={48} height={48} priority />

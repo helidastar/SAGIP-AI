@@ -1,8 +1,8 @@
 .page {
-  --ink: #101c2c;
+  --ink: #0d2548;
   --muted: #5b6472;
   --line: #d5dbe5;
-  --teal: #006a63;
+  --teal: #173f7d;
   --teal-dark: #00524c;
   --danger: #b42318;
 
@@ -16,14 +16,14 @@
   background: #f3f5f9;
   padding: 24px 16px;
   color: var(--ink);
-  font-family: var(--font-login), Arial, sans-serif;
+  font-family: var(--font-public-sans), Arial, sans-serif;
 }
 
 .card {
   width: 100%;
   max-width: 380px;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 8px;
   background: #ffffff;
   padding: 32px 28px;
   box-shadow: 0 8px 24px rgb(16 28 44 / 6%);
@@ -63,7 +63,7 @@
   width: 100%;
   min-height: 48px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 8px;
   background: #ffffff;
   padding: 0 14px;
   color: var(--ink);
@@ -74,7 +74,7 @@
 
 .field input:focus {
   border-color: var(--teal);
-  outline: 2px solid rgb(0 106 99 / 25%);
+  outline: 2px solid rgb(23 63 125 / 25%);
   outline-offset: 0;
 }
 
@@ -116,7 +116,7 @@
 
 .error {
   margin: 0;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #fef3f2;
   padding: 10px 12px;
   color: var(--danger);
@@ -127,7 +127,7 @@
 .submit {
   min-height: 50px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--teal);
   color: #ffffff;
   font: inherit;
@@ -161,4 +161,8 @@
   .page * {
     transition: none !important;
   }
+}
+
+.page h1 {
+  font-family: var(--font-archivo), var(--font-public-sans), Arial, sans-serif;
 }
