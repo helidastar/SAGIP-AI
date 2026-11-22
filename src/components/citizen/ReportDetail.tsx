@@ -87,31 +87,33 @@ export function ReportDetail({ code, justSubmitted = false }: { code: string; ju
       )}
 
       <div className="grid gap-4 md:grid-cols-[1fr_1.2fr] md:gap-6">
-        <Card>
-          <div className="flex items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded bg-cz-info-soft text-cz-link"><TypeIcon type={r.type} className="h-6 w-6" /></span>
-            <div className="min-w-0">
-              <h2 className="font-display text-lg font-bold leading-snug">{r.title}</h2>
-              {r.location && <p className="text-sm text-cz-text-2">{r.location}</p>}
+        <div className="flex flex-col gap-4 md:gap-6">
+          <Card>
+            <div className="flex items-start gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded bg-cz-info-soft text-cz-link"><TypeIcon type={r.type} className="h-6 w-6" /></span>
+              <div className="min-w-0">
+                <h2 className="font-display text-lg font-bold leading-snug">{r.title}</h2>
+                {r.location && <p className="text-sm text-cz-text-2">{r.location}</p>}
+              </div>
             </div>
-          </div>
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            {r.severity && <SeverityChip severity={r.severity} score={r.score} />}
-            <StatusChip status={r.status} />
-          </div>
-          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-cz-text-2">
-            <CopyCode code={r.code} />
-            <span suppressHydrationWarning>{timeAgo(r.createdAt)}</span>
-          </div>
-        </Card>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {r.severity && <SeverityChip severity={r.severity} score={r.score} />}
+              <StatusChip status={r.status} />
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-cz-text-2">
+              <CopyCode code={r.code} />
+              <span suppressHydrationWarning>{timeAgo(r.createdAt)}</span>
+            </div>
+          </Card>
+
+          {r.status !== "resolved" && r.status !== "rejected" && <SafetyTips type={r.type} />}
+        </div>
 
         <Card>
           <h3 className="mb-4 font-display text-base font-semibold">Progress · {STATUS_LABEL[r.status]}</h3>
           <Timeline report={r} />
         </Card>
       </div>
-
-      {r.status !== "resolved" && r.status !== "rejected" && <SafetyTips type={r.type} />}
 
       {justSubmitted && (
         <div className="flex flex-col gap-3 sm:flex-row">
