@@ -98,7 +98,7 @@ function ReportList() {
   }
 
   return (
-    <>
+    <div className="cz-fill">
       <PageTitle title="Track report" subtitle="Search with your tracking code, or open one of the reports below." />
 
       <form onSubmit={find} className="mb-5 flex gap-2 md:max-w-xl">
@@ -142,11 +142,11 @@ function ReportList() {
           <Link href="/" className={`${btnPrimary} mt-4`}>Report an emergency</Link>
         </Card>
       ) : (
-        <ul className="grid gap-3 md:grid-cols-2">
+        <ul className="cz-scroll grid gap-3 md:grid-cols-2">
           {shown.map((r) => <ReportRow key={r.code} r={r} />)}
         </ul>
       )}
-    </>
+    </div>
   );
 }
 
