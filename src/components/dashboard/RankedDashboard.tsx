@@ -41,26 +41,6 @@ type MapFeature = {
   };
 };
 
-type DashboardDetail = {
-  id: string;
-  trackingCode: string;
-  description: string;
-  status: string;
-  incidentType: string | null;
-  severity: Severity | null;
-  location: { lat: number; lng: number; area: string | null };
-  priority: { score: number; band: string | null } | null;
-  createdAt: string;
-  photoUrl: string | null;
-  classifications: {
-    model: string;
-    incidentType: string;
-    severity: Severity | null;
-    confidence: number;
-    createdAt: string;
-  }[];
-};
-
 type ReadyData = {
   items: DashboardIncident[];
   total: number;
@@ -119,7 +99,6 @@ export function RankedDashboard() {
   const [previewState, setPreviewState] = useState<PreviewState | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [now, setNow] = useState<number | null>(null);
-  const [isDossierOpen, setIsDossierOpen] = useState(true);
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [resolvedState, setResolvedState] = useState<ResolvedState | null>(null);
   const showResolved = WORKFLOW.find((step) => step.key === filters.step)?.statuses.includes("resolved") ?? false;
@@ -279,7 +258,6 @@ export function RankedDashboard() {
     () => mapFeatures.filter((feature) => filteredIds.has(feature.id)),
     [mapFeatures, filteredIds],
   );
-  const selectedIncident = filteredItems[0] ?? null;
   const reviewIds = useMemo(() => new Set(readyData?.reviewIds ?? []), [readyData]);
   const filtersActive =
     filters.query.trim() !== "" || filters.step !== null || filters.band !== null || filters.type !== null || filters.area !== null;
@@ -333,13 +311,7 @@ export function RankedDashboard() {
       />
 
       <div className={styles.pageHeader}>
-        <div>
-          <h1 className={styles.pageTitle}>Ranked incident list</h1>
-          <p className={styles.pageSubtitle}>
-            {showResolved ? "Resolved incidents" : "Open incidents"}, {SORT_LABELS[filters.sort].toLowerCase()}.
-            {filtersActive ? " Filters are on." : " Click a step or chip to narrow the list; click a row or map pin to open it."}
-          </p>
-        </div>
+        <h1 className={styles.pageTitle}>Incidents</h1>
       </div>
 
       <div className={styles.pageBody} aria-live="polite">
@@ -368,10 +340,11 @@ export function RankedDashboard() {
             {reviewError && (
               <DashboardErrorNotice message={reviewError} onRetry={retryDashboard} />
             )}
-            <WorkflowCards
+            <StepTabs
               counts={readyData.workflowCounts}
+              openTotal={readyData.total}
               activeStep={filters.step}
-              onSelect={(step) => updateFilters({ step: filters.step === step ? null : step, band: null, type: null, area: null })}
+              onSelect={(step) => updateFilters({ step, band: null, type: null, area: null })}
             />
             <FilterSurface
               items={stepItems}
@@ -385,17 +358,17 @@ export function RankedDashboard() {
                 items={filteredItems}
                 total={stepItems.length}
                 reviewIds={reviewIds}
-                selectedId={selectedIncident?.id ?? null}
+                selectedId={null}
                 now={now}
                 loading={currentResolved?.status === "loading"}
                 error={currentResolved?.status === "error" ? currentResolved.message : null}
                 filtersActive={filtersActive}
                 onClearFilters={() => setFilters(NO_FILTERS)}
-                heading={showResolved ? "Resolved incidents" : "Ranked Priority Triage"}
+                heading={showResolved ? "Resolved" : "Highest priority first"}
               />
               <IncidentMap
                 features={showResolved ? EMPTY_FEATURES : visibleFeatures}
-                selectedId={selectedIncident?.id ?? null}
+                selectedId={null}
                 loading={currentMapLoadState.status === "loading"}
                 error={currentMapLoadState.status === "error" ? currentMapLoadState.message : null}
                 forcedError={previewState === "map-error"}
@@ -403,23 +376,6 @@ export function RankedDashboard() {
                 retryKey={mapRetry}
               />
             </div>
-            {isDossierOpen && selectedIncident && (
-              <IncidentDossier
-                incident={selectedIncident}
-                now={now}
-                onClose={() => setIsDossierOpen(false)}
-              />
-            )}
-            {!isDossierOpen && selectedIncident && (
-              <button
-                type="button"
-                className={styles.openDossierButton}
-                onClick={() => setIsDossierOpen(true)}
-              >
-                <DossierIcon />
-                View Incident Dossier
-              </button>
-            )}
           </>
         ) : null}
       </div>
@@ -460,43 +416,46 @@ async function loadAllOpenIncidents(): Promise<
   return { ok: true, items, total };
 }
 
-function WorkflowCards({
+// Plain names for the workflow steps staff filter by. "AI classifies" is left out: those reports are not in the open list yet.
+const STEP_TABS: { key: string; label: string }[] = [
+  { key: "review", label: "Needs review" },
+  { key: "assign", label: "Assign team" },
+  { key: "respond", label: "Responding" },
+  { key: "done", label: "Resolved" },
+];
+
+function StepTabs({
   counts,
+  openTotal,
   activeStep,
   onSelect,
 }: {
   counts: Record<string, number>;
+  openTotal: number;
   activeStep: string | null;
-  onSelect: (step: string) => void;
+  onSelect: (step: string | null) => void;
 }) {
+  const tabs = [{ key: null as string | null, label: "All open", count: openTotal }].concat(
+    STEP_TABS.map((tab) => ({ key: tab.key as string | null, label: tab.label, count: counts[tab.key] ?? 0 })),
+  );
   return (
-    <section className={styles.workflowGrid} aria-label="Incident workflow (click a step to filter)">
-      {WORKFLOW.map((step, index) => {
-        const selected = activeStep === step.key;
-
+    <nav className={styles.stepTabs} aria-label="Filter by step">
+      {tabs.map((tab) => {
+        const selected = activeStep === tab.key;
         return (
           <button
             type="button"
-            key={step.key}
-            className={`${styles.workflowCard} ${selected ? styles.workflowCardSelected : ""}`}
+            key={tab.key ?? "all"}
+            className={`${styles.stepTab} ${selected ? styles.stepTabActive : ""} ${tab.key === "review" && tab.count > 0 ? styles.stepTabAlert : ""}`}
             aria-pressed={selected}
-            title={selected ? "Show all open incidents" : `Show only "${step.label}" incidents`}
-            onClick={() => onSelect(step.key)}
+            onClick={() => onSelect(tab.key)}
           >
-            <div className={styles.workflowTopline}>
-              <span className={styles.overline}>Step {index + 1}</span>
-              <span className={styles.workflowCount}>
-                {counts[step.key] ?? "—"}
-              </span>
-            </div>
-            <div className={styles.workflowCopy}>
-              <h2>{step.label}</h2>
-              {step.actor !== "—" && <p>by {step.actor}</p>}
-            </div>
+            {tab.label}
+            <span className={styles.stepTabCount}>{tab.count}</span>
           </button>
         );
       })}
-    </section>
+    </nav>
   );
 }
 
@@ -513,7 +472,7 @@ function FilterSurface({
   onChange: (patch: Partial<Filters>) => void;
   onReset: () => void;
 }) {
-  const [open, setOpen] = useState(true);
+  const [moreOpen, setMoreOpen] = useState(false);
   const bandCounts = countBy(items, (item) => item.priority?.band ?? "");
   const typeCounts = countBy(items, (item) => item.incidentType ?? "");
   const areaCounts = countBy(items, (item) => item.location.area ?? "");
@@ -521,13 +480,14 @@ function FilterSurface({
     .filter(Boolean)
     .sort((a, b) => formatType(a).localeCompare(formatType(b)));
   const areas = Object.keys(areaCounts).filter(Boolean).sort((a, b) => a.localeCompare(b));
+  const moreActive = filters.type !== null || filters.area !== null || filters.sort !== "priority";
 
-  function chip(label: string, active: boolean, onClick: () => void, key?: string) {
+  function chip(label: string, active: boolean, onClick: () => void, key: string, className = "") {
     return (
       <button
         type="button"
-        key={key ?? label}
-        className={`${styles.filterChip} ${active ? styles.filterChipActive : ""}`}
+        key={key}
+        className={`${styles.filterChip} ${active ? styles.filterChipActive : ""} ${className}`}
         aria-pressed={active}
         onClick={onClick}
       >
@@ -537,62 +497,54 @@ function FilterSurface({
   }
 
   return (
-    <section className={styles.filterPanel} aria-label="Incident filters">
+    <section className={styles.filterPanel} aria-label="Search and filter">
       <div className={styles.filterMain}>
         <label className={styles.searchBox}>
           <SearchIcon />
           <input
             type="search"
-            aria-label="Search tracking ID, area, type, or description"
-            placeholder="Search tracking ID, area, type, or description"
+            aria-label="Search incidents"
+            placeholder="Search code, place or type"
             value={filters.query}
             onChange={(event) => onChange({ query: event.target.value })}
           />
         </label>
-        <label className={styles.sortControl}>
-          <span className={styles.labelCaps}>Order by</span>
-          <select
-            className={styles.sortValue}
-            value={filters.sort}
-            onChange={(event) => onChange({ sort: event.target.value as SortKey })}
-          >
-            {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
-              <option key={key} value={key}>{SORT_LABELS[key]}</option>
-            ))}
-          </select>
-        </label>
+        <div className={styles.chipGroup} role="group" aria-label="Priority">
+          {(["P1", "P2", "P3", "P4"] as const).map((band) =>
+            chip(
+              `${band} · ${bandCounts[band] ?? 0}`,
+              filters.band === band,
+              () => onChange({ band: filters.band === band ? null : band }),
+              band,
+              styles[`chip${band}`] ?? "",
+            ),
+          )}
+        </div>
         <button
           type="button"
-          className={styles.filterToggle}
-          aria-expanded={open}
-          aria-controls="ranked-filter-rows"
-          onClick={() => setOpen((value) => !value)}
+          className={`${styles.filterToggle} ${moreActive ? styles.filterToggleOn : ""}`}
+          aria-expanded={moreOpen}
+          aria-controls="ranked-more-filters"
+          onClick={() => setMoreOpen((value) => !value)}
         >
           <FilterIcon />
-          <span>{open ? "Hide filters" : "Filters"}</span>
+          <span>More</span>
         </button>
+        {filtersActive && (
+          <button type="button" className={styles.resetAll} onClick={onReset}>
+            Clear
+          </button>
+        )}
       </div>
 
-      {open && (
-        <div className={styles.filterRows} id="ranked-filter-rows">
-          <div className={styles.chipGroup}>
-            <span className={styles.filterLabel}>Priority:</span>
-            {chip(`All (${items.length})`, filters.band === null, () => onChange({ band: null }), "all-bands")}
-            {(["P1", "P2", "P3", "P4"] as const).map((band) =>
-              chip(
-                `${band} ${priorityLabel(band)} (${bandCounts[band] ?? 0})`,
-                filters.band === band,
-                () => onChange({ band: filters.band === band ? null : band }),
-                band,
-              ),
-            )}
-          </div>
+      {moreOpen && (
+        <div className={styles.filterRows} id="ranked-more-filters">
           {types.length > 0 && (
             <div className={styles.chipGroup}>
-              <span className={styles.filterLabel}>Type:</span>
+              <span className={styles.filterLabel}>Type</span>
               {types.map((type) =>
                 chip(
-                  `${formatType(type)} (${typeCounts[type]})`,
+                  `${formatType(type)} · ${typeCounts[type]}`,
                   filters.type === type,
                   () => onChange({ type: filters.type === type ? null : type }),
                   type,
@@ -602,10 +554,10 @@ function FilterSurface({
           )}
           {areas.length > 0 && (
             <div className={styles.chipGroup}>
-              <span className={styles.filterLabel}>Zone:</span>
+              <span className={styles.filterLabel}>Area</span>
               {areas.map((area) =>
                 chip(
-                  `${area} (${areaCounts[area]})`,
+                  `${area} · ${areaCounts[area]}`,
                   filters.area === area,
                   () => onChange({ area: filters.area === area ? null : area }),
                   area,
@@ -613,10 +565,18 @@ function FilterSurface({
               )}
             </div>
           )}
-          <button type="button" className={styles.resetAll} onClick={onReset} disabled={!filtersActive && filters.sort === "priority"}>
-            <ResetIcon />
-            Reset All
-          </button>
+          <label className={styles.sortControl}>
+            <span className={styles.filterLabel}>Sort</span>
+            <select
+              className={styles.sortValue}
+              value={filters.sort}
+              onChange={(event) => onChange({ sort: event.target.value as SortKey })}
+            >
+              {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+                <option key={key} value={key}>{SORT_LABELS[key]}</option>
+              ))}
+            </select>
+          </label>
         </div>
       )}
     </section>
@@ -650,7 +610,6 @@ function IncidentListPanel({
     <section className={styles.listPanel} aria-labelledby="ranked-incidents-title">
       <header className={styles.panelHeading}>
         <h2 id="ranked-incidents-title">{heading}</h2>
-        <span className={styles.totalBadge}>{total} Total</span>
       </header>
       {loading ? (
         <p className={styles.listMessage} role="status">Loading incidents...</p>
@@ -683,7 +642,7 @@ function IncidentListPanel({
       </ol>
       )}
       <footer className={styles.listFooter}>
-        Displaying {items.length} of {total} incidents · click a row to open it
+        {items.length} of {total}
       </footer>
     </section>
   );
@@ -711,14 +670,11 @@ function IncidentRow({
         <span className={styles.incidentCopy}>
           <span className={styles.incidentTopline}>
             <span className={styles.trackingCode}>{incident.trackingCode}</span>
-            {needsReview && <span className={styles.reviewTag}>Review</span>}
+            {needsReview && incident.status !== "pending_review" && <span className={styles.reviewTag}>Review</span>}
           </span>
           <span className={styles.incidentType}>
             {formatType(incident.incidentType ?? "unconfirmed")}
           </span>
-          {incident.description && (
-            <span className={styles.incidentDescription}>{incident.description}</span>
-          )}
           <span className={styles.incidentMeta}>
             <LocationIcon />
             <span>{incident.location.area ?? "Area not provided"}</span>
@@ -733,7 +689,6 @@ function IncidentRow({
           <span className={styles.elapsed}>
             {now === null ? "—" : elapsedSince(incident.createdAt, now)}
           </span>
-          <SeverityTag severity={incident.severity} />
           <StatusTag status={incident.status} />
         </span>
       </Link>
@@ -775,7 +730,7 @@ function IncidentMap({
     <section className={styles.mapPanel} aria-labelledby="incident-map-title">
       <header className={styles.mapHeading}>
         <MapIcon />
-        <h2 id="incident-map-title">Incident locations</h2>
+        <h2 id="incident-map-title">Map</h2>
       </header>
       <div className={styles.mapCanvas} aria-busy={loading}>
         {error || forcedError || runtimeError ? (
@@ -986,186 +941,11 @@ function MapLegend() {
   );
 }
 
-function IncidentDossier({
-  incident,
-  now,
-  onClose,
-}: {
-  incident: DashboardIncident;
-  now: number | null;
-  onClose: () => void;
-}) {
-  const [detailState, setDetailState] = useState<
-    | { key: string; status: "loading" }
-    | { key: string; status: "ready"; detail: DashboardDetail }
-    | { key: string; status: "error"; message: string }
-  >({ key: "", status: "loading" });
-  const [retry, setRetry] = useState(0);
-  const detailRequestKey = `${incident.id}:${retry}`;
-
-  useEffect(() => {
-    let cancelled = false;
-
-    void api<DashboardDetail>(`/api/incidents/${incident.id}`).then((response) => {
-      if (cancelled) return;
-      if (!response.ok) {
-        setDetailState({
-          key: detailRequestKey,
-          status: "error",
-          message: response.error ?? "Could not load incident details.",
-        });
-        return;
-      }
-      if (response.data.id !== incident.id) {
-        setDetailState({
-          key: detailRequestKey,
-          status: "error",
-          message: "Incident details did not match the selected record.",
-        });
-        return;
-      }
-      setDetailState({ key: detailRequestKey, status: "ready", detail: response.data });
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [detailRequestKey, incident.id]);
-
-  const currentDetailState =
-    detailState.key === detailRequestKey ? detailState : { key: detailRequestKey, status: "loading" as const };
-  const detail = currentDetailState.status === "ready" ? currentDetailState.detail : null;
-  const latestClassification = detail?.classifications[0] ?? null;
-  const isDemoData = detail ? isExistingDemoRecord(detail) : false;
-
-  return (
-    <section className={styles.dossier} aria-labelledby="incident-dossier-title">
-      <header className={styles.dossierHeading}>
-        <div className={styles.dossierTitleWrap}>
-          <DossierIcon />
-          <h2 id="incident-dossier-title">Incident Dossier</h2>
-          {isDemoData && <span className={styles.demoBadge}>Demo data</span>}
-        </div>
-        <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close incident dossier">
-          <CloseIcon />
-        </button>
-      </header>
-
-      {currentDetailState.status === "loading" ? (
-        <div className={styles.dossierSkeleton} aria-busy="true" aria-label="Loading incident dossier">
-          <span />
-          <span />
-        </div>
-      ) : currentDetailState.status === "error" ? (
-        <div className={styles.detailError} role="alert">
-          <p>{currentDetailState.message}</p>
-          <button type="button" className={styles.secondaryButton} onClick={() => setRetry((value) => value + 1)}>
-            Retry
-          </button>
-        </div>
-      ) : detail ? (
-        <>
-          <div className={styles.dossierIdentity}>
-            <PriorityBadge band={detail.priority?.band ?? null} />
-            <div className={styles.dossierIdentityCopy}>
-              <span className={styles.trackingCode}>{detail.trackingCode}</span>
-              <h3>{formatType(detail.incidentType ?? "unconfirmed")}</h3>
-            </div>
-            <div className={styles.reportedAt}>
-              <span>Reported: {formatDate(detail.createdAt)}</span>
-              <strong>{now === null ? "—" : elapsedSince(detail.createdAt, now)}</strong>
-            </div>
-          </div>
-
-          <dl className={styles.summaryGrid}>
-            <SummaryTile label="Priority score" value={detail.priority ? `${formatScore(detail.priority.score)} / 100` : "—"} />
-            <SummaryTile label="Severity" value={severityLabel(detail.severity)} />
-            <SummaryTile label="Status" value={statusLabel(detail.status)} />
-            <SummaryTile
-              label="Location"
-              value={`${formatCoordinate(detail.location.lat)}, ${formatCoordinate(detail.location.lng)}`}
-              mono
-            />
-          </dl>
-
-          <section className={styles.aiSummary} aria-labelledby="ai-summary-title">
-            <div className={styles.aiSummaryHeading}>
-              <AiIcon />
-              <h3 id="ai-summary-title">AI summary</h3>
-            </div>
-            {latestClassification ? (
-              <dl className={styles.aiSummaryGrid}>
-                <DataPair label="Model / step" value={latestClassification.model} />
-                <DataPair label="Predicted type" value={formatType(latestClassification.incidentType)} />
-                <DataPair label="Severity" value={severityLabel(latestClassification.severity)} />
-                <DataPair label="Confidence" value={formatPercent(latestClassification.confidence)} />
-              </dl>
-            ) : (
-              <p className={styles.noAiResult}>No AI result yet</p>
-            )}
-          </section>
-
-          {detail.photoUrl && (
-            <div className={styles.evidencePhoto}>
-              {/* eslint-disable-next-line @next/next/no-img-element -- signed evidence URL comes from the existing staff API */}
-              <img
-                src={detail.photoUrl}
-                alt={`Evidence for ${detail.trackingCode}`}
-              />
-            </div>
-          )}
-
-          <div className={styles.dossierActions}>
-            <Link href={`/dashboard/incidents/${detail.id}`} className={styles.secondaryButton}>
-              Open Full Details
-            </Link>
-          </div>
-        </>
-      ) : null}
-    </section>
-  );
-}
-
-function SummaryTile({
-  label,
-  value,
-  mono = false,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <div className={styles.summaryTile}>
-      <dt>{label}</dt>
-      <dd className={mono ? styles.monoValue : ""}>{value}</dd>
-    </div>
-  );
-}
-
-function DataPair({ label, value }: { label: string; value: string }) {
-  return (
-    <div className={styles.dataPair}>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </div>
-  );
-}
-
 function PriorityBadge({ band }: { band: string | null }) {
   return (
     <span className={`${styles.priorityBadge} ${priorityBadgeClass(band)}`} aria-label={band ? `Priority ${band}` : "Priority unconfirmed"}>
       <PriorityIcon band={band} />
       {band ?? "–"}
-    </span>
-  );
-}
-
-function SeverityTag({ severity }: { severity: Severity | null }) {
-  return (
-    <span className={`${styles.severityTag} ${severityClass(severity)}`}>
-      <SeverityIcon severity={severity} />
-      {severityLabel(severity)}
     </span>
   );
 }
@@ -1298,43 +1078,10 @@ function FilterIcon() {
   );
 }
 
-function ResetIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <path d="M4.5 7.5A8 8 0 1 1 4 14m.5-6.5V3m0 4.5H9" />
-    </svg>
-  );
-}
-
 function MapIcon() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
       <path d="m2 4 5-2 6 2 5-2v14l-5 2-6-2-5 2V4Z" /><path d="M7 2v14m6-12v14" />
-    </svg>
-  );
-}
-
-function DossierIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-      <path d="M6 4h12v17H6zM9 2h6v4H9zM9 10h6m-6 4h6m-6 4h4" />
-    </svg>
-  );
-}
-
-function AiIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true">
-      <path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1m-8.6 8.6-2.1 2.1" />
-      <circle cx="12" cy="12" r="5" /><path d="M10 12h4m-2-2v4" />
-    </svg>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <path d="m6 6 12 12M18 6 6 18" />
     </svg>
   );
 }
@@ -1378,22 +1125,6 @@ function PriorityIcon({ band }: { band: string | null }) {
       {prioritySymbol(band)}
     </span>
   );
-}
-
-function SeverityIcon({ severity }: { severity: Severity | null }) {
-  if (severity === "critical") {
-    return <svg viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M6 1 11 10H1L6 1Z" /></svg>;
-  }
-  if (severity === "high") {
-    return <svg viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M6 1.2 10.8 6 6 10.8 1.2 6 6 1.2Z" /></svg>;
-  }
-  if (severity === "moderate") {
-    return <svg viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><circle cx="6" cy="6" r="4.3" /></svg>;
-  }
-  if (severity === "low") {
-    return <svg viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M2 3h8v6H2z" /></svg>;
-  }
-  return <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="6" cy="6" r="4.3" /></svg>;
 }
 
 function StatusIcon({ status }: { status: string }) {
@@ -1447,15 +1178,6 @@ function formatType(value: string) {
     .replace(/\b\w/g, (letter) => letter.toLocaleUpperCase());
 }
 
-function priorityLabel(band: "P1" | "P2" | "P3" | "P4") {
-  return {
-    P1: "Immediate",
-    P2: "Urgent",
-    P3: "Standard",
-    P4: "Low",
-  }[band];
-}
-
 function prioritySymbol(band: string | null) {
   return band === "P1" ? "▲" : band === "P2" ? "!" : band === "P3" ? "i" : band === "P4" ? "−" : "?";
 }
@@ -1484,22 +1206,6 @@ function priorityMarkerClass(band: string | null) {
           : styles.markerUnconfirmed;
 }
 
-function severityClass(severity: Severity | null) {
-  return severity === "critical"
-    ? styles.severityCritical
-    : severity === "high"
-      ? styles.severityHigh
-      : severity === "moderate"
-        ? styles.severityModerate
-        : severity === "low"
-          ? styles.severityLow
-          : styles.severityUnconfirmed;
-}
-
-function severityLabel(severity: Severity | null) {
-  return severity ? `${severity[0].toLocaleUpperCase()}${severity.slice(1)}` : "Unconfirmed";
-}
-
 function statusClass(status: string) {
   return status === "pending_review"
     ? styles.statusReview
@@ -1520,22 +1226,6 @@ function formatScore(score: number) {
   return Number.isInteger(score) ? `${score}.0` : score.toFixed(1);
 }
 
-function formatPercent(value: number) {
-  return `${(value * 100).toFixed(1)}%`;
-}
-
-function formatCoordinate(value: number) {
-  return Number.isFinite(value) ? value.toFixed(5) : "—";
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en-PH", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Asia/Manila",
-  }).format(new Date(value));
-}
-
 function elapsedSince(value: string, now: number) {
   const elapsedSeconds = Math.max(0, Math.floor((now - Date.parse(value)) / 1000));
   if (elapsedSeconds < 60) return `${elapsedSeconds}s ago`;
@@ -1545,10 +1235,4 @@ function elapsedSince(value: string, now: number) {
   const remainingMinutes = minutes % 60;
   if (hours < 24) return `${hours}h ${remainingMinutes}m ago`;
   return `${Math.floor(hours / 24)}d ago`;
-}
-
-function isExistingDemoRecord(detail: DashboardDetail) {
-  const placeholderAreas = ["Sample Area A", "Sample Area B", "Sample Area C"];
-  return detail.trackingCode.startsWith("SGP-DEM") ||
-    (detail.location.area !== null && placeholderAreas.includes(detail.location.area));
 }

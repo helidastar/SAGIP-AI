@@ -86,29 +86,6 @@ export function ReviewQueuePage() {
           : forcedState === "no-results" ? "no-results"
             : state;
 
-  const lowConfidenceCount = useMemo(
-    () => items.filter(isLowConfidence).length,
-    [items],
-  );
-  const highCriticalCount = useMemo(
-    () => items.filter((item) => item.classification && ["high", "critical"].includes(item.classification.severity)).length,
-    [items],
-  );
-  const medianWait = useMemo(() => {
-    if (items.length === 0 || !lastUpdated) return null;
-    const waits = items
-      .map((item) => lastUpdated.getTime() - new Date(item.createdAt).getTime())
-      .filter((wait) => Number.isFinite(wait) && wait >= 0)
-      .sort((a, b) => a - b);
-    if (waits.length === 0) return null;
-    const middle = Math.floor(waits.length / 2);
-    return waits.length % 2 ? waits[middle] : (waits[middle - 1] + waits[middle]) / 2;
-  }, [items, lastUpdated]);
-
-  const lowConfidenceShare = items.length > 0
-    ? Math.round((lowConfidenceCount / items.length) * 100)
-    : 0;
-
   const reasonCounts = useMemo(() => ({
     all: items.length,
     low: items.filter(isLowConfidence).length,
@@ -170,58 +147,15 @@ export function ReviewQueuePage() {
         refreshDisabled={state === "loading"}
       />
       <header className={styles.header}>
-        <div className={styles.titleBlock}>
-          <div className={styles.titleLine}>
-            <h1>Review Queue</h1>
-            <span className={styles.countBadge}>
-              {effectiveState === "ready" ? `${items.length} incidents requiring review` : "Incidents requiring review"}
-            </span>
-          </div>
-          <p>Low confidence or high severity, awaiting human classification</p>
+        <div className={styles.titleLine}>
+          <h1>Review queue</h1>
+          {effectiveState === "ready" && <span className={styles.countBadge}>{items.length} waiting</span>}
         </div>
       </header>
 
       <div className={styles.main}>
-        <section className={styles.rulesBanner} aria-label="Review rules">
-          <strong>MANDATORY REVIEW</strong>
-          <span>
-            Incidents with AI confidence below 70% or high/critical severity require human review.
-            Incidents are not dispatched automatically. Bulk approval is not available.
-          </span>
-        </section>
-
-        {effectiveState === "ready" && (
-          <section className={styles.stats} aria-label="Review queue summary">
-            <StatCard label="Total flagged" value={String(items.length)} detail="Awaiting manual review" />
-            {items.length > 0 && (
-              <StatCard
-                label="Low confidence (<70%)"
-                value={String(lowConfidenceCount)}
-                detail={`${lowConfidenceShare}% of backlog`}
-                tone="amber"
-              />
-            )}
-            {items.length > 0 && (
-              <StatCard
-                label="High / Critical"
-                value={String(highCriticalCount)}
-                detail="Human verification required"
-                tone="red"
-              />
-            )}
-            {medianWait !== null && (
-              <StatCard
-                label="Median queue wait"
-                value={formatDuration(medianWait)}
-                detail="Since report submission"
-                tone="teal"
-              />
-            )}
-          </section>
-        )}
-
         {(effectiveState === "ready" || effectiveState === "no-results") && (
-          <section className={styles.controls} aria-label="Review queue controls">
+          <section className={styles.controls} aria-label="Search and filter">
             <div className={styles.controlTop}>
               <label className={styles.searchBox}>
                 <SearchIcon />
@@ -229,75 +163,16 @@ export function ReviewQueuePage() {
                 <input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search reference ID, area, or description..."
+                  placeholder="Search code, place or description"
                   type="search"
                 />
               </label>
-              <div className={styles.selects}>
-                <label>
-                  <span className={styles.srOnly}>Severity</span>
-                  <select value={severityFilter} onChange={(event) => setSeverityFilter(event.target.value)}>
-                    <option value="all">All Severities</option>
-                    {Object.keys(SEVERITY).map((severity) => (
-                      <option value={severity} key={severity}>{titleCase(severity)}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span className={styles.srOnly}>Incident type</span>
-                  <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
-                    <option value="all">All Incident Types</option>
-                    {INCIDENT_TYPES.map((type) => (
-                      <option value={type} key={type}>{titleCase(type)}</option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span className={styles.srOnly}>Sort order</span>
-                  <select value={sort} onChange={(event) => setSort(event.target.value)}>
-                    <option value="priority-desc">Priority Score (High to Low)</option>
-                    <option value="wait-desc">Queue Wait (Longest First)</option>
-                    <option value="conf-asc">Confidence (Lowest First)</option>
-                  </select>
-                </label>
-                <button type="button" className={styles.resetButton} onClick={resetFilters}>
-                  <FilterOffIcon />
-                  Reset
-                </button>
+              <div className={styles.reasonFilters} role="group" aria-label="Why it needs review">
+                <ReasonChip label="All" count={reasonCounts.all} active={reasonFilter === "ALL"} onClick={() => setReasonFilter("ALL")} />
+                <ReasonChip label="Critical" count={reasonCounts.critical} active={reasonFilter === "CRITICAL"} onClick={() => setReasonFilter("CRITICAL")} tone="critical" />
+                <ReasonChip label="High" count={reasonCounts.high} active={reasonFilter === "HIGH_SEV"} onClick={() => setReasonFilter("HIGH_SEV")} tone="high" />
+                <ReasonChip label="AI unsure" count={reasonCounts.low} active={reasonFilter === "LOW_CONF"} onClick={() => setReasonFilter("LOW_CONF")} tone="amber" />
               </div>
-            </div>
-            <div className={styles.controlBottom}>
-              <div className={styles.reasonFilters}>
-                <span className={styles.filterLabel}><FilterIcon /> Filter by Reason:</span>
-                <ReasonChip
-                  label="All"
-                  count={reasonCounts.all}
-                  active={reasonFilter === "ALL"}
-                  onClick={() => setReasonFilter("ALL")}
-                />
-                <ReasonChip
-                  label="Low Conf (<70%)"
-                  count={reasonCounts.low}
-                  active={reasonFilter === "LOW_CONF"}
-                  onClick={() => setReasonFilter("LOW_CONF")}
-                  tone="amber"
-                />
-                <ReasonChip
-                  label="Critical"
-                  count={reasonCounts.critical}
-                  active={reasonFilter === "CRITICAL"}
-                  onClick={() => setReasonFilter("CRITICAL")}
-                  tone="critical"
-                />
-                <ReasonChip
-                  label="High"
-                  count={reasonCounts.high}
-                  active={reasonFilter === "HIGH_SEV"}
-                  onClick={() => setReasonFilter("HIGH_SEV")}
-                  tone="high"
-                />
-              </div>
-              <span className={styles.activeCount}>Active triage queue: {filteredItems.length} incidents</span>
             </div>
           </section>
         )}
@@ -369,13 +244,12 @@ export function ReviewQueuePage() {
               <table className={styles.table}>
                 <thead>
                   <tr>
-                    <th scope="col">Reference</th>
-                    <th scope="col">Incident &amp; location</th>
-                    <th scope="col">Queue wait</th>
-                    <th scope="col">Priority / Score</th>
-                    <th scope="col">AI assessment &amp; confidence</th>
-                    <th scope="col">Review reason</th>
-                    <th scope="col">Action</th>
+                    <th scope="col">Incident</th>
+                    <th scope="col">Waiting</th>
+                    <th scope="col">Priority</th>
+                    <th scope="col">AI guess</th>
+                    <th scope="col">Why</th>
+                    <th scope="col"><span className={styles.srOnly}>Action</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -394,7 +268,7 @@ export function ReviewQueuePage() {
               </table>
             </div>
             <footer className={styles.footer}>
-              Showing {filteredItems.length} of {items.length} items awaiting review
+              {filteredItems.length} of {items.length}
             </footer>
           </section>
         )}
@@ -411,26 +285,6 @@ export function ReviewQueuePage() {
         />
       )}
     </div>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  detail,
-  tone,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-  tone?: "amber" | "red" | "teal";
-}) {
-  return (
-    <article className={styles.statCard}>
-      <span className={styles.statLabel}>{label}</span>
-      <strong className={tone ? styles[`statValue${titleCase(tone)}`] : styles.statValue}>{value}</strong>
-      <p>{detail}</p>
-    </article>
   );
 }
 
@@ -605,16 +459,6 @@ function ReviewRow({
 }) {
   const classification = item.classification;
   const reasons = reviewReasons(item);
-  const [copied, setCopied] = useState(false);
-  async function copyReference() {
-    try {
-      await navigator.clipboard.writeText(item.trackingCode);
-    } catch {
-      return;
-    }
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
-  }
   return (
     <tr
       className={styles.clickableRow}
@@ -624,41 +468,26 @@ function ReviewRow({
         if (button) onReview(button);
       }}
     >
-      <td data-label="Reference">
-        <div className={styles.referenceCell}>
-          <button
-            type="button"
-            className={styles.copyButton}
-            aria-label={`Copy reference ${item.trackingCode}`}
-            onClick={() => void copyReference()}
-          >
-            <CopyIcon />
-          </button>
-          <span>{copied ? "Copied" : item.trackingCode}</span>
-        </div>
-      </td>
-      <td data-label="Incident type and description">
+      <td data-label="Incident">
         <div className={styles.incidentCell}>
           <IncidentIcon type={classification?.incidentType} />
           <div>
             <strong>{classification ? titleCase(classification.incidentType) : "Unclassified"}</strong>
-            <p>{item.description || "No description"}</p>
-            <span className={styles.areaLine}>{item.area ?? "Unknown area"}</span>
+            {item.description && <p>{item.description}</p>}
+            <span className={styles.areaLine}>{item.trackingCode} · {item.area ?? "Unknown area"}</span>
           </div>
         </div>
       </td>
-      <td data-label="Queue wait">
+      <td data-label="Waiting">
         <div className={styles.waitCell}>
-          <strong>{now ? `${formatDuration(now - new Date(item.createdAt).getTime())} ago` : "Unknown wait"}</strong>
-          <time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>
+          <strong>{now ? formatDuration(now - new Date(item.createdAt).getTime()) : "—"}</strong>
         </div>
       </td>
       <td data-label="Priority and score">
         {item.draftPriority ? (
           <span className={`${styles.priorityBadge} ${styles[priorityClass(item.draftPriority.band)]}`}>
-            {priorityIcon(item.draftPriority.band)}
-            <span>{priorityLabel(item.draftPriority.band)}</span>
-            <strong>{item.draftPriority.score.toFixed(1)}<small>/100</small></strong>
+            <span>{item.draftPriority.band ?? "–"}</span>
+            <strong>{item.draftPriority.score.toFixed(0)}</strong>
           </span>
         ) : (
           <span className={styles.mutedValue}>No score yet</span>
@@ -667,17 +496,16 @@ function ReviewRow({
       <td data-label="AI assessment">
         {classification ? (
           <div className={styles.assessmentCell}>
-            <strong>{titleCase(classification.incidentType)}</strong>
-            <span>{severityWithPercent(classification.severity, classification.severityConfidence)}</span>
+            <strong>{severityWithPercent(classification.severity, classification.severityConfidence)}</strong>
             <span className={classification.confidence < CONFIDENCE_THRESHOLD ? styles.lowConfidence : ""}>
-              Confidence {Math.round(classification.confidence * 100)}%
+              {Math.round(classification.confidence * 100)}% sure
             </span>
           </div>
         ) : (
-          <span className={styles.mutedValue}>No AI result yet</span>
+          <span className={styles.mutedValue}>No AI result</span>
         )}
       </td>
-      <td data-label="Review reason">
+      <td data-label="Why">
         <div className={styles.reasonTags}>
           {reasons.map((reason) => (
             <span className={styles.reasonTag} key={reason}>{reason}</span>
@@ -687,7 +515,6 @@ function ReviewRow({
       <td data-label="Action" className={styles.actionCell}>
         <button type="button" data-review-button className={styles.reviewButton} onClick={(event) => onReview(event.currentTarget)}>
           Review
-          <ChevronIcon />
         </button>
       </td>
     </tr>
@@ -714,14 +541,6 @@ function reviewReasons(item: QueueItem) {
   return reasons;
 }
 
-function formatDate(value: string | Date) {
-  const date = typeof value === "string" ? new Date(value) : value;
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "medium",
-  }).format(date);
-}
-
 function formatDuration(milliseconds: number) {
   const seconds = Math.max(0, Math.floor(milliseconds / 1000));
   const minutes = Math.floor(seconds / 60);
@@ -743,23 +562,6 @@ function priorityClass(band: string) {
   return "priorityP4";
 }
 
-function priorityIcon(band: string) {
-  const normalized = band.toUpperCase();
-  if (normalized === "P2" || normalized === "URGENT") return <AlertCircleIcon />;
-  if (normalized === "P3" || normalized === "STANDARD") return <InfoIcon />;
-  if (normalized === "P4" || normalized === "LOW") return <MinusCircleIcon />;
-  return <WarningIcon />;
-}
-
-function priorityLabel(band: string) {
-  const normalized = band.toUpperCase();
-  if (normalized === "P1" || normalized === "IMMEDIATE") return "P1 Immediate";
-  if (normalized === "P2" || normalized === "URGENT") return "P2 Urgent";
-  if (normalized === "P3" || normalized === "STANDARD") return "P3 Standard";
-  if (normalized === "P4" || normalized === "LOW") return "P4 Low";
-  return titleCase(band);
-}
-
 function IncidentIcon({ type }: { type?: string }) {
   return (
     <span className={styles.incidentIcon} aria-hidden="true">
@@ -776,21 +578,6 @@ function IncidentIcon({ type }: { type?: string }) {
   );
 }
 
-function CopyIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><rect x="7" y="3" width="10" height="12" rx="1" /><path d="M13 15v2H3V5h4" /></svg>;
-}
-function WarningIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M10 2 2 18h16L10 2Z" /><path d="M10 7v5m0 3v1" /></svg>;
-}
-function AlertCircleIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><circle cx="10" cy="10" r="8" /><path d="M10 5v6m0 3v1" /></svg>;
-}
-function InfoIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><circle cx="10" cy="10" r="8" /><path d="M10 9v5m0-8v1" /></svg>;
-}
-function MinusCircleIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><circle cx="10" cy="10" r="8" /><path d="M6 10h8" /></svg>;
-}
 function CheckIcon() {
   return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="10" cy="10" r="8" /><path d="m6 10 3 3 5-6" /></svg>;
 }
@@ -799,15 +586,6 @@ function OfflineIcon() {
 }
 function SearchIcon() {
   return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" /><path d="m13 13 4 4" /></svg>;
-}
-function FilterIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M3 5h14M5 10h10M8 15h4" /></svg>;
-}
-function FilterOffIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M3 4h14l-5 6v4l-4 2v-6L3 4Zm12 12 3 3M18 16l-3 3" /></svg>;
-}
-function ChevronIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m7 4 6 6-6 6" /></svg>;
 }
 function CloseIcon() {
   return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m4 4 12 12M16 4 4 16" /></svg>;

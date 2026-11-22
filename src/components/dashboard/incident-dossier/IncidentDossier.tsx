@@ -15,7 +15,6 @@ import {
   CONFIDENCE_THRESHOLD,
   INCIDENT_TYPES,
   PRIORITY_WEIGHTS,
-  REPORT_STATUSES,
   STATUS_TRANSITIONS,
 } from "@/lib/constants";
 import {
@@ -80,20 +79,19 @@ export function IncidentDossierShell({
           <span className={styles.brandMark} aria-hidden="true"><Image src="/brand/sagip-ai-mark.svg" alt="" width={36} height={36} loading="eager" /></span>
           <span className={styles.brandCopy}>
             <strong>SAGIP-AI</strong>
-            <span>Ops portal</span>
+            <span>Staff</span>
           </span>
         </Link>
-        <p className={styles.navHeading}>EOC Navigation</p>
         <nav aria-label="Primary">
           <ul className={styles.navList}>
             <li>
               <Link href="/dashboard" className={`${styles.navLink} ${styles.navLinkActive}`} aria-current="page">
-                <ListIcon /><span>Ranked List</span>
+                <ListIcon /><span>Incidents</span>
               </Link>
             </li>
             <li>
               <Link href="/dashboard/review" className={styles.navLink}>
-                <ReviewIcon /><span>Review Queue</span>
+                <ReviewIcon /><span>Review queue</span>
                 {reviewCount !== null && <span className={styles.navBadge} aria-label={`${reviewCount} items in review queue`}>{reviewCount}</span>}
               </Link>
             </li>
@@ -177,7 +175,7 @@ export function IncidentDossierView({
   const [score, setScore] = useState("");
   const [reason, setReason] = useState("");
   const [overrideOpen, setOverrideOpen] = useState(false);
-  const [adminToolsOpen, setAdminToolsOpen] = useState(true);
+  const [adminToolsOpen, setAdminToolsOpen] = useState(false);
 
   if (state !== "ready" || !detail) {
     const title = state === "notFound"
@@ -233,10 +231,7 @@ export function IncidentDossierView({
   const isCurrentStepReview = step?.key === "review";
   const stepTitle = detail.status === "rejected"
     ? "Incident rejected"
-    : `Next step: ${step?.next ?? titleCase(detail.status)}`;
-  const stepExplanation = detail.status === "rejected"
-    ? "This report was marked as not a real incident. No further action."
-    : step?.explain ?? "No further workflow action is available.";
+    : step?.next ?? titleCase(detail.status);
 
   async function assignTeam(label: string) {
     const team = teams.find((item) => item.id === selectedTeamId);
@@ -316,44 +311,29 @@ export function IncidentDossierView({
       <div className={styles.page}>
         <section className={`${styles.hero} ${detail.priority?.band === "P1" ? styles.heroCritical : ""}`}>
           <div className={styles.breadcrumbs}>
-            <span>Dashboard</span>
-            <span aria-hidden="true">/</span>
-            <Link href="/dashboard">Ranked List</Link>
-            <span aria-hidden="true">/</span>
-            <strong>{detail.trackingCode}</strong>
+            <Link href="/dashboard">← Incidents</Link>
           </div>
           <div className={styles.titleRow}>
             <div className={styles.titleGroup}>
-              <h1>Incident Dossier: {detail.trackingCode}</h1>
+              <h1>{detail.incidentType ? titleCase(detail.incidentType) : "Unconfirmed incident"}</h1>
               <span className={`${styles.priorityBadge} ${detail.priority?.band === "P1" ? styles.priorityCritical : ""}`}>
                 {detail.priority?.band ?? "Priority unavailable"}
               </span>
               <span className={`${styles.statusBadge} ${detail.status === "pending_review" ? styles.statusReview : ""}`}>
                 {titleCase(detail.status)}
               </span>
+              {detail.priority && <span className={styles.scoreInline}>Score {formatScore(detail.priority.score)}</span>}
               {demoData && <span className={styles.demoBadge}>Demo data</span>}
             </div>
           </div>
           <div className={styles.metaRow}>
-            {detail.location.area && <span>{detail.location.area}</span>}
-            <span className={styles.coordinates}>{formatCoordinates(detail.location.lat)}, {formatCoordinates(detail.location.lng)}</span>
+            <span className={styles.coordinates}>{detail.trackingCode}</span>
+            <span>{detail.location.area ?? "Unknown area"}</span>
             <a href={openMapUrl(detail.location.lat, detail.location.lng)} target="_blank" rel="noreferrer">
               Open map <ExternalLinkIcon />
             </a>
-            <span>Reported <time dateTime={detail.createdAt}>{formatDate(detail.createdAt)}</time></span>
-            <span>Assigned team <strong>{currentTeam?.name ?? (detail.teamId ? "Team unavailable" : "None")}</strong></span>
-          </div>
-          <div className={`${styles.compositePanel} ${latest?.hazards.length ? "" : styles.compositePanelSingle}`}>
-            <div className={styles.compositeScore}>
-              <span className={styles.overline}>Composite score</span>
-              <strong>{detail.priority ? formatScore(detail.priority.score) : "Not scored"}<small>{detail.priority ? " / 100" : ""}</small></strong>
-            </div>
-            {latest?.hazards.length ? (
-              <div className={styles.hazardState}>
-                <span className={styles.overline}>Active hazard state</span>
-                <strong>{latest.hazards.join(", ")}</strong>
-              </div>
-            ) : null}
+            <span><time dateTime={detail.createdAt}>{formatDate(detail.createdAt)}</time></span>
+            <span>Team <strong>{currentTeam?.name ?? (detail.teamId ? "Team unavailable" : "None")}</strong></span>
           </div>
           {needsReview && (
             <ReviewBanner
@@ -362,18 +342,15 @@ export function IncidentDossierView({
               pending={detail.status === "pending_review"}
             />
           )}
-          <section className={styles.lifecycle} aria-label="Operational workflow lifecycle">
-            <h2 className={styles.overline}>Operational workflow lifecycle</h2>
-            <StatusTimeline detail={detail} />
+          <section className={styles.lifecycle} aria-label="Next step">
             <div className={styles.nextStep}>
               <div className={styles.nextStepCopy}>
                 <span className={styles.overline}>Next step</span>
                 <h3>{stepTitle}</h3>
-                <p>{stepExplanation}</p>
               </div>
               <div className={styles.nextStepActions}>
                 {isCurrentStepReview && (
-                  <a className={styles.buttonPrimary} href="#human-verification">Review incident</a>
+                  <a className={styles.buttonPrimary} href="#human-verification">Review now</a>
                 )}
                 {step?.key === "assign" && (
                   isAdmin
@@ -397,7 +374,7 @@ export function IncidentDossierView({
         <div className={styles.contentGrid}>
           <div className={styles.primaryColumn}>
             <section className={styles.card} aria-labelledby="evidence-title">
-              <CardHeading icon={<PhotoIcon />} title="Field Photographic Evidence" id="evidence-title" />
+              <CardHeading icon={<PhotoIcon />} title="Photo" id="evidence-title" />
               {detail.photoUrl && !photoFailed ? (
                 <div className={styles.photoFrame}>
                   {/* eslint-disable-next-line @next/next/no-img-element -- signed evidence URL returned by the staff API */}
@@ -416,30 +393,16 @@ export function IncidentDossierView({
               {detail.photoUrl && !photoFailed && (
                 <a className={styles.textLink} href={detail.photoUrl} target="_blank" rel="noreferrer">Open original photo <ExternalLinkIcon /></a>
               )}
-              <p className={styles.captureTime}>
-                Reported <time dateTime={detail.createdAt}>{formatDate(detail.createdAt)}</time>
-              </p>
               <div className={styles.transcript}>
-                <h3><TranscriptIcon />Citizen transcript</h3>
+                <h3>What the citizen wrote</h3>
                 {detail.description
                   ? <p>{detail.description}</p>
                   : <p className={styles.emptyText}>No description recorded.</p>}
               </div>
             </section>
 
-            <section className={styles.card} aria-labelledby="geospatial-title">
-              <CardHeading icon={<MapIcon />} title="Geospatial context" id="geospatial-title" />
-              <p className={styles.geoCoordinates}>
-                {formatCoordinates(detail.location.lat)}, {formatCoordinates(detail.location.lng)}
-              </p>
-              {detail.location.area && <p className={styles.geoArea}>{detail.location.area}</p>}
-              <a className={styles.buttonSecondary} href={openMapUrl(detail.location.lat, detail.location.lng)} target="_blank" rel="noreferrer">
-                Open map <ExternalLinkIcon />
-              </a>
-            </section>
-
-            <section className={styles.card} aria-labelledby="audit-title">
-              <CardHeading icon={<HistoryIcon />} title="Audit trail" id="audit-title" />
+            <details className={`${styles.card} ${styles.collapsible}`}>
+              <summary className={styles.collapsibleSummary}>History ({detail.auditLog.length})</summary>
               {detail.auditLog.length ? (
                 <ol className={styles.auditList}>
                   {detail.auditLog.map((event) => (
@@ -456,76 +419,14 @@ export function IncidentDossierView({
                   ))}
                 </ol>
               ) : (
-                <p className={styles.emptyText}>No audit events recorded.</p>
+                <p className={styles.emptyText}>No changes yet.</p>
               )}
-            </section>
+            </details>
           </div>
 
           <div className={styles.secondaryColumn}>
-            <section className={styles.card} aria-labelledby="ai-title">
-              <CardHeading icon={<AiIcon />} title="AI Assessment" id="ai-title">
-                <span className={styles.aiLabel}>AI-generated</span>
-              </CardHeading>
-              {latest ? (
-                <>
-                  <div className={styles.aiModel}>
-                    <span className={styles.overline}>Model / step</span>
-                    <strong>{latest.model}</strong>
-                  </div>
-                  <DataPair label="Predicted type" value={titleCase(latest.incidentType)} />
-                  <DataPair label="Estimated severity" value={severityWithPercent(latest.severity, latest.severityConfidence)} />
-                  <div className={styles.confidenceBlock}>
-                    <div className={styles.dataLabel}>
-                      <span>Confidence</span><strong>{formatPercent(latest.confidence)}</strong>
-                    </div>
-                    <span className={styles.confidenceTrack} role="meter" aria-label="AI confidence" aria-valuenow={latest.confidence * 100} aria-valuemin={0} aria-valuemax={100}>
-                      <span style={{ width: `${Math.min(100, Math.max(0, latest.confidence * 100))}%` }} />
-                    </span>
-                  </div>
-                  <div className={styles.hazards}>
-                    <span className={styles.overline}>Hazards</span>
-                    {latest.hazards.length
-                      ? <ul>{latest.hazards.map((hazard, index) => <li key={`${hazard}-${index}`}>{hazard}</li>)}</ul>
-                      : <p className={styles.emptyText}>No hazards recorded.</p>}
-                  </div>
-                </>
-              ) : (
-                <p className={styles.emptyText}>No AI result yet</p>
-              )}
-              <details className={styles.historyDisclosure}>
-                <summary>AI classifications history ({detail.classifications.length})</summary>
-                {detail.classifications.length ? (
-                  <div className={styles.tableScroller}>
-                    <table>
-                      <thead><tr><th>When</th><th>Model / Step</th><th>Type</th><th>Severity</th><th>Conf</th><th>Hazards</th></tr></thead>
-                      <tbody>
-                        {detail.classifications.map((classification) => (
-                          <tr key={classification.id}>
-                            <td><time dateTime={classification.createdAt}>{formatDate(classification.createdAt)}</time></td>
-                            <td>{classification.model}</td>
-                            <td>{titleCase(classification.incidentType)}</td>
-                            <td>{severityWithPercent(classification.severity, classification.severityConfidence)}</td>
-                            <td>{formatPercent(classification.confidence)}</td>
-                            <td>{classification.hazards.join(", ") || "—"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : <p className={styles.emptyText}>No AI classifications recorded.</p>}
-              </details>
-            </section>
-
-            <PriorityBreakdown detail={detail} />
-
             <section className={styles.card} id="human-verification" aria-labelledby="verification-title">
-              <CardHeading icon={<VerificationIcon />} title="Human Verification Console" id="verification-title">
-                {staff?.role && <span className={styles.roleBadge}>{titleCase(staff.role)}</span>}
-              </CardHeading>
-              <div className={styles.staffIdentity}>
-                <UserIcon />
-                <span><strong>{staff?.fullName ?? staff?.email ?? "Staff account"}</strong><small>{staff?.role ?? "Role unavailable"}</small></span>
-              </div>
+              <CardHeading icon={<VerificationIcon />} title="Review" id="verification-title" />
               <div className={styles.reviewValues}>
                 <div>
                   <span className={styles.overline}>AI proposed</span>
@@ -569,14 +470,64 @@ export function IncidentDossierView({
               )}
             </section>
 
+            <section className={styles.card} aria-labelledby="ai-title">
+              <CardHeading icon={<AiIcon />} title="AI guess" id="ai-title" />
+              {latest ? (
+                <>
+                  <DataPair label="Type" value={titleCase(latest.incidentType)} />
+                  <DataPair label="Severity" value={severityWithPercent(latest.severity, latest.severityConfidence)} />
+                  <div className={styles.confidenceBlock}>
+                    <div className={styles.dataLabel}>
+                      <span>Confidence</span><strong>{formatPercent(latest.confidence)}</strong>
+                    </div>
+                    <span className={styles.confidenceTrack} role="meter" aria-label="AI confidence" aria-valuenow={latest.confidence * 100} aria-valuemin={0} aria-valuemax={100}>
+                      <span style={{ width: `${Math.min(100, Math.max(0, latest.confidence * 100))}%` }} />
+                    </span>
+                  </div>
+                  {latest.hazards.length > 0 && (
+                    <div className={styles.hazards}>
+                      <span className={styles.overline}>Hazards</span>
+                      <ul>{latest.hazards.map((hazard, index) => <li key={`${hazard}-${index}`}>{hazard}</li>)}</ul>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className={styles.emptyText}>No AI result yet</p>
+              )}
+              <details className={styles.historyDisclosure}>
+                <summary>Past AI results ({detail.classifications.length})</summary>
+                {detail.classifications.length ? (
+                  <div className={styles.tableScroller}>
+                    <table>
+                      <thead><tr><th>When</th><th>Model / Step</th><th>Type</th><th>Severity</th><th>Conf</th><th>Hazards</th></tr></thead>
+                      <tbody>
+                        {detail.classifications.map((classification) => (
+                          <tr key={classification.id}>
+                            <td><time dateTime={classification.createdAt}>{formatDate(classification.createdAt)}</time></td>
+                            <td>{classification.model}</td>
+                            <td>{titleCase(classification.incidentType)}</td>
+                            <td>{severityWithPercent(classification.severity, classification.severityConfidence)}</td>
+                            <td>{formatPercent(classification.confidence)}</td>
+                            <td>{classification.hazards.join(", ") || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : <p className={styles.emptyText}>No AI classifications recorded.</p>}
+              </details>
+            </section>
+
+            <PriorityBreakdown detail={detail} />
+
             <section className={styles.card} aria-labelledby="assignment-title">
-              <CardHeading icon={<TeamIcon />} title="Tactical Field Assignment" id="assignment-title" />
+              <CardHeading icon={<TeamIcon />} title="Team" id="assignment-title" />
               <div className={styles.currentAssignment}>
                 <span className={styles.overline}>Assigned team</span>
                 <strong>{currentTeam?.name ?? (detail.teamId ? "Team unavailable" : "None")}</strong>
               </div>
               {teamsError && <p className={styles.actionError} role="alert">Teams could not be loaded: {teamsError}</p>}
-              <h3 className={styles.subheading}>Assignment history</h3>
+              {detail.assignments.length > 0 && <h3 className={styles.subheading}>Past assignments</h3>}
               {detail.assignments.length ? (
                 <ul className={styles.assignmentList}>
                   {detail.assignments.map((assignment) => (
@@ -587,7 +538,7 @@ export function IncidentDossierView({
                     </li>
                   ))}
                 </ul>
-              ) : <p className={styles.emptyText}>No assignment history recorded.</p>}
+              ) : null}
             </section>
 
             {isAdmin ? (
@@ -673,14 +624,13 @@ export function IncidentDossierView({
   );
 }
 
-function TopBar({ staff, lastRefreshed }: { staff: StaffUser | null; lastRefreshed: string | null }) {
+function TopBar({ lastRefreshed }: { staff: StaffUser | null; lastRefreshed: string | null }) {
   return (
     <header className={styles.topBar}>
       <div className={styles.lastUpdated}>
         <ClockIcon />
-        <span>Last updated: <time dateTime={lastRefreshed ?? undefined}>{lastRefreshed ? formatDate(lastRefreshed) : "Not refreshed yet"}</time></span>
+        <span>Updated <time dateTime={lastRefreshed ?? undefined}>{lastRefreshed ? new Intl.DateTimeFormat("en-PH", { timeStyle: "short", timeZone: "Asia/Manila" }).format(new Date(lastRefreshed)) : "—"}</time></span>
       </div>
-      {staff && <span className={styles.headerAvatar} aria-label={`${staff.fullName ?? staff.email ?? "Staff"} · ${staff.role}`}><UserIcon /></span>}
     </header>
   );
 }
@@ -720,41 +670,6 @@ function ReviewBanner({
   );
 }
 
-function StatusTimeline({ detail }: { detail: DossierIncidentDetail }) {
-  const statuses = lifecycleStatuses(detail);
-  return (
-    <ol className={styles.timeline}>
-      {statuses.map((item, index) => (
-        <li key={`${item.status}-${item.createdAt ?? index}`} className={index === statuses.length - 1 ? styles.timelineCurrent : ""}>
-          <span className={styles.timelineMarker} aria-hidden="true">{index + 1}</span>
-          <strong>{titleCase(item.status)}</strong>
-          {item.createdAt
-            ? <time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>
-            : <span className={styles.timelineTime}>Timestamp unavailable</span>}
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function lifecycleStatuses(detail: DossierIncidentDetail) {
-  const events = [...detail.auditLog].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
-  const statuses: { status: ReportStatus; createdAt: string | null }[] = [];
-
-  for (const event of events) {
-    const after = event.after;
-    if (!after || typeof after !== "object" || !("status" in after)) continue;
-    const status = REPORT_STATUSES.find((value) => value === after.status);
-    if (!status || statuses[statuses.length - 1]?.status === status) continue;
-    statuses.push({ status, createdAt: event.createdAt });
-  }
-
-  if (statuses[statuses.length - 1]?.status !== detail.status) {
-    statuses.push({ status: detail.status, createdAt: null });
-  }
-  return statuses;
-}
-
 function PriorityBreakdown({ detail }: { detail: DossierIncidentDetail }) {
   const factors: { key: keyof typeof PRIORITY_WEIGHTS; label: string }[] = [
     { key: "severity", label: "Severity" },
@@ -765,7 +680,7 @@ function PriorityBreakdown({ detail }: { detail: DossierIncidentDetail }) {
 
   return (
     <section className={styles.card} aria-labelledby="priority-title">
-      <CardHeading icon={<ScoreIcon />} title="Priority Score Breakdown" id="priority-title" />
+      <CardHeading icon={<ScoreIcon />} title="Score breakdown" id="priority-title" />
       {detail.priority ? (
         <>
           <div className={styles.factorList}>
@@ -854,10 +769,6 @@ function isDemoData(detail: DossierIncidentDetail) {
     (detail.location.area !== null && placeholderAreas.includes(detail.location.area));
 }
 
-function formatCoordinates(value: number) {
-  return Number.isFinite(value) ? value.toFixed(5) : "—";
-}
-
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-PH", {
     dateStyle: "short",
@@ -906,14 +817,6 @@ function PhotoIcon() {
   return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="13" rx="1" /><circle cx="7" cy="8" r="1.3" /><path d="m3 14 4.5-4 3.2 2.4 2.2-2 4.1 3.6" /></svg>;
 }
 
-function MapIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m2 4 5-2 6 2 5-2v14l-5 2-6-2-5 2V4Z" /><path d="M7 2v14m6-12v14" /></svg>;
-}
-
-function HistoryIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M3.3 7A7 7 0 1 1 3 11m.3-7v4h4" /><path d="M10 6v4l2.5 1.5" /></svg>;
-}
-
 function AiIcon() {
   return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M10 2.5a5 5 0 0 0-2.5 9.3V15h5v-3.2A5 5 0 0 0 10 2.5Zm-2.5 15h5M10 1v1" /><path d="m3 5 1.5 1M17 5l-1.5 1" /></svg>;
 }
@@ -928,10 +831,6 @@ function VerificationIcon() {
 
 function TeamIcon() {
   return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><circle cx="7" cy="6" r="2.5" /><circle cx="14" cy="7" r="2" /><path d="M2 17c.3-3 2-4.5 5-4.5s4.7 1.5 5 4.5m1-4c2.6-.1 4 1.2 4.2 4" /></svg>;
-}
-
-function TranscriptIcon() {
-  return <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M3 5h14v10H8l-4 3V5Z" /><path d="M6 8h8m-8 3h6" /></svg>;
 }
 
 function ExternalLinkIcon() {
