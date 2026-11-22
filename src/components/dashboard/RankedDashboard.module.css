@@ -47,14 +47,14 @@
   flex-direction: column;
   justify-content: space-between;
   border: 1px solid var(--surface-container);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--surface-lowest);
   padding: 16px;
 }
 
 .workflowCardSelected {
   border: 2px solid var(--secondary);
-  background: rgb(153 239 229 / 20%);
+  background: rgb(232 238 251 / 70%);
   padding: 15px;
 }
 
@@ -105,7 +105,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--surface-lowest);
   padding: 16px;
   box-shadow: 0 1px 2px rgb(16 28 44 / 5%);
@@ -259,7 +259,7 @@
 .mapPanel {
   min-width: 0;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--surface-lowest);
   box-shadow: 0 1px 2px rgb(16 28 44 / 5%);
 }
@@ -325,7 +325,7 @@
 }
 
 .incidentRowSelected {
-  background: rgb(153 239 229 / 20%);
+  background: rgb(232 238 251 / 70%);
 }
 
 .incidentRowSelected::before {
@@ -432,9 +432,9 @@
 
 .reviewTag {
   border-radius: 4px;
-  background: #ffdad6;
+  background: #fee2e2;
   padding: 2px 6px;
-  color: #93000a;
+  color: #991b1b;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.05em;
@@ -555,18 +555,18 @@
 
 .statusReview {
   border-color: #f3b4ad;
-  background: #ffdad6;
-  color: #93000a;
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .statusAssign {
-  border-color: #c5c6cd;
+  border-color: #cbd5e1;
   background: var(--surface-high);
   color: var(--on-surface);
 }
 
 .statusProgress {
-  border-color: #80d5cb;
+  border-color: #8db4f2;
   background: var(--secondary-container);
   color: #00504a;
 }
@@ -619,7 +619,7 @@
   min-height: 660px;
   flex: 1;
   overflow: hidden;
-  background: #e8ecef;
+  background: #f1f5f9;
 }
 
 .mapCanvas :global(.leaflet-container) {
@@ -629,7 +629,7 @@
   min-height: 660px;
   overflow: hidden;
   outline: 0;
-  background: #e8ecef;
+  background: #f1f5f9;
   font-family: var(--ui-font);
   cursor: grab;
 }
@@ -650,7 +650,7 @@
   position: absolute;
   border: 1px solid #263143;
   border-radius: 4px;
-  background: #101c2c;
+  background: #0d2548;
   padding: 4px 8px;
   color: #ffffff;
   font-family: var(--mono-font);
@@ -662,7 +662,7 @@
 }
 
 .mapCanvas :global(.leaflet-tooltip-top)::before {
-  border-top-color: #101c2c;
+  border-top-color: #0d2548;
 }
 
 .mapLoading {
@@ -677,7 +677,7 @@
   width: 100%;
   height: 100%;
   border-radius: 8px;
-  background: #dee8ff;
+  background: #e2e8f0;
 }
 
 .mapError,
@@ -827,9 +827,9 @@
 }
 
 .markerUnconfirmed {
-  border-color: #75777d;
-  background: #f9f9ff;
-  color: #44474c;
+  border-color: #64748b;
+  background: #f8fafc;
+  color: #475569;
 }
 
 .leafletMarker {
@@ -874,7 +874,7 @@
   flex-direction: column;
   gap: 16px;
   border: 1px solid var(--surface-container);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--surface-lowest);
   padding: 16px;
   box-shadow: 0 12px 24px rgb(16 28 44 / 12%);
@@ -1043,8 +1043,8 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  border-radius: 12px;
-  background: rgb(222 232 255 / 55%);
+  border-radius: 8px;
+  background: rgb(226 232 240 / 55%);
   padding: 16px;
 }
 
@@ -1161,9 +1161,9 @@
   justify-content: space-between;
   gap: 12px;
   border-radius: 8px;
-  background: #ffdad6;
+  background: #fee2e2;
   padding: 12px;
-  color: #93000a;
+  color: #991b1b;
 }
 
 .detailError p {
@@ -1199,7 +1199,7 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border-radius: 16px;
+  border-radius: 8px;
   background: var(--surface-lowest);
   padding: 48px;
   text-align: center;
@@ -1248,7 +1248,7 @@
   align-items: flex-start;
   gap: 16px;
   border: 1px solid #fecaca;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #fef2f2;
   padding: 24px;
   color: #7f1d1d;
@@ -1281,7 +1281,7 @@
   align-items: center;
   gap: 12px;
   border: 1px solid #fecaca;
-  border-radius: 12px;
+  border-radius: 8px;
   background: #fef2f2;
   padding: 12px 16px;
   color: #7f1d1d;
@@ -1310,7 +1310,7 @@
 .skeletonWorkflow,
 .filterSkeleton,
 .panelSkeleton {
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--surface-container);
 }
 
@@ -1828,7 +1828,7 @@ button.resetAll {
 }
 
 /* Desktop one-screen layout: only the incident list scrolls. */
-@media (min-width: 1024px) and (min-height: 600px) {
+@media (min-width: 1024px) and (min-height: 500px) {
   .page {
     display: flex;
     min-height: 0;

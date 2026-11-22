@@ -1,7 +1,7 @@
 .detailShell {
-  --detail-navy: #101c2c;
-  --detail-teal: #0f766e;
-  --detail-page: #f7f8fa;
+  --detail-navy: #0d2548;
+  --detail-teal: #173f7d;
+  --detail-page: #f8fafc;
   --detail-white: #ffffff;
   --detail-slate: #64748b;
   --detail-critical: #dc2626;
@@ -10,16 +10,16 @@
   --detail-green: #15803d;
   --detail-line: #e2e8f0;
   --detail-line-strong: #cbd5e1;
-  --detail-pale: #eff3ff;
-  --detail-teal-soft: #d9f3f0;
+  --detail-pale: #f1f5f9;
+  --detail-teal-soft: #e8eefb;
   --detail-red-soft: #fee2e2;
   --detail-amber-soft: #fef3c7;
   --detail-blue-soft: #dbeafe;
   --detail-green-soft: #dcfce7;
-  --detail-sidebar-text: #aab4c3;
-  --detail-sidebar-muted: #8793a4;
-  --detail-ui: var(--font-inter), Arial, sans-serif;
-  --detail-mono: var(--font-jetbrains-mono), Consolas, monospace;
+  --detail-sidebar-text: #a9b8d0;
+  --detail-sidebar-muted: #94a3b8;
+  --detail-ui: var(--font-public-sans), Arial, sans-serif;
+  --detail-mono: var(--font-plex-mono), Consolas, monospace;
   display: flex;
   min-height: calc(100vh - 26px);
   background: var(--detail-page);
@@ -147,7 +147,7 @@
   gap: 7px;
   margin-top: auto;
   border-radius: 5px;
-  background: #1b2939;
+  background: #16325e;
   padding: 7px;
 }
 
@@ -204,7 +204,7 @@
 }
 
 .logoutButton:hover {
-  background: #293648;
+  background: #1b3766;
   color: var(--detail-white);
 }
 
@@ -233,7 +233,7 @@
   align-items: center;
   gap: 5px;
   border-radius: 999px;
-  background: #8dd6d0;
+  background: #8db4f2;
   padding: 4px 8px;
   color: var(--detail-navy);
   font-family: var(--detail-mono);
@@ -965,7 +965,7 @@
 }
 
 .humanBadge {
-  background: #8dd6d0;
+  background: #8db4f2;
   color: var(--detail-teal);
 }
 
@@ -1185,7 +1185,7 @@
 .adminTools {
   overflow: hidden;
   border-radius: 7px;
-  background: #eef2ff;
+  background: #f1f5f9;
 }
 
 .adminTools > summary {
@@ -1369,7 +1369,7 @@ details[open] > summary .disclosureIcon {
   flex: 0 0 20px;
   place-items: center;
   border-radius: 50%;
-  background: #8dd6d0;
+  background: #8db4f2;
   color: var(--detail-teal);
 }
 
@@ -1540,7 +1540,7 @@ details[open] > summary .disclosureIcon {
 .skeletonBlock {
   display: block;
   border-radius: 4px;
-  background: #e0e9fb;
+  background: #e8eefb;
   animation: detailPulse 1.5s ease-in-out infinite;
 }
 

@@ -470,14 +470,11 @@ export function IncidentDossierView({
               )}
             </section>
 
-            <section className={styles.card} aria-labelledby="assignment-title">
-              <CardHeading icon={<TeamIcon />} title="Team" id="assignment-title" />
-              <div className={styles.currentAssignment}>
-                <span className={styles.overline}>Assigned team</span>
-                <strong>{currentTeam?.name ?? (detail.teamId ? "Team unavailable" : "None")}</strong>
-              </div>
+            <details className={`${styles.card} ${styles.collapsible}`}>
+              <summary className={styles.collapsibleSummary}>
+                Team: {currentTeam?.name ?? (detail.teamId ? "Team unavailable" : "None")}
+              </summary>
               {teamsError && <p className={styles.actionError} role="alert">Teams could not be loaded: {teamsError}</p>}
-              {detail.assignments.length > 0 && <h3 className={styles.subheading}>Past assignments</h3>}
               {detail.assignments.length ? (
                 <ul className={styles.assignmentList}>
                   {detail.assignments.map((assignment) => (
@@ -488,8 +485,8 @@ export function IncidentDossierView({
                     </li>
                   ))}
                 </ul>
-              ) : null}
-            </section>
+              ) : <p className={styles.emptyText}>No team assigned yet.</p>}
+            </details>
 
             {isAdmin ? (
               <details
@@ -681,10 +678,11 @@ function PriorityBreakdown({ detail }: { detail: DossierIncidentDetail }) {
 
   return (
     <section className={styles.card} aria-labelledby="priority-title">
-      <CardHeading icon={<ScoreIcon />} title="Score breakdown" id="priority-title" />
+      <CardHeading icon={<ScoreIcon />} title="Score breakdown" id="priority-title">
+        {detail.priority && <strong className={styles.totalInline}>{formatScore(detail.priority.score)} / 100</strong>}
+      </CardHeading>
       {detail.priority ? (
-        <>
-          <div className={styles.factorList}>
+        <div className={styles.factorList}>
             {factors.map(({ key, label }) => {
               const value = detail.priority?.breakdown?.[key];
               const maximum = PRIORITY_WEIGHTS[key] * 100;
@@ -698,9 +696,7 @@ function PriorityBreakdown({ detail }: { detail: DossierIncidentDetail }) {
                 </div>
               );
             })}
-          </div>
-          <div className={styles.totalScore}><span>Total priority score</span><strong>{formatScore(detail.priority.score)} / 100</strong></div>
-        </>
+        </div>
       ) : <p className={styles.emptyText}>Priority score not available.</p>}
     </section>
   );

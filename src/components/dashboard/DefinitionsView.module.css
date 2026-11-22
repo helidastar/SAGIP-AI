@@ -4,7 +4,7 @@
   flex-direction: column;
   gap: 16px;
   padding: 24px;
-  color: #111c2d;
+  color: #0f172a;
 }
 
 .title {
@@ -22,11 +22,11 @@
 
 .tab {
   min-height: 40px;
-  border: 1px solid #c5c6cd;
+  border: 1px solid #cbd5e1;
   border-radius: 999px;
   background: #ffffff;
   padding: 0 16px;
-  color: #111c2d;
+  color: #0f172a;
   font: inherit;
   font-size: 14px;
   font-weight: 600;
@@ -34,13 +34,13 @@
 }
 
 .tab:hover {
-  background: #f0f3ff;
+  background: #f1f5f9;
 }
 
 .tabActive,
 .tabActive:hover {
-  border-color: #101c2c;
-  background: #101c2c;
+  border-color: #0d2548;
+  background: #0d2548;
   color: #ffffff;
 }
 
@@ -60,7 +60,7 @@
 .card {
   min-width: 0;
   overflow-x: auto;
-  border: 1px solid #e7eeff;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #ffffff;
   padding: 16px 20px;
@@ -97,21 +97,21 @@
 
 .card th,
 .card td {
-  border-bottom: 1px solid #e7eeff;
+  border-bottom: 1px solid #e2e8f0;
   padding: 8px;
   text-align: left;
   vertical-align: top;
 }
 
 .card th {
-  color: #44474c;
+  color: #475569;
   font-weight: 600;
 }
 
 .note {
   margin: 12px 0 0;
   border-radius: 4px;
-  background: #f0f3ff;
+  background: #f1f5f9;
   padding: 8px 12px;
 }
 
@@ -125,4 +125,4 @@
 .low { background: #d7f5dd; color: #145c2b; }
 .moderate { background: #fff3c4; color: #6b5200; }
 .high { background: #ffdcc2; color: #8a3a00; }
-.critical { background: #ffdad6; color: #93000a; }
+.critical { background: #fee2e2; color: #991b1b; }
