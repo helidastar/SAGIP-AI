@@ -470,56 +470,6 @@ export function IncidentDossierView({
               )}
             </section>
 
-            <section className={styles.card} aria-labelledby="ai-title">
-              <CardHeading icon={<AiIcon />} title="AI guess" id="ai-title" />
-              {latest ? (
-                <>
-                  <DataPair label="Type" value={titleCase(latest.incidentType)} />
-                  <DataPair label="Severity" value={severityWithPercent(latest.severity, latest.severityConfidence)} />
-                  <div className={styles.confidenceBlock}>
-                    <div className={styles.dataLabel}>
-                      <span>Confidence</span><strong>{formatPercent(latest.confidence)}</strong>
-                    </div>
-                    <span className={styles.confidenceTrack} role="meter" aria-label="AI confidence" aria-valuenow={latest.confidence * 100} aria-valuemin={0} aria-valuemax={100}>
-                      <span style={{ width: `${Math.min(100, Math.max(0, latest.confidence * 100))}%` }} />
-                    </span>
-                  </div>
-                  {latest.hazards.length > 0 && (
-                    <div className={styles.hazards}>
-                      <span className={styles.overline}>Hazards</span>
-                      <ul>{latest.hazards.map((hazard, index) => <li key={`${hazard}-${index}`}>{hazard}</li>)}</ul>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <p className={styles.emptyText}>No AI result yet</p>
-              )}
-              <details className={styles.historyDisclosure}>
-                <summary>Past AI results ({detail.classifications.length})</summary>
-                {detail.classifications.length ? (
-                  <div className={styles.tableScroller}>
-                    <table>
-                      <thead><tr><th>When</th><th>Model / Step</th><th>Type</th><th>Severity</th><th>Conf</th><th>Hazards</th></tr></thead>
-                      <tbody>
-                        {detail.classifications.map((classification) => (
-                          <tr key={classification.id}>
-                            <td><time dateTime={classification.createdAt}>{formatDate(classification.createdAt)}</time></td>
-                            <td>{classification.model}</td>
-                            <td>{titleCase(classification.incidentType)}</td>
-                            <td>{severityWithPercent(classification.severity, classification.severityConfidence)}</td>
-                            <td>{formatPercent(classification.confidence)}</td>
-                            <td>{classification.hazards.join(", ") || "—"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : <p className={styles.emptyText}>No AI classifications recorded.</p>}
-              </details>
-            </section>
-
-            <PriorityBreakdown detail={detail} />
-
             <section className={styles.card} aria-labelledby="assignment-title">
               <CardHeading icon={<TeamIcon />} title="Team" id="assignment-title" />
               <div className={styles.currentAssignment}>
@@ -615,8 +565,59 @@ export function IncidentDossierView({
                 </div>
               </details>
             ) : (
-              <p className={styles.roleHint}>Team assignment, score overrides, AI re-evaluation, and rejection are admin-only.</p>
+              <p className={styles.roleHint}>Admin tools are for admins only.</p>
             )}
+          </div>
+          <div className={styles.tertiaryColumn}>
+            <section className={styles.card} aria-labelledby="ai-title">
+              <CardHeading icon={<AiIcon />} title="AI guess" id="ai-title" />
+              {latest ? (
+                <>
+                  <DataPair label="Type" value={titleCase(latest.incidentType)} />
+                  <DataPair label="Severity" value={severityWithPercent(latest.severity, latest.severityConfidence)} />
+                  <div className={styles.confidenceBlock}>
+                    <div className={styles.dataLabel}>
+                      <span>Confidence</span><strong>{formatPercent(latest.confidence)}</strong>
+                    </div>
+                    <span className={styles.confidenceTrack} role="meter" aria-label="AI confidence" aria-valuenow={latest.confidence * 100} aria-valuemin={0} aria-valuemax={100}>
+                      <span style={{ width: `${Math.min(100, Math.max(0, latest.confidence * 100))}%` }} />
+                    </span>
+                  </div>
+                  {latest.hazards.length > 0 && (
+                    <div className={styles.hazards}>
+                      <span className={styles.overline}>Hazards</span>
+                      <ul>{latest.hazards.map((hazard, index) => <li key={`${hazard}-${index}`}>{hazard}</li>)}</ul>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className={styles.emptyText}>No AI result yet</p>
+              )}
+              <details className={styles.historyDisclosure}>
+                <summary>Past AI results ({detail.classifications.length})</summary>
+                {detail.classifications.length ? (
+                  <div className={styles.tableScroller}>
+                    <table>
+                      <thead><tr><th>When</th><th>Model / Step</th><th>Type</th><th>Severity</th><th>Conf</th><th>Hazards</th></tr></thead>
+                      <tbody>
+                        {detail.classifications.map((classification) => (
+                          <tr key={classification.id}>
+                            <td><time dateTime={classification.createdAt}>{formatDate(classification.createdAt)}</time></td>
+                            <td>{classification.model}</td>
+                            <td>{titleCase(classification.incidentType)}</td>
+                            <td>{severityWithPercent(classification.severity, classification.severityConfidence)}</td>
+                            <td>{formatPercent(classification.confidence)}</td>
+                            <td>{classification.hazards.join(", ") || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : <p className={styles.emptyText}>No AI classifications recorded.</p>}
+              </details>
+            </section>
+
+            <PriorityBreakdown detail={detail} />
           </div>
         </div>
       </div>
@@ -661,11 +662,11 @@ function ReviewBanner({
   return (
     <section className={styles.reviewBanner} aria-label="Human review required">
       <ReviewIcon />
-      <div>
-        <strong>Needs human review</strong>
-        {latest && <span>Confidence {formatPercent(latest.confidence)}</span>}
-        <p>{labels.length ? labels.join(" · ") : pending ? "Incident status is pending review." : "Existing classification review flag."}</p>
-      </div>
+      <p>
+        <strong>Check first:</strong>{" "}
+        {labels.length ? labels.join(" · ") : pending ? "Waiting for review" : "Flagged for review"}
+        {latest && ` · AI ${formatPercent(latest.confidence)} sure`}
+      </p>
     </section>
   );
 }
