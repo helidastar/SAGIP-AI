@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ReviewForm } from "@/components/dashboard/ReviewQueue";
 import type { StaffUser } from "@/components/dashboard/StaffProvider";
 import { api } from "@/lib/api-client";
@@ -242,22 +242,39 @@ export function IncidentDossierView({
   onPhotoError: () => void;
 }) {
   const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [reassignTeamId, setReassignTeamId] = useState("");
   const [score, setScore] = useState("");
   const [reason, setReason] = useState("");
   const [overrideOpen, setOverrideOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
   const [showRawJson, setShowRawJson] = useState(false);
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirmation | null>(null);
+  const menuWrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!lightboxOpen) return;
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setLightboxOpen(false);
+      if (event.key !== "Escape") return;
+      setLightboxOpen(false);
+      setActivityOpen(false);
+      setAdminMenuOpen(false);
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [lightboxOpen]);
+  }, []);
+
+  useEffect(() => {
+    if (!adminMenuOpen) return;
+    function onClickOutside(event: MouseEvent) {
+      if (menuWrapRef.current && !menuWrapRef.current.contains(event.target as Node)) {
+        setAdminMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [adminMenuOpen]);
 
   if (state !== "ready" || !detail) {
     const title = state === "notFound"
@@ -267,7 +284,14 @@ export function IncidentDossierView({
         : "Loading incident";
     return (
       <main className={styles.content}>
-        <TopBar trackingCode={null} lastRefreshed={lastRefreshed} onRefresh={onRefresh} busy={busy} />
+        <header className={styles.topBar}>
+          <nav className={styles.crumbs} aria-label="Breadcrumb">
+            <Link href="/dashboard">Incidents</Link>
+          </nav>
+          <div className={styles.topBarRight}>
+            <UpdatedTimestamp lastRefreshed={lastRefreshed} />
+          </div>
+        </header>
         <section
           className={state === "loading" ? styles.loadingCard : styles.stateCard}
           role={state === "error" || state === "notFound" ? "alert" : undefined}
@@ -329,9 +353,10 @@ export function IncidentDossierView({
     window.setTimeout(() => setCopiedCode(false), 1800);
   }
 
-  function requestAssignTeam(label: string) {
-    if (!selectedTeamId) return;
-    const team = teams.find((item) => item.id === selectedTeamId);
+  function requestAssignTeam(teamId: string, label: string, reset: () => void) {
+    if (!teamId) return;
+    const team = teams.find((item) => item.id === teamId);
+    setAdminMenuOpen(false);
     setPendingConfirm({
       prompt: `Confirm ${label.toLowerCase()}${team ? ` to ${team.name}` : ""} for ${incident.trackingCode}?`,
       confirmLabel: label,
@@ -340,9 +365,9 @@ export function IncidentDossierView({
           label,
           path: `/api/incidents/${incident.id}/assign`,
           method: "POST",
-          json: { teamId: selectedTeamId },
+          json: { teamId },
         });
-        if (saved) setSelectedTeamId("");
+        if (saved) reset();
       },
     });
   }
@@ -370,6 +395,7 @@ export function IncidentDossierView({
   }
 
   function requestRerunAi() {
+    setAdminMenuOpen(false);
     setPendingConfirm({
       prompt: `Re-run AI on ${incident.trackingCode}? Its draft type and severity may update.`,
       confirmLabel: "Re-run AI",
@@ -384,6 +410,7 @@ export function IncidentDossierView({
   }
 
   function requestReject() {
+    setAdminMenuOpen(false);
     setPendingConfirm({
       prompt: `Reject ${incident.trackingCode} as not a real incident?`,
       confirmLabel: "Reject incident",
@@ -397,35 +424,6 @@ export function IncidentDossierView({
         });
       },
     });
-  }
-
-  function teamSelector(label: string) {
-    return (
-      <>
-        <select
-          className={styles.selectModern}
-          aria-label="Choose response team"
-          value={selectedTeamId}
-          onChange={(event) => setSelectedTeamId(event.target.value)}
-          disabled={busy}
-        >
-          <option value="">Select response team…</option>
-          {teams.map((team) => (
-            <option key={team.id} value={team.id} disabled={team.id === incident.teamId}>
-              {team.name}{team.id === incident.teamId ? " (current)" : ""}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          className={styles.buttonPrimary}
-          disabled={busy || !selectedTeamId}
-          onClick={() => requestAssignTeam(label)}
-        >
-          {label}
-        </button>
-      </>
-    );
   }
 
   function transitionAction(status: ReportStatus) {
@@ -461,7 +459,129 @@ export function IncidentDossierView({
 
   return (
     <main className={styles.content}>
-      <TopBar trackingCode={detail.trackingCode} lastRefreshed={lastRefreshed} onRefresh={onRefresh ?? onRetry} busy={busy} />
+      {/* Clean Topbar: Activity drawer + Admin actions menu tucked neatly here */}
+      <header className={styles.topBar}>
+        <nav className={styles.crumbs} aria-label="Breadcrumb">
+          <Link href="/dashboard">Incidents</Link>
+          <span aria-hidden="true">/</span>
+          <code>{detail.trackingCode}</code>
+        </nav>
+
+        <div className={styles.topBarRight}>
+          <UpdatedTimestamp lastRefreshed={lastRefreshed} />
+
+          <button
+            type="button"
+            className={styles.buttonSecondary}
+            onClick={() => setActivityOpen(true)}
+          >
+            <ClockIcon />
+            Activity
+            <span className={styles.countChip}>{detail.auditLog.length}</span>
+          </button>
+
+          {isAdmin && (
+            <div className={styles.menuWrap} ref={menuWrapRef}>
+              <button
+                type="button"
+                className={styles.buttonSecondary}
+                aria-expanded={adminMenuOpen}
+                aria-haspopup="menu"
+                onClick={() => setAdminMenuOpen((prev) => !prev)}
+              >
+                <ControlsIcon />
+                Admin actions
+                <ChevronDownIcon />
+              </button>
+
+              {adminMenuOpen && (
+                <div className={styles.dropdownMenu} role="menu" aria-label="Admin actions">
+                  <button
+                    type="button"
+                    className={styles.menuItem}
+                    role="menuitem"
+                    disabled={busy}
+                    onClick={requestRerunAi}
+                  >
+                    <ReopenIcon />
+                    Re-run AI analysis
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.menuItem}
+                    role="menuitem"
+                    disabled={busy}
+                    onClick={() => {
+                      setAdminMenuOpen(false);
+                      setOverrideOpen(true);
+                    }}
+                  >
+                    <EditIcon />
+                    Override priority score
+                  </button>
+
+                  {canAssign && detail.status !== "classified" && (
+                    <>
+                      <div className={styles.menuSep} />
+                      <div className={styles.menuReassign}>
+                        <span className={styles.overline} style={{ margin: 0 }}>Reassign team</span>
+                        <select
+                          className={`${styles.selectModern} ${styles.selectCompact}`}
+                          aria-label="Choose team to reassign"
+                          value={reassignTeamId}
+                          onChange={(event) => setReassignTeamId(event.target.value)}
+                          disabled={busy}
+                        >
+                          <option value="">Select team…</option>
+                          {teams.map((team) => (
+                            <option key={team.id} value={team.id} disabled={team.id === incident.teamId}>
+                              {team.name}{team.id === incident.teamId ? " (current)" : ""}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          className={`${styles.buttonPrimary} ${styles.buttonSmall}`}
+                          disabled={busy || !reassignTeamId}
+                          onClick={() => requestAssignTeam(reassignTeamId, "Reassign team", () => setReassignTeamId(""))}
+                        >
+                          Reassign
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  {canReject && (
+                    <>
+                      <div className={styles.menuSep} />
+                      <button
+                        type="button"
+                        className={`${styles.menuItem} ${styles.menuItemDanger}`}
+                        role="menuitem"
+                        disabled={busy}
+                        onClick={requestReject}
+                      >
+                        <RejectIcon />
+                        Reject as false alarm
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          <button
+            type="button"
+            className={styles.buttonSecondary}
+            onClick={onRefresh ?? onRetry}
+            disabled={busy}
+          >
+            Refresh
+          </button>
+        </div>
+      </header>
+
       <div className={styles.page}>
         {/* Compact Hero Command Card */}
         <section className={`${styles.heroCard} ${detail.priority?.band === "P1" ? styles.heroCritical : ""}`}>
@@ -508,7 +628,7 @@ export function IncidentDossierView({
                   const done = index < stepStageIndex || stepStageIndex === 4;
                   const current = index === stepStageIndex && stepStageIndex < 4;
                   return (
-                    <span key={item.key} style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                    <span key={item.key} className={styles.stepItem}>
                       {index > 0 && <span className={styles.stepSep} aria-hidden="true">›</span>}
                       <span
                         className={`${styles.stepPill} ${done ? styles.stepPillDone : ""} ${current ? styles.stepPillCurrent : ""}`}
@@ -544,7 +664,30 @@ export function IncidentDossierView({
               )}
               {step?.key === "assign" && (
                 isAdmin ? (
-                  teamSelector("Assign team")
+                  <>
+                    <select
+                      className={styles.selectModern}
+                      aria-label="Choose response team"
+                      value={selectedTeamId}
+                      onChange={(event) => setSelectedTeamId(event.target.value)}
+                      disabled={busy}
+                    >
+                      <option value="">Select response team…</option>
+                      {teams.map((team) => (
+                        <option key={team.id} value={team.id} disabled={team.id === incident.teamId}>
+                          {team.name}{team.id === incident.teamId ? " (current)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      className={styles.buttonPrimary}
+                      disabled={busy || !selectedTeamId}
+                      onClick={() => requestAssignTeam(selectedTeamId, "Assign team", () => setSelectedTeamId(""))}
+                    >
+                      Assign team
+                    </button>
+                  </>
                 ) : (
                   <span className={styles.mutedMessage}>Waiting for an admin to assign a team.</span>
                 )
@@ -586,19 +729,19 @@ export function IncidentDossierView({
             </div>
           )}
 
-          {(error || message) && (
+          {(error || message || teamsError) && (
             <p
-              className={`${styles.feedbackBar} ${error ? styles.feedbackError : styles.feedbackSuccess}`}
-              role={error ? "alert" : "status"}
+              className={`${styles.feedbackBar} ${error || teamsError ? styles.feedbackError : styles.feedbackSuccess}`}
+              role={error || teamsError ? "alert" : "status"}
             >
-              {error ?? message}
+              {error ?? (teamsError ? `Teams could not be loaded: ${teamsError}` : message)}
             </p>
           )}
         </section>
 
-        {/* 3 Equal-Height Balanced Columns (Fits 1366x720 desktop in 1 screen) */}
+        {/* ONLY THE 3 ESSENTIAL CARDS — Clean, Spacious, Zero Clutter */}
         <div className={styles.grid3}>
-          {/* Column 1: Evidence Photo + Embedded Mini-Map + Citizen Quote */}
+          {/* CARD 1: Evidence & Location */}
           <section className={styles.card} aria-labelledby="evidence-title">
             <div className={styles.cardHead}>
               <h2 className={styles.cardHeadTitle} id="evidence-title">
@@ -651,67 +794,68 @@ export function IncidentDossierView({
             </div>
           </section>
 
-          {/* Column 2: Unified Verification & AI Analysis + Activity Trail */}
-          <div className={styles.col}>
-            <section className={styles.card} id="human-verification" aria-labelledby="verification-title">
-              <div className={styles.cardHead}>
-                <h2 className={styles.cardHeadTitle} id="verification-title">
-                  <VerificationIcon />
-                  Verification &amp; AI Analysis
-                </h2>
-                <span
-                  className={`${styles.pill} ${detail.review ? styles.pillStatusResolved : styles.pillStatusReview}`}
-                  style={{ fontSize: "10.5px" }}
-                >
-                  {detail.review ? "Confirmed" : "Pending review"}
+          {/* CARD 2: Verification & AI Analysis */}
+          <section
+            className={`${styles.card} ${isCurrentStepReview ? styles.cardScrollable : ""}`}
+            id="human-verification"
+            aria-labelledby="verification-title"
+          >
+            <div className={styles.cardHead}>
+              <h2 className={styles.cardHeadTitle} id="verification-title">
+                <VerificationIcon />
+                Verification &amp; AI Analysis
+              </h2>
+              <span className={`${styles.pill} ${detail.review ? styles.pillStatusResolved : styles.pillStatusReview}`}>
+                {detail.review ? "Confirmed" : "Pending review"}
+              </span>
+            </div>
+
+            <div className={styles.compareBox}>
+              <div className={styles.cmpPanel}>
+                <span className={styles.overline}>
+                  AI Draft{latest ? ` (${shortModelName(latest.model)})` : ""}
                 </span>
+                {latest ? (
+                  <>
+                    <div className={styles.cmpMain}>
+                      {titleCase(latest.incidentType)} · {titleCase(latest.severity)}
+                    </div>
+                    <div className={styles.cmpSub}>
+                      {latest.severityConfidence != null
+                        ? `Severity conf: ${Math.round(latest.severityConfidence * 100)}%`
+                        : "Severity conf: —"}
+                    </div>
+                  </>
+                ) : (
+                  <div className={styles.cmpSub}>No AI result yet</div>
+                )}
               </div>
 
-              <div className={styles.compareBox}>
-                <div className={styles.cmpPanel}>
-                  <span className={styles.overline}>
-                    AI Draft{latest ? ` (${shortModelName(latest.model)})` : ""}
-                  </span>
-                  {latest ? (
-                    <>
-                      <div className={styles.cmpMain}>
-                        {titleCase(latest.incidentType)} · {titleCase(latest.severity)}
-                      </div>
-                      <div className={styles.cmpSub}>
-                        {latest.severityConfidence != null
-                          ? `Severity conf: ${Math.round(latest.severityConfidence * 100)}%`
-                          : "Severity conf: —"}
-                      </div>
-                    </>
-                  ) : (
-                    <div className={styles.cmpSub}>No AI result yet</div>
-                  )}
-                </div>
-
-                <div className={`${styles.cmpPanel} ${detail.review ? styles.cmpPanelConfirmed : ""}`}>
-                  <span className={styles.overline}>Human Confirmed</span>
-                  {detail.review ? (
-                    <>
-                      <div className={`${styles.cmpMain} ${styles.cmpMainConfirmed}`}>
-                        {titleCase(detail.review.finalType)} · {titleCase(detail.review.finalSeverity)}
-                      </div>
-                      <div className={`${styles.cmpSub} ${styles.cmpSubConfirmed}`}>
-                        {agreedWithAi ? "Agreed with AI" : "Adjusted by staff"}
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className={styles.cmpMain}>
-                        {detail.incidentType ? titleCase(detail.incidentType) : "Not confirmed"}
-                      </div>
-                      <div className={styles.cmpSub}>Awaiting staff confirmation</div>
-                    </>
-                  )}
-                </div>
+              <div className={`${styles.cmpPanel} ${detail.review ? styles.cmpPanelConfirmed : ""}`}>
+                <span className={styles.overline}>Human Confirmed</span>
+                {detail.review ? (
+                  <>
+                    <div className={`${styles.cmpMain} ${styles.cmpMainConfirmed}`}>
+                      {titleCase(detail.review.finalType)} · {titleCase(detail.review.finalSeverity)}
+                    </div>
+                    <div className={`${styles.cmpSub} ${styles.cmpSubConfirmed}`}>
+                      {agreedWithAi ? "Agreed with AI" : "Adjusted by staff"}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className={styles.cmpMain}>
+                      {detail.incidentType ? titleCase(detail.incidentType) : "Not confirmed"}
+                    </div>
+                    <div className={styles.cmpSub}>Awaiting staff confirmation</div>
+                  </>
+                )}
               </div>
+            </div>
 
-              {latest && (
-                <>
+            {latest && (
+              <>
+                <div className={styles.metricBlock}>
                   <div className={styles.confBarRow}>
                     <span>Type confidence</span>
                     <strong>{formatPercent(latest.confidence)}</strong>
@@ -729,97 +873,119 @@ export function IncidentDossierView({
                       style={{ width: `${Math.min(100, Math.max(0, latest.confidence * 100))}%` }}
                     />
                   </span>
+                </div>
 
-                  <div className={styles.metaStrip}>
-                    <div className={styles.hazardsInline}>
-                      <span className={styles.overline} style={{ margin: 0 }}>Hazards:</span>
-                      {latest.hazards.length > 0 ? (
-                        latest.hazards.map((hazard, index) => (
-                          <span className={styles.hazardPill} key={`${hazard}-${index}`}>
-                            {hazard}
-                          </span>
-                        ))
-                      ) : (
-                        <span className={styles.emptyText}>None</span>
-                      )}
-                    </div>
-                    <span className={styles.coordsTag}>
-                      {latest.latencyMs != null ? `${latest.latencyMs} ms · ` : ""}
-                      {detail.classifications.length} {detail.classifications.length === 1 ? "run" : "runs"}
-                    </span>
+                <div className={styles.infoRow}>
+                  <div className={styles.hazardsInline}>
+                    <span className={styles.overline} style={{ margin: 0 }}>Hazards</span>
+                    {latest.hazards.length > 0 ? (
+                      latest.hazards.map((hazard, index) => (
+                        <span className={styles.hazardPill} key={`${hazard}-${index}`}>
+                          {hazard}
+                        </span>
+                      ))
+                    ) : (
+                      <span className={styles.emptyText}>None</span>
+                    )}
                   </div>
-                </>
-              )}
-
-              {detail.review && (
-                <div className={styles.reviewerNote}>
-                  {detail.review.notes ? (
-                    <>
-                      <strong>Note:</strong> “{detail.review.notes}”{" "}
-                    </>
-                  ) : null}
-                  <span className={styles.reviewerMeta}>
-                    — {detail.review.reviewer?.full_name ?? "Staff"} · {formatShortDate(detail.review.createdAt)}
+                  <span className={styles.coordsTag}>
+                    {latest.latencyMs != null ? `${latest.latencyMs} ms · ` : ""}
+                    {detail.classifications.length} {detail.classifications.length === 1 ? "run" : "runs"}
                   </span>
                 </div>
-              )}
+              </>
+            )}
 
-              {detail.classifications.length > 1 && (
-                <details className={styles.historyDisclosure}>
-                  <summary>Past AI runs ({detail.classifications.length})</summary>
-                  <div className={styles.tableScroller}>
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>When</th>
-                          <th>Model</th>
-                          <th>Type</th>
-                          <th>Severity</th>
-                          <th>Conf</th>
+            {detail.classifications.length > 1 && (
+              <details className={styles.historyDisclosure}>
+                <summary>Past AI runs ({detail.classifications.length})</summary>
+                <div className={styles.tableScroller}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>When</th>
+                        <th>Model</th>
+                        <th>Type</th>
+                        <th>Severity</th>
+                        <th>Conf</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detail.classifications.map((classification) => (
+                        <tr key={classification.id}>
+                          <td>{formatShortDate(classification.createdAt)}</td>
+                          <td>{shortModelName(classification.model)}</td>
+                          <td>{titleCase(classification.incidentType)}</td>
+                          <td>{severityWithPercent(classification.severity, classification.severityConfidence)}</td>
+                          <td>{formatPercent(classification.confidence)}</td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {detail.classifications.map((classification) => (
-                          <tr key={classification.id}>
-                            <td>{formatShortDate(classification.createdAt)}</td>
-                            <td>{shortModelName(classification.model)}</td>
-                            <td>{titleCase(classification.incidentType)}</td>
-                            <td>{severityWithPercent(classification.severity, classification.severityConfidence)}</td>
-                            <td>{formatPercent(classification.confidence)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </details>
-              )}
-
-              {isCurrentStepReview && (
-                <div className={styles.reviewFormWrap}>
-                  <ReviewForm
-                    bare
-                    item={{
-                      id: detail.id,
-                      description: detail.description,
-                      photoUrl: detail.photoUrl,
-                      classification: latest ?? null,
-                    }}
-                    onDone={onReviewDone}
-                  />
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              )}
-            </section>
+              </details>
+            )}
 
-            {/* Human-Readable Activity Trail */}
-            <section className={`${styles.card} ${styles.cardGrow}`} aria-labelledby="activity-title">
-              <div className={styles.cardHead}>
-                <h2 className={styles.cardHeadTitle} id="activity-title">
-                  <ClockIcon />
-                  Activity Trail
-                  <span className={`${styles.pill} ${styles.pillMuted}`} style={{ fontSize: "10.5px", padding: "1px 7px" }}>
-                    {detail.auditLog.length}
-                  </span>
-                </h2>
+            {isCurrentStepReview ? (
+              <div className={styles.reviewFormWrap}>
+                <ReviewForm
+                  bare
+                  item={{
+                    id: detail.id,
+                    description: detail.description,
+                    photoUrl: detail.photoUrl,
+                    classification: latest ?? null,
+                  }}
+                  onDone={onReviewDone}
+                />
+              </div>
+            ) : detail.review ? (
+              <div className={styles.reviewerNote}>
+                <span className={styles.overline}>Reviewer note</span>
+                {detail.review.notes ? `“${detail.review.notes}”` : "No reviewer note added."}
+                <span className={styles.reviewerMeta}>
+                  Confirmed by {detail.review.reviewer?.full_name ?? "Staff"} · {formatShortDate(detail.review.createdAt)}
+                </span>
+              </div>
+            ) : null}
+          </section>
+
+          {/* CARD 3: Priority Score */}
+          <PriorityBreakdownCard
+            detail={detail}
+            isAdmin={isAdmin}
+            busy={busy}
+            overrideOpen={overrideOpen}
+            setOverrideOpen={setOverrideOpen}
+            score={score}
+            setScore={setScore}
+            reason={reason}
+            setReason={setReason}
+            onSaveOverride={requestSaveOverride}
+            onOpenHistory={() => setActivityOpen(true)}
+          />
+        </div>
+      </div>
+
+      {/* On-Demand Slide-Over Activity Drawer */}
+      {activityOpen && (
+        <div
+          className={styles.drawerBackdrop}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Incident activity trail"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setActivityOpen(false);
+          }}
+        >
+          <div className={styles.drawer}>
+            <div className={styles.drawerHead}>
+              <h2 className={styles.drawerTitle}>
+                <ClockIcon />
+                Activity Trail
+                <span className={styles.countChip}>{detail.auditLog.length}</span>
+              </h2>
+              <div className={styles.drawerHeadActions}>
                 {detail.auditLog.length > 0 && (
                   <button
                     type="button"
@@ -829,10 +995,20 @@ export function IncidentDossierView({
                     {showRawJson ? "Hide JSON" : "Raw JSON"}
                   </button>
                 )}
+                <button
+                  type="button"
+                  className={styles.buttonSecondary}
+                  onClick={() => setActivityOpen(false)}
+                >
+                  Close
+                </button>
               </div>
+            </div>
 
-              {detail.auditLog.length > 0 ? (
-                <div className={styles.auditScroll}>
+            <div className={styles.drawerBody}>
+              <div>
+                <h3 className={styles.drawerSectionTitle}>Timeline</h3>
+                {detail.auditLog.length > 0 ? (
                   <ol className={styles.auditList}>
                     {detail.auditLog.map((event, idx) => (
                       <li key={event.id} className={styles.auditItem}>
@@ -857,91 +1033,35 @@ export function IncidentDossierView({
                       </li>
                     ))}
                   </ol>
-                </div>
-              ) : (
-                <p className={styles.emptyText}>No recorded activity yet.</p>
-              )}
-            </section>
-          </div>
-
-          {/* Column 3: Priority Score Breakdown + Admin Controls */}
-          <div className={styles.col}>
-            <PriorityBreakdownCard
-              detail={detail}
-              isAdmin={isAdmin}
-              busy={busy}
-              overrideOpen={overrideOpen}
-              setOverrideOpen={setOverrideOpen}
-              score={score}
-              setScore={setScore}
-              reason={reason}
-              setReason={setReason}
-              onSaveOverride={requestSaveOverride}
-            />
-
-            <section className={styles.card} aria-labelledby="controls-title">
-              <div className={styles.cardHead} style={{ marginBottom: "6px" }}>
-                <h2 className={styles.cardHeadTitle} id="controls-title">
-                  <ControlsIcon />
-                  {isAdmin ? "Admin Controls" : "Team History"}
-                </h2>
+                ) : (
+                  <p className={styles.emptyText}>No recorded activity yet.</p>
+                )}
               </div>
 
-              {teamsError && (
-                <p className={styles.errorInline} role="alert">
-                  Teams could not be loaded: {teamsError}
-                </p>
-              )}
-
-              {isAdmin ? (
-                <>
-                  <p className={styles.adminNote}>
-                    All overrides, reassignments, and actions are logged in the activity trail.
-                  </p>
-
-                  {canAssign && detail.status !== "classified" && (
-                    <div className={styles.reassignWrap}>{teamSelector("Reassign")}</div>
-                  )}
-
-                  <div className={styles.adminActionsRow}>
-                    <button
-                      type="button"
-                      className={styles.buttonSecondary}
-                      disabled={busy}
-                      onClick={requestRerunAi}
-                    >
-                      Re-run AI
-                    </button>
-                    {canReject && (
-                      <button
-                        type="button"
-                        className={styles.buttonDangerSoft}
-                        disabled={busy}
-                        onClick={requestReject}
-                      >
-                        Reject
-                      </button>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <p className={styles.adminNote}>Admin controls are restricted to admin accounts.</p>
-              )}
-
               {detail.assignments.length > 0 && (
-                <ul className={styles.assignmentList} aria-label="Past team assignments">
-                  {detail.assignments.map((assignment) => (
-                    <li key={assignment.id}>
-                      <strong>{assignment.team?.name ?? "Team unavailable"}</strong>
-                      <time dateTime={assignment.assignedAt}>{formatShortDate(assignment.assignedAt)}</time>
-                    </li>
-                  ))}
-                </ul>
+                <div>
+                  <h3 className={styles.drawerSectionTitle}>Team assignment history</h3>
+                  <ul className={styles.assignmentList}>
+                    {detail.assignments.map((assignment) => (
+                      <li key={assignment.id}>
+                        <div>
+                          <strong>{assignment.team?.name ?? "Team unavailable"}</strong>
+                          {assignment.assignedBy?.full_name ? (
+                            <div>Assigned by {assignment.assignedBy.full_name}</div>
+                          ) : null}
+                        </div>
+                        <time className={styles.auditTime} dateTime={assignment.assignedAt}>
+                          {formatShortDate(assignment.assignedAt)}
+                        </time>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
-            </section>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Photo Lightbox Modal */}
       {lightboxOpen && detail.photoUrl && !photoFailed && (
@@ -956,10 +1076,7 @@ export function IncidentDossierView({
         >
           <div className={styles.lightboxInner}>
             {/* eslint-disable-next-line @next/next/no-img-element -- signed evidence URL returned by the staff API */}
-            <img
-              src={detail.photoUrl}
-              alt={`Full evidence photo for ${detail.trackingCode}`}
-            />
+            <img src={detail.photoUrl} alt={`Full evidence photo for ${detail.trackingCode}`} />
             <div className={styles.lightboxBar}>
               <span>
                 {detail.trackingCode} · {detail.location.area ?? "Unknown area"} · {formatShortDate(detail.createdAt)}
@@ -984,54 +1101,21 @@ export function IncidentDossierView({
   );
 }
 
-function TopBar({
-  trackingCode,
-  lastRefreshed,
-  onRefresh,
-  busy,
-}: {
-  trackingCode: string | null;
-  lastRefreshed: string | null;
-  onRefresh?: () => void;
-  busy: boolean;
-}) {
+function UpdatedTimestamp({ lastRefreshed }: { lastRefreshed: string | null }) {
   return (
-    <header className={styles.topBar}>
-      <nav className={styles.crumbs} aria-label="Breadcrumb">
-        <Link href="/dashboard">Incidents</Link>
-        {trackingCode && (
-          <>
-            <span aria-hidden="true">/</span>
-            <code>{trackingCode}</code>
-          </>
-        )}
-      </nav>
-      <div className={styles.topBarRight}>
-        <span className={styles.lastUpdated}>
-          <ClockIcon />
-          <span>
-            Updated{" "}
-            <time dateTime={lastRefreshed ?? undefined}>
-              {lastRefreshed
-                ? new Intl.DateTimeFormat("en-PH", { timeStyle: "short", timeZone: "Asia/Manila" }).format(
-                    new Date(lastRefreshed)
-                  )
-                : "—"}
-            </time>
-          </span>
-        </span>
-        {onRefresh && (
-          <button
-            type="button"
-            className={`${styles.buttonSecondary} ${styles.buttonSmall}`}
-            onClick={onRefresh}
-            disabled={busy}
-          >
-            Refresh
-          </button>
-        )}
-      </div>
-    </header>
+    <span className={styles.lastUpdated}>
+      <ClockIcon />
+      <span>
+        Updated{" "}
+        <time dateTime={lastRefreshed ?? undefined}>
+          {lastRefreshed
+            ? new Intl.DateTimeFormat("en-PH", { timeStyle: "short", timeZone: "Asia/Manila" }).format(
+                new Date(lastRefreshed)
+              )
+            : "—"}
+        </time>
+      </span>
+    </span>
   );
 }
 
@@ -1046,6 +1130,7 @@ function PriorityBreakdownCard({
   reason,
   setReason,
   onSaveOverride,
+  onOpenHistory,
 }: {
   detail: DossierIncidentDetail;
   isAdmin: boolean;
@@ -1057,6 +1142,7 @@ function PriorityBreakdownCard({
   reason: string;
   setReason: (value: string) => void;
   onSaveOverride: () => void;
+  onOpenHistory: () => void;
 }) {
   const factors: { key: keyof typeof PRIORITY_WEIGHTS; label: string; fillClass: string }[] = [
     { key: "severity", label: "Severity (45%)", fillClass: styles.barFillDanger },
@@ -1066,7 +1152,7 @@ function PriorityBreakdownCard({
   ];
 
   return (
-    <section className={`${styles.card} ${styles.cardGrow}`} aria-labelledby="priority-title">
+    <section className={styles.card} aria-labelledby="priority-title">
       <div className={styles.cardHead}>
         <h2 className={styles.cardHeadTitle} id="priority-title">
           <ScoreIcon />
@@ -1075,7 +1161,7 @@ function PriorityBreakdownCard({
         {isAdmin && (
           <button
             type="button"
-            className={`${styles.buttonGhost} ${styles.buttonGhostBrand}`}
+            className={styles.buttonGhost}
             onClick={() => setOverrideOpen(!overrideOpen)}
           >
             {overrideOpen ? "Close" : "Override"}
@@ -1085,7 +1171,7 @@ function PriorityBreakdownCard({
 
       {detail.priority ? (
         <>
-          <div className={styles.scoreHeaderRow}>
+          <div className={styles.scoreHero}>
             <div>
               <span className={styles.scoreBig}>{formatScore(detail.priority.score)}</span>
               <span className={styles.scoreOutOf}> / 100</span>
@@ -1171,6 +1257,13 @@ function PriorityBreakdownCard({
           </div>
         </div>
       )}
+
+      <div className={styles.scoreFooter}>
+        <span>{detail.priority?.overridden ? "Manually overridden by admin" : "Calculated from incident inputs"}</span>
+        <button type="button" className={styles.buttonGhost} onClick={onOpenHistory}>
+          View history →
+        </button>
+      </div>
     </section>
   );
 }
@@ -1331,8 +1424,10 @@ function summarizeAuditEvent(event: IncidentDetailData["auditLog"][number]): str
     return `${prev}${titleCase(after.status)}.`;
   }
   if (event.action === "report_reviewed") {
-    const type = typeof after?.finalType === "string" ? titleCase(after.finalType) : typeof after?.incident_type === "string" ? titleCase(after.incident_type) : null;
-    const sev = typeof after?.finalSeverity === "string" ? titleCase(after.finalSeverity) : typeof after?.severity === "string" ? titleCase(after.severity) : null;
+    const rawType = after?.final_type ?? after?.finalType ?? after?.incident_type ?? after?.incidentType;
+    const rawSev = after?.final_severity ?? after?.finalSeverity ?? after?.severity;
+    const type = typeof rawType === "string" ? titleCase(rawType) : null;
+    const sev = typeof rawSev === "string" ? titleCase(rawSev) : null;
     const notes = typeof after?.notes === "string" && after.notes.trim() ? ` Note: “${after.notes.trim()}”.` : "";
     if (type || sev) return `${[type, sev].filter(Boolean).join(" · ")}.${notes}`;
   }
@@ -1341,12 +1436,18 @@ function summarizeAuditEvent(event: IncidentDetailData["auditLog"][number]): str
     return `Score set to ${formatScore(after.score)}.${reasonText}`;
   }
   if (event.action === "team_assigned") {
-    const name = typeof after?.teamName === "string" ? after.teamName : typeof after?.team_id === "string" ? "Response team dispatched" : "Team assigned";
+    const name = typeof after?.team_name === "string"
+      ? after.team_name
+      : typeof after?.teamName === "string"
+        ? after.teamName
+        : "Response team dispatched";
     return `${name}.`;
   }
   if (event.action === "report_classified" || event.action === "reclassified") {
-    const type = typeof after?.incidentType === "string" ? titleCase(after.incidentType) : typeof after?.incident_type === "string" ? titleCase(after.incident_type) : null;
-    const sev = typeof after?.severity === "string" ? titleCase(after.severity) : null;
+    const rawType = after?.incident_type ?? after?.incidentType;
+    const rawSev = after?.severity;
+    const type = typeof rawType === "string" ? titleCase(rawType) : null;
+    const sev = typeof rawSev === "string" ? titleCase(rawSev) : null;
     if (type || sev) return `Draft: ${[type, sev].filter(Boolean).join(" · ")}.`;
   }
   if (event.action === "report_submitted") {
@@ -1446,6 +1547,18 @@ function ScoreIcon() {
 
 function ControlsIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>;
+}
+
+function ChevronDownIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" width="11" height="11" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>;
+}
+
+function EditIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>;
+}
+
+function RejectIcon() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>;
 }
 
 function ExternalLinkIcon() {
