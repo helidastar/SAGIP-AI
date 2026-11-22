@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { OperationsLogin } from "@/components/auth/OperationsLogin";
+import { StaffLogin } from "@/components/auth/StaffLogin";
 
 export const metadata: Metadata = {
-  title: "Operations Portal | SAGIP-AI",
+  title: "Staff sign in | SAGIP-AI",
 };
 
 export default function AdminLoginPage() {
-  return <OperationsLogin />;
+  return <StaffLogin />;
 }
