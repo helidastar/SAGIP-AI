@@ -1,12 +1,12 @@
 .page {
-  --rq-surface: #f9f9ff;
+  --rq-surface: #f8fafc;
   --rq-white: #ffffff;
-  --rq-ink: #111c2d;
-  --rq-muted: #44474c;
-  --rq-line: #e7eeff;
-  --rq-teal: #006a63;
-  --rq-teal-dark: #115e59;
-  --rq-red: #ba1a1a;
+  --rq-ink: #0f172a;
+  --rq-muted: #475569;
+  --rq-line: #e2e8f0;
+  --rq-teal: #173f7d;
+  --rq-teal-dark: #12326a;
+  --rq-red: #b91c1c;
   --rq-amber: #d97706;
   --rq-blue: #2563eb;
   --rq-green: #15803d;
@@ -260,7 +260,7 @@
 .reasonChip strong {
   min-width: 20px;
   border-radius: 999px;
-  background: #e7eeff;
+  background: #e2e8f0;
   padding: 2px 4px;
   font-family: var(--mono-font);
   font-size: 10px;
@@ -268,7 +268,7 @@
 }
 
 .reasonChipActive {
-  background: #101c2c;
+  background: #0d2548;
   color: #ffffff;
 }
 
@@ -356,7 +356,7 @@
 .table th {
   height: 44px;
   border-bottom: 1px solid var(--rq-line);
-  background: #f0f3ff;
+  background: #f1f5f9;
   padding: 8px 12px;
   color: var(--rq-muted);
   font-size: 11px;
@@ -440,7 +440,7 @@
 }
 
 .copyButton:hover {
-  background: #eef2ff;
+  background: #f1f5f9;
   color: var(--rq-ink);
 }
 
@@ -1106,7 +1106,7 @@
   }
 
   .table th:nth-child(6) {
-    background: #f0f3ff;
+    background: #f1f5f9;
   }
 
   .actionCell {
@@ -1157,7 +1157,7 @@
 }
 
 /* Desktop one-screen layout: only the table rows scroll. */
-@media (min-width: 1024px) and (min-height: 600px) {
+@media (min-width: 1024px) and (min-height: 500px) {
   .page {
     display: flex;
     min-height: 0;

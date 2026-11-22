@@ -1,15 +1,15 @@
 .shell {
-  --navy: #101c2c;
-  --navy-raised: #1b2939;
-  --teal: #0f766e;
-  --teal-dark: #075e59;
-  --page: #f7f8fc;
+  --navy: #0d2548;
+  --navy-raised: #16325e;
+  --teal: #173f7d;
+  --teal-dark: #12326a;
+  --page: #f8fafc;
   --card: #ffffff;
-  --ink: #172235;
-  --muted: #596273;
-  --line: #e1e6ef;
-  --line-strong: #cbd4e2;
-  --field: #edf2ff;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --line-strong: #cbd5e1;
+  --field: #f1f5f9;
   --teal-soft: #d7f3ef;
   --blue-soft: #e5edff;
   --red: #b42318;
@@ -56,7 +56,7 @@
   grid-template-columns: 226px minmax(0, 1fr);
   background: var(--page);
   color: var(--ink);
-  font-family: var(--font-inter), Arial, sans-serif;
+  font-family: var(--font-public-sans), Arial, sans-serif;
   font-size: var(--body-medium-size);
   line-height: var(--body-medium-line);
 }
@@ -68,7 +68,7 @@
 }
 
 .shell :focus-visible {
-  outline: 3px solid #087f75;
+  outline: 3px solid #173f7d;
   outline-offset: 2px;
 }
 
@@ -121,8 +121,8 @@
 }
 
 .brandCopy span {
-  color: #9da9ba;
-  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  color: #a9b8d0;
+  font-family: var(--font-plex-mono), Consolas, monospace;
   font-size: var(--overline-size);
   line-height: var(--body-small-line);
   text-transform: uppercase;
@@ -130,8 +130,8 @@
 
 .navHeading {
   margin: var(--space-3xl) var(--space-xs) var(--space-sm);
-  color: #9da9ba;
-  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  color: #a9b8d0;
+  font-family: var(--font-plex-mono), Consolas, monospace;
   font-size: var(--overline-size);
   font-weight: 600;
   line-height: var(--overline-line);
@@ -153,7 +153,7 @@
   gap: var(--space-sm);
   border-radius: 7px;
   padding: var(--space-sm);
-  color: #aab5c5;
+  color: #a9b8d0;
   font-size: var(--body-small-size);
   line-height: var(--body-small-line);
   text-decoration: none;
@@ -185,7 +185,7 @@
   background: #b42318;
   padding: var(--space-2xs) var(--space-xs);
   color: #ffffff;
-  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-family: var(--font-plex-mono), Consolas, monospace;
   font-size: var(--overline-size);
   font-weight: 600;
   line-height: var(--overline-line);
@@ -204,7 +204,7 @@
   align-items: center;
   gap: var(--space-sm);
   margin-top: auto;
-  border-top: 1px solid #304055;
+  border-top: 1px solid #22407a;
   padding: var(--space-lg) var(--space-xs) var(--space-xs);
 }
 
@@ -241,7 +241,7 @@
 }
 
 .accountCopy span {
-  color: #aab5c5;
+  color: #a9b8d0;
   text-transform: capitalize;
 }
 
@@ -300,7 +300,7 @@
   align-items: center;
   gap: var(--space-sm);
   color: var(--muted);
-  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-family: var(--font-plex-mono), Consolas, monospace;
   font-size: var(--body-small-size);
   line-height: var(--body-small-line);
 }
@@ -328,7 +328,7 @@
 .loadingCard,
 .stateCard {
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--card);
   box-shadow: 0 2px 6px rgb(16 28 44 / 7%);
 }
@@ -351,7 +351,7 @@
   align-items: center;
   gap: var(--space-sm);
   color: var(--muted);
-  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-family: var(--font-plex-mono), Consolas, monospace;
   font-size: var(--body-small-size);
   line-height: var(--body-small-line);
 }
@@ -436,9 +436,9 @@
   min-height: 28px;
   align-items: center;
   border-radius: 999px;
-  background: #e7ebf1;
+  background: #f1f5f9;
   padding: var(--space-xs) var(--space-md);
-  color: #394457;
+  color: #2a4a85;
   font-size: var(--label-small-size);
   font-weight: 600;
   line-height: var(--label-small-line);
@@ -476,7 +476,7 @@
 
 .coordinates {
   color: #3b4658;
-  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-family: var(--font-plex-mono), Consolas, monospace;
 }
 
 .metaRow strong {
@@ -507,7 +507,7 @@
 
 .compositeScore strong {
   color: var(--red);
-  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-family: var(--font-plex-mono), Consolas, monospace;
   font-size: var(--display-size);
   font-weight: 700;
   line-height: var(--display-line);
@@ -532,8 +532,8 @@
 }
 
 .overline {
-  color: #394457;
-  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  color: #2a4a85;
+  font-family: var(--font-plex-mono), Consolas, monospace;
   font-size: var(--overline-size);
   font-weight: 600;
   line-height: var(--overline-line);
@@ -566,7 +566,7 @@
 }
 
 .reviewBanner span {
-  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-family: var(--font-plex-mono), Consolas, monospace;
   font-size: var(--body-small-size);
 }
 
@@ -602,7 +602,7 @@
   gap: var(--space-xs);
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #f6f8fc;
+  background: #f8fafc;
   padding: var(--space-sm);
 }
 
@@ -616,7 +616,7 @@
 .timeline li time,
 .timelineTime {
   color: var(--muted);
-  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-family: var(--font-plex-mono), Consolas, monospace;
   font-size: var(--overline-size);
   line-height: var(--body-small-line);
 }
@@ -635,7 +635,7 @@
   border-radius: 50%;
   background: #ffffff;
   color: var(--muted);
-  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-family: var(--font-plex-mono), Consolas, monospace;
   font-size: var(--overline-size);
 }
 
@@ -735,7 +735,7 @@
   background: var(--field);
   padding: var(--space-xs) var(--space-sm);
   color: #34425a;
-  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-family: var(--font-plex-mono), Consolas, monospace;
   font-size: var(--overline-size);
   line-height: var(--body-small-line);
   text-transform: uppercase;
@@ -744,7 +744,7 @@
 .photoFrame {
   overflow: hidden;
   border-radius: 8px;
-  background: #e7ebf1;
+  background: #f1f5f9;
 }
 
 .photoFrame img {
@@ -782,7 +782,7 @@
 .captureTime {
   margin: calc(-1 * var(--space-sm)) 0 0;
   color: var(--muted);
-  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-family: var(--font-plex-mono), Consolas, monospace;
   font-size: var(--body-small-size);
 }
 
@@ -835,7 +835,7 @@
 .geoCoordinates {
   margin: 0;
   color: var(--ink);
-  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-family: var(--font-plex-mono), Consolas, monospace;
   font-size: var(--label-large-size);
   line-height: var(--label-large-line);
 }
@@ -857,7 +857,7 @@
   border: 1px solid transparent;
   border-radius: 7px;
   padding: var(--space-sm) var(--space-md);
-  font-family: var(--font-inter), Arial, sans-serif;
+  font-family: var(--font-public-sans), Arial, sans-serif;
   font-size: var(--label-medium-size);
   font-weight: 600;
   line-height: var(--label-medium-line);
@@ -928,7 +928,7 @@
 .dataPair {
   grid-template-columns: minmax(108px, 0.65fr) minmax(0, 1fr);
   align-items: center;
-  background: #f6f8fc;
+  background: #f8fafc;
 }
 
 .dataPair strong {
@@ -970,7 +970,7 @@
 }
 
 .hazards {
-  background: #f7f8fc;
+  background: #f8fafc;
 }
 
 .hazards ul {
@@ -1026,7 +1026,7 @@
 
 .tableScroller th {
   color: var(--muted);
-  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-family: var(--font-plex-mono), Consolas, monospace;
   font-size: var(--overline-size);
   font-weight: 600;
 }
@@ -1061,7 +1061,7 @@
 
 .totalScore strong {
   color: var(--red);
-  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-family: var(--font-plex-mono), Consolas, monospace;
   font-size: var(--h2-size);
   line-height: var(--h2-line);
 }
@@ -1145,7 +1145,7 @@
   min-height: 40px;
   border-radius: 7px;
   padding: var(--space-sm) var(--space-md);
-  font-family: var(--font-inter), Arial, sans-serif;
+  font-family: var(--font-public-sans), Arial, sans-serif;
   font-size: var(--label-small-size);
   font-weight: 600;
   line-height: var(--label-small-line);
@@ -1201,7 +1201,7 @@
 .adminTools {
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--card);
   box-shadow: 0 2px 6px rgb(16 28 44 / 7%);
 }
@@ -1245,7 +1245,7 @@
   gap: var(--space-sm);
   min-width: 0;
   border-radius: 8px;
-  background: #f7f8fc;
+  background: #f8fafc;
   padding: var(--space-md);
 }
 
@@ -1267,7 +1267,7 @@
   min-width: 0;
   flex: 1;
   gap: var(--space-xs);
-  color: #394457;
+  color: #2a4a85;
   font-size: var(--label-small-size);
   font-weight: 600;
   line-height: var(--label-small-line);
@@ -1282,7 +1282,7 @@
   background: #ffffff;
   padding: var(--space-sm);
   color: var(--ink);
-  font-family: var(--font-inter), Arial, sans-serif;
+  font-family: var(--font-public-sans), Arial, sans-serif;
   font-size: var(--body-small-size);
   line-height: var(--body-small-line);
 }
@@ -1353,7 +1353,7 @@
 
 .auditEvent > summary time {
   color: var(--muted);
-  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-family: var(--font-plex-mono), Consolas, monospace;
   font-size: var(--overline-size);
   line-height: var(--body-small-line);
 }
@@ -1373,7 +1373,7 @@
   background: #f4f6fa;
   padding: var(--space-md);
   color: #334155;
-  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-family: var(--font-plex-mono), Consolas, monospace;
   font-size: var(--overline-size);
   line-height: var(--body-small-line);
   white-space: pre-wrap;
@@ -1464,7 +1464,7 @@
 
   .account {
     margin-top: var(--space-sm);
-    border-top: 1px solid #304055;
+    border-top: 1px solid #22407a;
     padding: var(--space-sm) var(--space-xs) 0;
   }
 
@@ -1541,7 +1541,7 @@
   align-items: center;
   border-radius: 999px;
   background: #ffffff;
-  border: 1px solid var(--outline-variant, #c5c6cd);
+  border: 1px solid var(--outline-variant, #cbd5e1);
   padding: 0 12px;
   font-family: var(--mono-font, monospace);
   font-size: 13px;
@@ -1564,12 +1564,12 @@
 }
 
 .collapsibleSummary:focus-visible {
-  outline: 2px solid #006a63;
+  outline: 2px solid #173f7d;
   outline-offset: 2px;
 }
 
 /* Desktop one-screen layout: the page never scrolls; long columns scroll on their own. */
-@media (min-width: 1025px) and (min-height: 600px) {
+@media (min-width: 1025px) and (min-height: 500px) {
   .shell {
     height: 100vh;
     min-height: 0;
@@ -1661,4 +1661,85 @@
   .card {
     padding: var(--space-md) var(--space-lg);
   }
+}
+
+.shell h1,
+.shell h2 {
+  font-family: var(--font-archivo), var(--font-public-sans), Arial, sans-serif;
+}
+
+.totalInline {
+  margin-left: auto;
+  color: var(--ink);
+  font-family: var(--font-plex-mono), Consolas, monospace;
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.factorList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md) var(--space-lg);
+}
+
+/* Short desktop windows (laptop with browser bars): tighten spacing so nothing scrolls. */
+@media (min-width: 1025px) and (min-height: 500px) and (max-height: 820px) {
+  .page {
+    gap: var(--space-sm);
+    padding-top: var(--space-sm);
+    padding-bottom: var(--space-sm);
+  }
+
+  .hero {
+    padding: var(--space-sm) var(--space-lg);
+  }
+
+  .hero h1 {
+    font-size: 24px;
+    line-height: 30px;
+  }
+
+  .contentGrid,
+  .primaryColumn,
+  .secondaryColumn,
+  .tertiaryColumn {
+    gap: var(--space-sm);
+  }
+
+  .card {
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .photoFallback {
+    min-height: 96px;
+  }
+
+  .photoFrame img {
+    max-height: 150px;
+  }
+
+  .transcript {
+    padding: var(--space-sm);
+  }
+
+  .reviewBanner {
+    padding: 4px var(--space-md);
+  }
+}
+
+.reviewForm :global(button) {
+  text-transform: none;
+  font-size: 14px;
+}
+
+.reviewForm :global(button.bg-foreground) {
+  border-color: #173f7d;
+  background: #173f7d;
+  color: #ffffff;
+}
+
+.reviewForm :global(button.bg-foreground:hover) {
+  background: #12326a;
 }

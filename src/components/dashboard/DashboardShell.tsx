@@ -4,21 +4,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useState, type ReactNode } from "react";
-import { Inter, JetBrains_Mono } from "next/font/google";
 import type { StaffUser } from "@/components/dashboard/StaffProvider";
 import styles from "@/components/dashboard/DashboardShell.module.css";
 
 export const DashboardQueueCountContext = createContext<(count: number | null) => void>(() => {});
-
-const dashboardUiFont = Inter({
-  subsets: ["latin"],
-  variable: "--font-dashboard-ui",
-});
-
-const dashboardMonoFont = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-dashboard-mono",
-});
 
 export function DashboardShell({
   staff,
@@ -41,7 +30,7 @@ export function DashboardShell({
   return (
     <DashboardQueueCountContext.Provider value={setReviewCount}>
       <div
-        className={`${styles.dashboard} ${dashboardUiFont.variable} ${dashboardMonoFont.variable}`}
+        className={styles.dashboard}
         data-dashboard-shell
       >
         <div className={styles.shell}>
