@@ -80,7 +80,6 @@ export function StaffProvider({
               <Link href="/dashboard" className="px-3 py-2 font-mono text-xs hover:bg-grid focus-visible:outline-2 focus-visible:outline-offset-2">Ranked list</Link>
               <Link href="/dashboard/review" className="px-3 py-2 font-mono text-xs hover:bg-grid focus-visible:outline-2 focus-visible:outline-offset-2">Review queue</Link>
               <Link href="/dashboard/analytics" className="px-3 py-2 font-mono text-xs hover:bg-grid focus-visible:outline-2 focus-visible:outline-offset-2">Analytics</Link>
-              <Link href="/dashboard/definitions" className="px-3 py-2 font-mono text-xs hover:bg-grid focus-visible:outline-2 focus-visible:outline-offset-2">Definitions</Link>
             </nav>
             <p className="mt-3 font-mono text-[10px] text-muted">
               Team assignment and audit history are available from incident details.
