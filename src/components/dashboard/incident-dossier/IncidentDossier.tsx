@@ -118,12 +118,6 @@ export function IncidentDossierShell({
                 <span>Analytics</span>
               </Link>
             </li>
-            <li>
-              <Link href="/dashboard/definitions" className={styles.navLink}>
-                <BookIcon />
-                <span>Definitions</span>
-              </Link>
-            </li>
           </ul>
         </nav>
         {reviewCountError && (
@@ -175,9 +169,6 @@ export function IncidentDossierShell({
             </Link>
             <Link href="/dashboard/analytics" className={styles.compactLink}>
               Analytics
-            </Link>
-            <Link href="/dashboard/definitions" className={styles.compactLink}>
-              Definitions
             </Link>
           </div>
         </nav>
@@ -1521,9 +1512,6 @@ function AnalyticsIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>;
 }
 
-function BookIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>;
-}
 
 function LogoutIcon() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>;
