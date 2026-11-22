@@ -500,7 +500,7 @@
 
 .lifecycleGrid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
   gap: var(--space-xs);
   margin-top: var(--space-xs);
   text-align: center;
@@ -518,12 +518,11 @@
   overflow: hidden;
   max-width: 100%;
   color: #44474c;
-  font-family: var(--font-dashboard-mono), Consolas, monospace;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  line-height: 12px;
+  line-height: 16px;
   text-overflow: ellipsis;
-  text-transform: uppercase;
+  text-transform: none;
   white-space: nowrap;
 }
 
@@ -595,16 +594,60 @@
 }
 
 .chartWrap {
+  display: flex;
   width: 100%;
-  overflow-x: auto;
+  min-height: 180px;
+  flex: 1;
   padding-top: var(--space-lg);
 }
 
-.chart {
-  display: block;
+.bars {
+  display: flex;
   width: 100%;
-  min-width: 560px;
-  height: auto;
+  min-height: 0;
+  flex: 1;
+  align-items: stretch;
+  gap: 6px;
+  border-bottom: 1px solid #dbe5f1;
+}
+
+.barCol {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  padding-bottom: 22px;
+}
+
+.barFill {
+  width: 100%;
+  max-width: 44px;
+  min-height: 2px;
+  border-radius: 4px 4px 0 0;
+  background: #0f766e;
+}
+
+.barValue {
+  color: #111c2d;
+  font-family: var(--font-dashboard-mono), Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 16px;
+}
+
+.barLabel {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #44474c;
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
 }
 
 .gridLine {
@@ -989,5 +1032,93 @@
 
   .priorityGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Desktop one-screen layout: no page scroll. */
+@media (min-width: 1024px) and (min-height: 600px) {
+  .page {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    padding-bottom: var(--space-lg);
+  }
+
+  .workspace {
+    display: grid;
+    min-height: 0;
+    flex: 1;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    grid-template-rows: auto auto minmax(0, auto) minmax(0, 1fr);
+    gap: var(--space-md);
+    padding: var(--space-md) 0 0;
+  }
+
+  .pageHeader,
+  .kpiGrid {
+    grid-column: 1 / -1;
+  }
+
+  .pageHeader {
+    padding: var(--space-sm) var(--space-lg);
+  }
+
+  .kpiCard {
+    min-height: 0;
+    padding: var(--space-md) var(--space-lg);
+  }
+
+  .kpiValueLine > strong {
+    font-size: 28px;
+    line-height: 34px;
+  }
+
+  .breakdownGrid {
+    display: contents;
+  }
+
+  .breakdownGrid > .card:first-child {
+    grid-column: 1;
+    grid-row: 3 / 5;
+  }
+
+  .breakdownGrid > .card:last-child {
+    grid-column: 2;
+    grid-row: 3;
+  }
+
+  .workspace > .card:last-child {
+    grid-column: 2;
+    grid-row: 4;
+  }
+
+  .card {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    overflow: auto;
+    padding: var(--space-md) var(--space-lg);
+  }
+
+  .cardHeader {
+    padding-bottom: var(--space-sm);
+  }
+
+  .typeList {
+    gap: 6px;
+    padding-top: var(--space-md);
+  }
+
+  .flowContent {
+    min-height: 0;
+    padding-top: var(--space-md);
+  }
+
+  .lifecycle {
+    margin-top: var(--space-md);
+  }
+
+  .chartWrap {
+    min-height: 120px;
   }
 }
